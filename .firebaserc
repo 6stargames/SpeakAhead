@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "vpx4900"
+  },
+  "targets": {
+    "vpx4900": {
+      "hosting": {
+        "models": ["webmcp-aac-models"]
+      }
+    }
+  }
+}

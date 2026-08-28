@@ -1,0 +1,21 @@
+node_modules/
+dist/
+dist-ssr/
+.env
+.env.local
+.env.*.local
+.firebase/
+*.log
+.DS_Store
+coverage/
+
+# Edge AI model weights: fetched with `npm run fetch:models`, never committed.
+public/models/**
+!public/models/README.md
+!public/models/.gitkeep
+
+# Local Claude Code tooling (machine-specific paths)
+.claude/
+
+# onnxruntime-web runtime, copied from node_modules by scripts/copy-ort-assets.mjs
+public/ort/

@@ -1,0 +1,14 @@
+[
+  {
+    "origin": [
+      "https://webmcpaac--vpx4900.us-east4.hosted.app",
+      "https://webmcpaac-1092534567115.us-east4.run.app",
+      "http://localhost:5173",
+      "http://localhost:8080",
+      "http://127.0.0.1:8080"
+    ],
+    "method": ["GET", "HEAD"],
+    "responseHeader": ["Content-Type", "Content-Length", "Range", "Accept-Ranges", "Cache-Control"],
+    "maxAgeSeconds": 3600
+  }
+]

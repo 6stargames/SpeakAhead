@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      # The privacy guarantee is the product. If this fails, the build is not
+      # merely broken — it may be unlawful. See docs/BIPA.md.
+      - name: BIPA egress audit
+        run: npm run audit:egress
+
+      - name: Build
+        run: npm run build
+
+      - name: Check the built origin serves isolation headers
+        run: |
+          node server.js &
+          SERVER_PID=$!
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8080/healthz >/dev/null && break
+            sleep 1
+          done
+
+          HEADERS=$(curl -sS -D- -o /dev/null http://127.0.0.1:8080/)
+          echo "$HEADERS"
+          kill $SERVER_PID
+
+          echo "$HEADERS" | grep -qi 'Cross-Origin-Opener-Policy: same-origin' \
+            || { echo "::error::COOP header missing — SharedArrayBuffer will be unavailable"; exit 1; }
+          echo "$HEADERS" | grep -qi 'Cross-Origin-Embedder-Policy: require-corp' \
+            || { echo "::error::COEP header missing — SharedArrayBuffer will be unavailable"; exit 1; }
+          echo "Cross-origin isolation headers present."

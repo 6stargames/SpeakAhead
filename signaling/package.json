@@ -1,0 +1,18 @@
+{
+  "name": "webmcp-aac-signaling",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Regional WebRTC signalling server for the Context-Aware AAC platform",
+  "main": "server.js",
+  "engines": { "node": ">=20.19.0" },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.21.3"
+  },
+  "optionalDependencies": {
+    "ioredis": "^5.4.0"
+  }
+}

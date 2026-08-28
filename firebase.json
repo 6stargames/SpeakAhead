@@ -1,0 +1,41 @@
+{
+  "hosting": [
+    {
+      "//": "Model weights only. The app itself is an App Hosting backend, not a Hosting site — deploy it with `firebase deploy --only apphosting`.",
+      "target": "models",
+      "public": "public/models",
+      "ignore": [
+        "README.md",
+        ".gitkeep",
+        "**/index.html",
+        "**/app-asr.js",
+        "**/app-tts.js",
+        "**/app-vad.js",
+        "**/app.js"
+      ],
+      "headers": [
+        {
+          "//": "Cross-Origin-Resource-Policy is what lets the app keep the specification's COEP: require-corp while loading these from another origin. Cloud Storage cannot set this header, which is why the models live here.",
+          "source": "**",
+          "headers": [
+            { "key": "Cross-Origin-Resource-Policy", "value": "cross-origin" },
+            { "key": "Access-Control-Allow-Origin", "value": "*" },
+            { "key": "Access-Control-Allow-Methods", "value": "GET, HEAD, OPTIONS" },
+            { "key": "Access-Control-Allow-Headers", "value": "Range, Content-Type" },
+            { "key": "Access-Control-Expose-Headers", "value": "Content-Length, Content-Range, Accept-Ranges" },
+            { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+          ]
+        },
+        {
+          "//": "Without the correct type the browser refuses to stream-compile the module, and the error points nowhere useful.",
+          "source": "**/*.wasm",
+          "headers": [{ "key": "Content-Type", "value": "application/wasm" }]
+        },
+        {
+          "source": "**/*.@(data|onnx|bin|ort)",
+          "headers": [{ "key": "Content-Type", "value": "application/octet-stream" }]
+        }
+      ]
+    }
+  ]
+}

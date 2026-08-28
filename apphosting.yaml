@@ -1,0 +1,138 @@
+# Firebase App Hosting configuration.
+#
+# App Hosting builds a container and runs `npm run build` then `npm run start`,
+# so server.js serves the Vite output and applies the Cross-Origin Isolation
+# headers the WebAssembly speech engines need.
+
+runConfig:
+  # Scale to zero: an idle communication device should not bill.
+  minInstances: 0
+
+  # Deliberately one.
+  #
+  # server.js hosts the WebRTC signalling WebSocket alongside the static files,
+  # and room membership lives in that process's memory. With several instances
+  # and no shared state, two people entering the same room code can land on
+  # different containers and never see each other — a failure that looks like
+  # "calls sometimes don't connect" and is thoroughly unpleasant to diagnose.
+  #
+  # To scale out, do one of:
+  #   • set REDIS_URL so the signalling hub fans out across replicas, or
+  #   • deploy signaling/ separately (see docs/DEPLOYMENT.md), set
+  #     VITE_SIGNALING_URL, and set ENABLE_SIGNALING=false here.
+  # Then raise this limit.
+  maxInstances: 1
+
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+env:
+  # --- Model weights ------------------------------------------------------
+  #
+  # Served from a dedicated Firebase Hosting site rather than baked into the
+  # image: ~400 MB in the container would slow every build and every cold
+  # start, and the service worker caches the models client-side after first use
+  # anyway.
+  #
+  # Hosting rather than Cloud Storage for two reasons. This organisation
+  # enforces Domain Restricted Sharing, so `allUsers` cannot be granted on a
+  # bucket and a public GCS object is simply not available. And Hosting can set
+  # arbitrary response headers — including the Cross-Origin-Resource-Policy that
+  # Cloud Storage cannot — which is what lets COEP stay at require-corp below.
+  #
+  # BUILD availability is required, not optional: Vite inlines VITE_* values at
+  # build time, so marking these RUNTIME would silently ship the defaults.
+  #
+  # The Sherpa release is part of each path, and must be. These files are served
+  # `immutable`, so a bundle change has to be a URL change — swapping bytes in
+  # place leaves browsers and the CDN serving the old model for a year to code
+  # that expects the new one. `npm run fetch:models` prints the current paths.
+  - variable: VITE_SHERPA_ASR_BASE
+    value: https://webmcp-aac-models.web.app/asr-v1.13.6
+    availability:
+      - BUILD
+
+  - variable: VITE_SHERPA_TTS_BASE
+    value: https://webmcp-aac-models.web.app/tts-v1.12.37
+    availability:
+      - BUILD
+
+  - variable: VITE_SHERPA_VAD_BASE
+    value: https://webmcp-aac-models.web.app/vad-v1.13.6
+    availability:
+      - BUILD
+
+  # The CAM++ speaker-verification network (voice attribution). A plain .onnx
+  # run by onnxruntime-web, so it needs a URL rather than a bundle base. Same
+  # host, same headers, same immutable-URL rule as the speech bundles.
+  - variable: VITE_SPEAKER_MODEL_URL
+    value: https://webmcp-aac-models.web.app/speaker-v1/campplus-en-voxceleb.onnx
+    availability:
+      - BUILD
+
+  # --- Cross-origin isolation ---------------------------------------------
+  #
+  # The specification's mandated value, and it holds because the model host
+  # sends `Cross-Origin-Resource-Policy: cross-origin` (see firebase.json).
+  # Without that header the Emscripten glue's importScripts — a no-cors request
+  # — would be blocked outright and the speech engines would never start.
+  #
+  # If the models ever move to an origin that cannot set CORP, switch this to
+  # `credentialless`: still crossOriginIsolated on Chromium and Firefox, but
+  # Safari loses isolation and drops to single-threaded inference.
+  - variable: COEP_MODE
+    value: require-corp
+    availability:
+      - RUNTIME
+
+  # --- Signalling -----------------------------------------------------------
+  - variable: ENABLE_SIGNALING
+    value: 'true'
+    availability:
+      - RUNTIME
+
+  # --- TURN -----------------------------------------------------------------
+  #
+  # Cloudflare Realtime. Credentials are minted per request by /api/ice-servers
+  # and never enter the client bundle — VITE_ICE_SERVERS is inlined at build
+  # time, so a credential placed there is readable by anyone who opens the page.
+  #
+  # Both the URL and the auth header live in Secret Manager, not here. The URL
+  # embeds the TURN Token ID, which together with the API token is the whole
+  # credential, so neither belongs in git. Set them with:
+  #
+  #   firebase apphosting:secrets:set turnCredentialsUrl --project vpx4900
+  #   firebase apphosting:secrets:set turnAuthHeader --project vpx4900
+  #
+  # See docs/DEPLOYMENT.md for the exact values.
+  - variable: TURN_PROVIDER
+    value: fetch
+    availability:
+      - RUNTIME
+
+  - variable: TURN_CREDENTIALS_URL
+    secret: turnCredentialsUrl
+    availability:
+      - RUNTIME
+
+  - variable: TURN_CREDENTIALS_AUTH_HEADER
+    secret: turnAuthHeader
+    availability:
+      - RUNTIME
+
+  - variable: TURN_CREDENTIALS_METHOD
+    value: POST
+    availability:
+      - RUNTIME
+
+  # Cloudflare requires a body; ttl is the credential lifetime in seconds.
+  - variable: TURN_CREDENTIALS_BODY
+    value: '{"ttl": 86400}'
+    availability:
+      - RUNTIME
+
+  - variable: TURN_TTL_SECONDS
+    value: '86400'
+    availability:
+      - RUNTIME
