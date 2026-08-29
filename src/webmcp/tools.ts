@@ -12,6 +12,18 @@ function readStringArray(value: unknown, max: number): string[] {
     .slice(0, max);
 }
 
+function readContextSuggestions(value: unknown, max: number): { text: string; symbol: string }[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+    .map((item) => ({
+      text: typeof item.text === 'string' ? item.text.trim().slice(0, 140) : '',
+      symbol: typeof item.symbol === 'string' ? item.symbol.trim().slice(0, 16) : '',
+    }))
+    .filter((item) => item.text.length > 0 && item.symbol.length > 0)
+    .slice(0, max);
+}
+
 // ---------------------------------------------------------------------------
 // Schemas
 // ---------------------------------------------------------------------------
@@ -61,6 +73,43 @@ const composeSchema: JsonSchema = {
   required: ['text'],
 };
 
+const correctionSchema: JsonSchema = {
+  type: 'object',
+  properties: {
+    turnId: { type: 'string', description: 'The exact turn id returned by get-conversation-context.' },
+    originalText: { type: 'string', description: 'The exact current text of that turn.', maxLength: 500 },
+    correctedText: { type: 'string', description: 'The minimally corrected text.', maxLength: 500 },
+    reason: { type: 'string', description: 'A short explanation of the contextual evidence.', maxLength: 180 },
+  },
+  required: ['turnId', 'originalText', 'correctedText', 'reason'],
+};
+
+const suggestionItemSchema: JsonSchema = {
+  type: 'object',
+  properties: {
+    text: { type: 'string', maxLength: 140 },
+    symbol: { type: 'string', description: 'One familiar emoji fallback.', maxLength: 16 },
+  },
+  required: ['text', 'symbol'],
+};
+
+const contextualVocabularySchema: JsonSchema = {
+  type: 'object',
+  properties: {
+    words: { type: 'array', items: suggestionItemSchema, minItems: 3, maxItems: 3 },
+    phrases: { type: 'array', items: suggestionItemSchema, minItems: 3, maxItems: 3 },
+  },
+  required: ['words', 'phrases'],
+};
+
+const themeSchema: JsonSchema = {
+  type: 'object',
+  properties: {
+    theme: { type: 'string', enum: ['emoji', 'anime'] },
+  },
+  required: ['theme'],
+};
+
 // ---------------------------------------------------------------------------
 
 export interface WebMcpToolStates {
@@ -69,6 +118,9 @@ export interface WebMcpToolStates {
   readonly context: WebMcpRegistrationState;
   readonly compose: WebMcpRegistrationState;
   readonly speak: WebMcpRegistrationState;
+  readonly correct: WebMcpRegistrationState;
+  readonly vocabulary: WebMcpRegistrationState;
+  readonly theme: WebMcpRegistrationState;
 }
 
 /**
@@ -149,7 +201,17 @@ export function useAacWebMcpTools(): WebMcpToolStates {
           JSON.stringify(
             {
               transcript,
-              turns: turns.map((turn) => ({ source: turn.source, text: turn.text, at: turn.at })),
+              turns: turns.map((turn) => ({
+                id: turn.id,
+                source: turn.source,
+                text: turn.text,
+                at: turn.at,
+                dictated: turn.dictated,
+                lowConfidenceWords: turn.words
+                  ?.filter((word) => word.confidence < 0.5)
+                  .map((word) => ({ text: word.text, confidence: word.confidence })),
+                correctedFrom: turn.originalText,
+              })),
               composition: state.composition,
               callActive: state.call === 'connected',
               partnerName: state.peerName,
@@ -213,11 +275,88 @@ export function useAacWebMcpTools(): WebMcpToolStates {
     [],
   );
 
+  const correctTool = useMemo<WebMcpToolDefinition>(
+    () => ({
+      name: 'correct-low-confidence-transcript',
+      description:
+        'Minimally repair a finished dictated turn when its recogniser evidence contains a low-confidence word and recent conversation makes the replacement clear. ' +
+        'Read get-conversation-context first. Preserve meaning, tone, grammar, names, and all confident words. Never polish or paraphrase. ' +
+        'The correction is visibly labelled and the user can undo it.',
+      inputSchema: correctionSchema,
+      execute: (args) => {
+        const input = args as Record<string, unknown>;
+        if (
+          typeof input.turnId !== 'string' ||
+          typeof input.originalText !== 'string' ||
+          typeof input.correctedText !== 'string' ||
+          typeof input.reason !== 'string'
+        ) return errorResult('turnId, originalText, correctedText, and reason must be strings.');
+        const turn = store.getState().turns.find((candidate) => candidate.id === input.turnId);
+        if (!turn?.words?.some((word) => word.confidence < 0.5)) {
+          return errorResult('That turn has no low-confidence recogniser word to correct.');
+        }
+        const applied = actions.applyContextCorrection(
+          input.turnId,
+          input.originalText,
+          input.correctedText,
+          input.reason,
+          'chatgpt',
+        );
+        return applied
+          ? textResult('Correction applied and labelled with an undo control.')
+          : errorResult('The turn changed or the correction was not usable, so nothing was overwritten.');
+      },
+    }),
+    [],
+  );
+
+  const vocabularyTool = useMemo<WebMcpToolDefinition>(
+    () => ({
+      name: 'set-contextual-vocabulary',
+      description:
+        'Prepare exactly three useful one-word choices and three short first-person phrase replies for the current conversation. ' +
+        'Read get-conversation-context first. The choices appear only on their matching Words or Phrases board and never speak automatically.',
+      inputSchema: contextualVocabularySchema,
+      execute: (args) => {
+        const input = args as Record<string, unknown>;
+        const words = readContextSuggestions(input.words, 3);
+        const phrases = readContextSuggestions(input.phrases, 3);
+        if (words.length !== 3 || phrases.length !== 3) {
+          return errorResult('Provide exactly three words and three phrases, each with text and an emoji symbol.');
+        }
+        actions.setContextSuggestions(words, phrases);
+        actions.setAssistStatus('ready');
+        return textResult('Context words and phrases are ready for the user.');
+      },
+    }),
+    [],
+  );
+
+  const themeTool = useMemo<WebMcpToolDefinition>(
+    () => ({
+      name: 'set-symbol-theme',
+      description:
+        'Change the device-local button picture style. Only call this after the user explicitly asks for Emoji or Anime. ' +
+        'Anime pictures generate in the background, are cached on this device, and keep emoji fallbacks while loading.',
+      inputSchema: themeSchema,
+      execute: (args) => {
+        const theme = (args as { theme?: unknown }).theme;
+        if (theme !== 'emoji' && theme !== 'anime') return errorResult('theme must be emoji or anime.');
+        actions.setSettings({ symbolTheme: theme });
+        return textResult(`Button picture style changed to ${theme}.`);
+      },
+    }),
+    [],
+  );
+
   return {
     predict: useWebMCPTool(predictTool),
     expand: useWebMCPTool(expandTool),
     context: useWebMCPTool(contextTool),
     compose: useWebMCPTool(composeTool),
     speak: useWebMCPTool(speakTool),
+    correct: useWebMCPTool(correctTool),
+    vocabulary: useWebMCPTool(vocabularyTool),
+    theme: useWebMCPTool(themeTool),
   };
 }

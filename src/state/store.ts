@@ -34,6 +34,12 @@ export interface Turn {
   readonly dictated: boolean;
   /** Per-word decoder confidence, for marking words that may be misheard. */
   readonly words?: readonly { text: string; confidence: number }[];
+  /** The recogniser's text before a contextual correction was applied. */
+  readonly originalText?: string;
+  /** Why the contextual checker changed this turn, shown beside the undo. */
+  readonly correctionReason?: string;
+  /** Which assistant supplied the correction. */
+  readonly correctionSource?: 'chatgpt' | 'on-device';
 }
 
 export type PredictionSourceId = 'webmcp-agent' | 'on-device-model' | 'heuristic' | 'none';
@@ -60,6 +66,16 @@ export interface Settings {
   voiceGender: 'male' | 'female' | 'neutral';
   vadSensitivity: number;
   highContrast: boolean;
+  /** Explicit consent for sending transcript text (never audio) for assistance. */
+  chatGPTAssist: boolean;
+  /** Device-local visual preference for symbols on vocabulary cards. */
+  symbolTheme: 'emoji' | 'anime';
+}
+
+export interface ContextSuggestion {
+  readonly text: string;
+  /** Immediate fallback while a themed image is loading or unavailable. */
+  readonly symbol: string;
 }
 
 /**
@@ -120,6 +136,9 @@ export interface AppState {
   readonly maskedCoreWords: string[];
   readonly predictions: Prediction[];
   readonly predicting: boolean;
+  readonly contextualWords: ContextSuggestion[];
+  readonly contextualPhrases: ContextSuggestion[];
+  readonly assistStatus: 'idle' | 'thinking' | 'ready' | 'local' | 'unavailable' | 'error';
 
   readonly asr: EngineInfo;
   readonly tts: EngineInfo;
@@ -187,6 +206,9 @@ const initialState: AppState = {
   maskedCoreWords: [],
   predictions: [],
   predicting: false,
+  contextualWords: [],
+  contextualPhrases: [],
+  assistStatus: 'idle',
 
   asr: idleEngine,
   tts: idleEngine,
@@ -224,6 +246,8 @@ const initialState: AppState = {
     voiceGender: 'neutral',
     vadSensitivity: 9,
     highContrast: false,
+    chatGPTAssist: true,
+    symbolTheme: 'emoji',
   },
   notices: [],
 };
@@ -378,6 +402,61 @@ export const actions = {
     store.set({ predicting });
   },
 
+  setContextSuggestions(words: ContextSuggestion[], phrases: ContextSuggestion[]): void {
+    store.set({
+      contextualWords: words.slice(0, 3),
+      contextualPhrases: phrases.slice(0, 3),
+    });
+  },
+
+  setAssistStatus(assistStatus: AppState['assistStatus']): void {
+    store.set({ assistStatus });
+  },
+
+  /**
+   * Apply a contextual correction only while the exact recogniser text is
+   * still present. A late network answer must never overwrite a user's edit
+   * or a newer recognition result.
+   */
+  applyContextCorrection(
+    turnId: string,
+    expectedText: string,
+    correctedText: string,
+    reason: string,
+    source: 'chatgpt' | 'on-device' = 'chatgpt',
+  ): boolean {
+    const turn = store.getState().turns.find((candidate) => candidate.id === turnId);
+    const corrected = correctedText.trim();
+    if (!turn || !turn.final || !turn.dictated || turn.text !== expectedText) return false;
+    if (corrected.length === 0 || corrected === turn.text || corrected.length > 500) return false;
+
+    actions.upsertTurn({
+      ...turn,
+      text: corrected,
+      originalText: turn.originalText ?? turn.text,
+      correctionReason: reason.trim().slice(0, 180),
+      correctionSource: source,
+      // Decoder confidences describe the original token sequence. Keeping
+      // them after changing the words would move a squiggle onto the wrong
+      // token, which is worse than clearing it.
+      words: undefined,
+    });
+    return true;
+  },
+
+  revertContextCorrection(turnId: string): boolean {
+    const turn = store.getState().turns.find((candidate) => candidate.id === turnId);
+    if (!turn?.originalText) return false;
+    actions.upsertTurn({
+      ...turn,
+      text: turn.originalText,
+      originalText: undefined,
+      correctionReason: undefined,
+      correctionSource: undefined,
+    });
+    return true;
+  },
+
   /**
    * Upsert a turn.
    *
@@ -499,6 +578,8 @@ export const selectTurns = (state: AppState): Turn[] => state.turns;
 export const selectComposition = (state: AppState): string => state.composition;
 export const selectCompositionAuthor = (state: AppState): CompositionAuthor => state.compositionAuthor;
 export const selectPredictions = (state: AppState): Prediction[] => state.predictions;
+export const selectContextualWords = (state: AppState): ContextSuggestion[] => state.contextualWords;
+export const selectContextualPhrases = (state: AppState): ContextSuggestion[] => state.contextualPhrases;
 export const selectSettings = (state: AppState): Settings => state.settings;
 export const selectCompliance = (state: AppState): ComplianceResult[] => state.compliance;
 export const selectNotices = (state: AppState): AppState['notices'] => state.notices;

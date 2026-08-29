@@ -1,5 +1,6 @@
 import type { JSX } from 'react';
 import type { FitzgeraldClass } from '@/lib/fitzgerald';
+import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
 import { actions, useStore, type AppState } from '@/state/store';
 
 /**
@@ -88,10 +89,15 @@ const selectMasked = (state: AppState): string[] => state.maskedCoreWords;
 const selectEditMode = (state: AppState): boolean => state.editMode;
 const selectFavorites = (state: AppState) => state.favorites;
 
-export function CoreBoard(): JSX.Element {
+const CORE_THEME_ITEMS = Array.from({ length: 6 }, (_, row) =>
+  CORE_WORDS.map((column) => column[row]).filter((cell): cell is CoreWord => Boolean(cell)),
+).flat().map((cell) => ({ text: cell.word, symbol: cell.symbol }));
+
+export function CoreBoard({ themedSymbolsEnabled = false }: { themedSymbolsEnabled?: boolean }): JSX.Element {
   const masked = useStore(selectMasked);
   const editMode = useStore(selectEditMode);
   const favorites = useStore(selectFavorites);
+  const themedSymbols = useThemedSymbols(CORE_THEME_ITEMS, themedSymbolsEnabled);
 
   return (
     <section className="board card panel" aria-label="Core words">
@@ -127,9 +133,10 @@ export function CoreBoard(): JSX.Element {
                     else actions.appendComposition(cell.word);
                   }}
                 >
-                  <span className="cell__symbol" aria-hidden="true">
-                    {cell.symbol}
-                  </span>
+                  <ThemedSymbol
+                    symbol={cell.symbol}
+                    tile={themeTileFor(themedSymbols, { text: cell.word, symbol: cell.symbol })}
+                  />
                   <span className="cell__word">{cell.word}</span>
                 </button>
                 <button

@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import { session } from '@/session/AacSession';
 import { actions, useStore, type AppState, type FavItem } from '@/state/store';
+import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
 
 const selectFavorites = (state: AppState): FavItem[] => state.favorites;
 
@@ -11,8 +12,9 @@ const selectFavorites = (state: AppState): FavItem[] => state.favorites;
  * boards carries a small star, and starring it puts it here. Tapping a fav
  * speaks it; tapping its star lets it go again.
  */
-export function FringeBoard(): JSX.Element {
+export function FringeBoard({ themedSymbolsEnabled = false }: { themedSymbolsEnabled?: boolean }): JSX.Element {
   const favorites = useStore(selectFavorites);
+  const themedSymbols = useThemedSymbols(favorites, themedSymbolsEnabled);
 
   return (
     <section className="board card panel" aria-label="Favs">
@@ -34,9 +36,7 @@ export function FringeBoard(): JSX.Element {
                 }}
               >
                 {item.symbol && (
-                  <span className="cell__symbol" aria-hidden="true">
-                    {item.symbol}
-                  </span>
+                  <ThemedSymbol symbol={item.symbol} tile={themeTileFor(themedSymbols, item)} />
                 )}
                 <span className="cell__word">{item.text}</span>
               </button>

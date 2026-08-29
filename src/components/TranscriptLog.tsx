@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, ty
 import { formatLoadPercent } from '@/lib/progress';
 import { alignWordsToText } from '@/speech/confidence';
 import { session } from '@/session/AacSession';
-import { selectTurns, useStore, type AppState, type Turn } from '@/state/store';
+import { actions, selectTurns, useStore, type AppState, type Turn } from '@/state/store';
 import type { SpeakerProfile } from '@/speech/speakers';
 import { CallCorner } from './CallCorner';
 import { LoadProgress } from './LoadProgress';
@@ -193,6 +193,16 @@ function TurnRow({
         <span>{formatTime(turn.at)}</span>
         {turn.viaRtt && <span className="turn__badge">real-time text</span>}
         {unspoken && <span className="turn__badge">not spoken aloud</span>}
+        {turn.originalText && (
+          <button
+            type="button"
+            className="turn__badge turn__correction"
+            title={`${turn.correctionReason ?? 'An uncertain word was corrected from context.'} Original: ${turn.originalText}`}
+            onClick={() => actions.revertContextCorrection(turn.id)}
+          >
+            {turn.correctionSource === 'chatgpt' ? 'ChatGPT corrected' : 'context corrected'} · undo
+          </button>
+        )}
         {!turn.final && <span className="turn__badge">still speaking</span>}
       </header>
       <p className="turn__text">

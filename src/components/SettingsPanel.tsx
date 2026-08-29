@@ -68,12 +68,38 @@ function OptionRow<T>({
   );
 }
 
-export function SettingsPanel(): JSX.Element {
+export function SettingsPanel({ signedIn = false }: { signedIn?: boolean }): JSX.Element {
   const settings = useStore(selectSettings);
 
   return (
     <div className="panel settings-panel">
       <h2 className="panel__title">Settings</h2>
+
+      {signedIn && (
+        <OptionRow
+          label="ChatGPT context help?"
+          hint="Uses the recent chat text to repair uncertain words and prepare quick replies. Microphone audio never leaves this device."
+          value={settings.chatGPTAssist}
+          options={[
+            { label: 'On', value: true, symbol: '✨' },
+            { label: 'Off', value: false, symbol: '🔒' },
+          ]}
+          onChange={(chatGPTAssist) => actions.setSettings({ chatGPTAssist })}
+        />
+      )}
+
+      {signedIn && (
+        <OptionRow
+          label="Button pictures"
+          hint="Anime pictures are generated once, stored on this device, and reused. Emoji always remain as a fallback."
+          value={settings.symbolTheme}
+          options={[
+            { label: 'Emoji', value: 'emoji' as const, symbol: '🙂' },
+            { label: 'Anime', value: 'anime' as const, symbol: '🎨' },
+          ]}
+          onChange={(symbolTheme) => actions.setSettings({ symbolTheme })}
+        />
+      )}
 
       <OptionRow
         label="What kind of voice?"

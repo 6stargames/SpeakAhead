@@ -5,6 +5,8 @@ import { toolRegistry } from '@/webmcp/registry';
 import { useWebMCPTool } from '@/webmcp/useWebMCPTool';
 import { errorResult, findModelContext, isWebMcpAvailable, textResult } from '@/webmcp/types';
 import type { JsonSchema, WebMcpToolDefinition } from '@/webmcp/types';
+import { useAacWebMcpTools } from '@/webmcp/tools';
+import { actions, store } from '@/state/store';
 
 const schema: JsonSchema = { type: 'object', properties: { value: { type: 'string' } } };
 
@@ -231,6 +233,57 @@ describe('ToolRegistry', () => {
 
     unregister();
     stop();
+  });
+});
+
+describe('AAC context tools', () => {
+  function AacHarness() {
+    useAacWebMcpTools();
+    return null;
+  }
+
+  it('registers contextual correction, vocabulary, and theme controls', async () => {
+    store.reset();
+    render(<AacHarness />);
+
+    expect(toolRegistry.get('correct-low-confidence-transcript')).toBeDefined();
+    expect(toolRegistry.get('set-contextual-vocabulary')).toBeDefined();
+    expect(toolRegistry.get('set-symbol-theme')).toBeDefined();
+
+    await toolRegistry.invoke('set-contextual-vocabulary', {
+      words: [
+        { text: 'water', symbol: '💧' },
+        { text: 'yes', symbol: '✅' },
+        { text: 'wait', symbol: '⏳' },
+      ],
+      phrases: [
+        { text: 'Yes, please.', symbol: '✅' },
+        { text: 'No, thank you.', symbol: '🚫' },
+        { text: 'Please wait.', symbol: '⏳' },
+      ],
+    });
+    expect(store.getState().contextualWords).toHaveLength(3);
+
+    await toolRegistry.invoke('set-symbol-theme', { theme: 'anime' });
+    expect(store.getState().settings.symbolTheme).toBe('anime');
+
+    actions.upsertTurn({
+      id: 'uncertain',
+      source: 'peer',
+      text: 'some watter',
+      final: true,
+      dictated: true,
+      words: [{ text: 'some', confidence: 0.9 }, { text: 'watter', confidence: 0.2 }],
+    });
+    await toolRegistry.invoke('correct-low-confidence-transcript', {
+      turnId: 'uncertain',
+      originalText: 'some watter',
+      correctedText: 'some water',
+      reason: 'Water was already being discussed.',
+    });
+    expect(store.getState().turns[0]?.text).toBe('some water');
+
+    unmount();
   });
 });
 

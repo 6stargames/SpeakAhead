@@ -13,6 +13,7 @@ import { TranscriptLog } from '@/components/TranscriptLog';
 import { VerificationPanel } from '@/components/VerificationPanel';
 import { VoicePanel } from '@/components/VoicePanel';
 import { session } from '@/session/AacSession';
+import { useContextAssist } from '@/assist/useContextAssist';
 import { actions, selectSettings, useStore, type AppState } from '@/state/store';
 import { useAacWebMcpTools } from '@/webmcp/tools';
 
@@ -91,10 +92,14 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
   const emergency = useStore(selectEmergency);
   const editMode = useStore(selectEditMode);
   const health = useStore(selectHealth);
+  const signedIn = Boolean(chatGPTIdentity?.displayName);
+  const themedSymbolsEnabled =
+    signedIn && settings.symbolTheme === 'anime';
 
   // Tools must be registered from a component so their lifetime is bound to the
   // React tree — that is what guarantees the AbortController teardown runs.
   useAacWebMcpTools();
+  useContextAssist(signedIn);
 
   useEffect(() => {
     actions.loadVocab();
@@ -162,9 +167,9 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
         </nav>
 
         <main className="app__view">
-          {view === 'core' && <CoreBoard />}
-          {view === 'fringe' && <FringeBoard />}
-          {view === 'phrases' && <PhraseBoard />}
+          {view === 'core' && <CoreBoard themedSymbolsEnabled={themedSymbolsEnabled} />}
+          {view === 'fringe' && <FringeBoard themedSymbolsEnabled={themedSymbolsEnabled} />}
+          {view === 'phrases' && <PhraseBoard themedSymbolsEnabled={themedSymbolsEnabled} />}
           {view === 'voice' && (
             <section className="card">
               <VoicePanel />
@@ -172,7 +177,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
           )}
           {view === 'settings' && (
             <section className="card">
-              <SettingsPanel />
+              <SettingsPanel signedIn={signedIn} />
             </section>
           )}
           {view === 'diagnostics' && (
@@ -186,7 +191,10 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
       {/* Floating, self-hiding: renders only while there is something
           machine-suggested to show, over the board rather than in a row of
           its own, so the layout never reserves space for it. */}
-      <SuggestionStrip />
+      <SuggestionStrip
+        contextMode={view === 'core' ? 'words' : view === 'phrases' ? 'phrases' : null}
+        themedSymbolsEnabled={themedSymbolsEnabled}
+      />
 
       <NoticeStack />
 

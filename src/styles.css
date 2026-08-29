@@ -749,6 +749,14 @@ body {
   background: var(--accent-soft);
   color: var(--text);
 }
+.prediction--symbol {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.prediction--symbol .cell__symbol {
+  font-size: 1.2em;
+}
 .prediction,
 .prediction * {
   white-space: nowrap;
@@ -841,6 +849,13 @@ body {
 .cell__symbol {
   font-size: 1.5em;
   line-height: 1.1;
+}
+.cell__symbol--themed {
+  display: inline-block;
+  width: 1.55em;
+  height: 1.55em;
+  flex: 0 0 1.55em;
+  background-repeat: no-repeat;
 }
 .cell__word {
   overflow-wrap: anywhere;
@@ -1293,6 +1308,14 @@ body {
   background: transparent;
   text-transform: none;
   letter-spacing: 0;
+}
+.turn__correction {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.turn__correction:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
 }
 
 /* --- Panels ---------------------------------------------------------------- */

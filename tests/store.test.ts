@@ -201,19 +201,86 @@ describe('settings persistence', () => {
   });
 
   it('round-trips through local storage', () => {
-    actions.setSettings({ speechRate: 1.4, highContrast: true });
+    actions.setSettings({
+      speechRate: 1.4,
+      highContrast: true,
+      chatGPTAssist: false,
+      symbolTheme: 'anime',
+    });
     store.reset();
     expect(store.getState().settings.speechRate).toBe(1);
 
     actions.loadSettings();
     expect(store.getState().settings.speechRate).toBe(1.4);
     expect(store.getState().settings.highContrast).toBe(true);
+    expect(store.getState().settings.chatGPTAssist).toBe(false);
+    expect(store.getState().settings.symbolTheme).toBe('anime');
   });
 
   it('survives corrupt stored settings', () => {
     localStorage.setItem('aac.settings.v1', '{not json');
     expect(() => actions.loadSettings()).not.toThrow();
     expect(store.getState().settings.speechRate).toBe(1);
+  });
+});
+
+describe('context corrections', () => {
+  beforeEach(() => {
+    store.reset();
+  });
+
+  it('applies only to the exact current dictated turn and remains undoable', () => {
+    actions.upsertTurn({
+      id: 'turn_uncertain',
+      source: 'peer',
+      text: 'Would you like watter?',
+      final: true,
+      dictated: true,
+      words: [
+        { text: 'Would', confidence: 0.96 },
+        { text: 'you', confidence: 0.98 },
+        { text: 'like', confidence: 0.91 },
+        { text: 'watter?', confidence: 0.31 },
+      ],
+    });
+
+    expect(
+      actions.applyContextCorrection(
+        'turn_uncertain',
+        'Would you like watter?',
+        'Would you like water?',
+        'Water was already being discussed.',
+      ),
+    ).toBe(true);
+    expect(store.getState().turns[0]).toMatchObject({
+      text: 'Would you like water?',
+      originalText: 'Would you like watter?',
+      correctionSource: 'chatgpt',
+    });
+    expect(store.getState().turns[0]?.words).toBeUndefined();
+
+    expect(actions.revertContextCorrection('turn_uncertain')).toBe(true);
+    expect(store.getState().turns[0]?.text).toBe('Would you like watter?');
+    expect(store.getState().turns[0]?.originalText).toBeUndefined();
+  });
+
+  it('refuses a stale correction instead of overwriting newer text', () => {
+    actions.upsertTurn({
+      id: 'turn_changed',
+      source: 'user',
+      text: 'The current version.',
+      final: true,
+      dictated: true,
+    });
+    expect(
+      actions.applyContextCorrection(
+        'turn_changed',
+        'An older version.',
+        'A corrected older version.',
+        'Stale response.',
+      ),
+    ).toBe(false);
+    expect(store.getState().turns[0]?.text).toBe('The current version.');
   });
 });
 

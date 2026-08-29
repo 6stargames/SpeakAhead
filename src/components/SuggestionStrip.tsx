@@ -2,11 +2,15 @@ import type { JSX } from 'react';
 import { session } from '@/session/AacSession';
 import {
   actions,
+  selectContextualPhrases,
+  selectContextualWords,
   selectPredictions,
   useStore,
   type AppState,
+  type ContextSuggestion,
   type PredictionSourceId,
 } from '@/state/store';
+import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
 
 const SOURCE_LABELS: Record<PredictionSourceId, string> = {
   'webmcp-agent': 'from the attached agent',
@@ -21,6 +25,7 @@ const selectAsrReady = (state: AppState): boolean => state.asr.status === 'ready
 const selectMicError = (state: AppState): string | null => state.micError;
 const selectMicPermission = (state: AppState) => state.micPermission;
 const selectPredicting = (state: AppState): boolean => state.predicting;
+const selectAssistStatus = (state: AppState): AppState['assistStatus'] => state.assistStatus;
 
 /**
  * The quarantine surface for everything machine-suggested — staged agent
@@ -33,7 +38,13 @@ const selectPredicting = (state: AppState): boolean => state.predicting;
  * suggestion speaks it — that is the user's deliberate act — and staged
  * agent speech still needs its explicit "Speak it" confirmation.
  */
-export function SuggestionStrip(): JSX.Element | null {
+export function SuggestionStrip({
+  contextMode = null,
+  themedSymbolsEnabled = false,
+}: {
+  contextMode?: 'words' | 'phrases' | null;
+  themedSymbolsEnabled?: boolean;
+}): JSX.Element | null {
   const staged = useStore(selectStaged);
   const micActive = useStore(selectMicActive);
   const asrReady = useStore(selectAsrReady);
@@ -41,11 +52,25 @@ export function SuggestionStrip(): JSX.Element | null {
   const micPermission = useStore(selectMicPermission);
   const predictions = useStore(selectPredictions);
   const predicting = useStore(selectPredicting);
+  const contextualWords = useStore(selectContextualWords);
+  const contextualPhrases = useStore(selectContextualPhrases);
+  const assistStatus = useStore(selectAssistStatus);
+
+  const contextual: ContextSuggestion[] =
+    contextMode === 'words' ? contextualWords : contextMode === 'phrases' ? contextualPhrases : [];
+  const themedSymbols = useThemedSymbols(contextual, themedSymbolsEnabled);
 
   const micProblem = !micActive && (micError !== null || (asrReady && micPermission === 'denied'));
   const source = predictions[0]?.source ?? 'none';
 
-  if (staged === null && !micProblem && predictions.length === 0 && !predicting) return null;
+  if (
+    staged === null &&
+    !micProblem &&
+    predictions.length === 0 &&
+    contextual.length === 0 &&
+    !predicting &&
+    assistStatus !== 'thinking'
+  ) return null;
 
   return (
     <div className="suggest-overlay card" aria-label="Suggestions" aria-live="polite" data-scan="">
@@ -98,7 +123,40 @@ export function SuggestionStrip(): JSX.Element | null {
 
       {predicting && <p className="suggest-overlay__label">Thinking…</p>}
 
-      {predictions.length > 0 && (
+      {assistStatus === 'thinking' && contextMode && (
+        <p className="suggest-overlay__label">Preparing context choices…</p>
+      )}
+
+      {contextual.length > 0 && contextMode && (
+        <>
+          <p className="suggest-overlay__label">
+            Context {contextMode}{assistStatus === 'local' ? ' · on-device fallback' : ' · with ChatGPT'}
+          </p>
+          <ul className="predictions" aria-label={`Context-aware ${contextMode}`}>
+            {contextual.map((suggestion, index) => (
+              <li key={`${suggestion.text}-${index}`}>
+                <button
+                  type="button"
+                  className="button prediction prediction--symbol"
+                  title={suggestion.text}
+                  onClick={() => {
+                    if (contextMode === 'words') actions.appendComposition(suggestion.text);
+                    else void session.speak(suggestion.text);
+                  }}
+                >
+                  <ThemedSymbol
+                    symbol={suggestion.symbol}
+                    tile={themeTileFor(themedSymbols, suggestion)}
+                  />
+                  <span>{suggestion.text}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {predictions.length > 0 && contextual.length === 0 && (
         <>
           <p className="suggest-overlay__label">
             Suggestions {SOURCE_LABELS[source]} · tap to speak immediately

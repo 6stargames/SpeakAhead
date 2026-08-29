@@ -2,6 +2,7 @@ import type { JSX } from 'react';
 import { session } from '@/session/AacSession';
 import { actions, useStore, type AppState } from '@/state/store';
 import type { FitzgeraldClass } from '@/lib/fitzgerald';
+import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
 
 interface Phrase {
   readonly text: string;
@@ -98,9 +99,11 @@ const ALL_PHRASES = CATEGORIES.flatMap((category) =>
 );
 
 const selectFavorites = (state: AppState) => state.favorites;
+const PHRASE_THEME_ITEMS = ALL_PHRASES.map(({ text, symbol }) => ({ text, symbol }));
 
-export function PhraseBoard(): JSX.Element {
+export function PhraseBoard({ themedSymbolsEnabled = false }: { themedSymbolsEnabled?: boolean }): JSX.Element {
   const favorites = useStore(selectFavorites);
+  const themedSymbols = useThemedSymbols(PHRASE_THEME_ITEMS, themedSymbolsEnabled);
 
   return (
     <section className="board card panel" aria-label="Phrases">
@@ -117,9 +120,10 @@ export function PhraseBoard(): JSX.Element {
                   void session.speak(phrase.text);
                 }}
               >
-                <span className="cell__symbol" aria-hidden="true">
-                  {phrase.symbol}
-                </span>
+                <ThemedSymbol
+                  symbol={phrase.symbol}
+                  tile={themeTileFor(themedSymbols, phrase)}
+                />
                 <span className="cell__word">{phrase.text}</span>
               </button>
               <button
