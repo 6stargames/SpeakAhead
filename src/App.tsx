@@ -1,4 +1,5 @@
 import { useEffect, useState, type JSX } from 'react';
+import type { ChatGPTIdentity } from '@/auth/chatgpt';
 import { CoreBoard } from '@/components/CoreBoard';
 import { EmergencyBar } from '@/components/EmergencyBar';
 import { FringeBoard } from '@/components/FringeBoard';
@@ -83,7 +84,7 @@ function SpineItem({
   );
 }
 
-export function App(): JSX.Element {
+export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | null } = {}): JSX.Element {
   const [view, setView] = useState<View>('core');
   const settings = useStore(selectSettings);
   const emergency = useStore(selectEmergency);
@@ -121,7 +122,7 @@ export function App(): JSX.Element {
           fixed motor plan. Machine suggestions arrive as a floating overlay —
           no reserved row, no reflow. The transcript lives behind the Listen
           view — useful, passive, and no longer the landlord of the layout. */}
-      <OutputRibbon />
+      <OutputRibbon chatGPTIdentity={chatGPTIdentity ?? null} />
 
       <div className="app__main">
         {/* The conversation always sits to the LEFT of the spine, so the

@@ -21,10 +21,10 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": false,
 
-    "types": ["vite/client", "node"],
+    "types": ["vite/client", "node", "vinext/types"],
     "baseUrl": ".",
     "paths": { "@/*": ["src/*"] }
   },
-  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "scripts"],
-  "exclude": ["node_modules", "dist", "public/workers", "public/worklets"]
+  "include": ["app", "src", "tests", "vite.config.ts", "vitest.config.ts", "scripts", "next.config.ts", "proxy.ts"],
+  "exclude": ["node_modules", "dist", ".vinext", ".next", "public/workers", "public/worklets"]
 }

@@ -1,6 +1,9 @@
 node_modules/
 dist/
 dist-ssr/
+.next/
+.vinext/
+.wrangler/
 .env
 .env.local
 .env.*.local
@@ -8,6 +11,7 @@ dist-ssr/
 *.log
 .DS_Store
 coverage/
+next-env.d.ts
 
 # Edge AI model weights: fetched with `npm run fetch:models`, never committed.
 public/models/**

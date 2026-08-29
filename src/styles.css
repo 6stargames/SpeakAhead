@@ -253,6 +253,26 @@ body {
   flex-direction: column;
 }
 
+.app-loading {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  color: var(--text-muted);
+  background: var(--surface);
+  font-weight: 700;
+}
+.app-loading__mark {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: #111827;
+  border-radius: 50%;
+}
+
 /*
  * WCAG 2.2 SC 2.4.13 at AAA: a two-layer ring at least 2px thick with 3:1
  * contrast against every adjacent colour. The transparent outline keeps the
@@ -485,6 +505,53 @@ body {
   padding: var(--space-3) var(--space-4);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+}
+
+.ribbon__auth {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.chatgpt-auth {
+  min-height: var(--tap-min);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  color: var(--text);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.78em;
+  font-weight: 700;
+  line-height: 1.15;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.chatgpt-auth:hover,
+.chatgpt-auth:focus-visible {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+.chatgpt-auth__mark {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: #fff;
+  background: #111827;
+  border-radius: 50%;
+  font-size: 1rem;
+}
+.chatgpt-auth--signed-in .chatgpt-auth__mark {
+  background: var(--success);
+}
+.chatgpt-auth__name {
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ribbon__message {
@@ -1888,6 +1955,9 @@ body {
   .ribbon__actions {
     width: 100%;
   }
+  .ribbon__message {
+    flex-basis: calc(100% - 10rem);
+  }
   .ribbon__actions .button--speak {
     flex: 1;
   }
@@ -1912,6 +1982,12 @@ body {
 }
 
 @media (max-width: 640px) {
+  .ribbon__auth {
+    width: 100%;
+  }
+  .chatgpt-auth {
+    min-height: 2.75rem;
+  }
   .board__grid--core {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
