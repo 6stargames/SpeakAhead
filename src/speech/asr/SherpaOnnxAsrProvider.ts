@@ -1,5 +1,6 @@
 import type { AudioFrame, CaptureChannel } from '@/audio/AudioGraph';
 import { Emitter } from '@/lib/events';
+import { createIsolatedWorker } from '@/lib/isolatedWorker';
 import { isModuleBundle } from '../bundleShape';
 import { wordConfidences } from '../confidence';
 import { EnergyVad, type VadOptions } from '../vad';
@@ -93,7 +94,7 @@ export class SherpaOnnxAsrProvider implements AsrProvider {
     const entries = { ...DEFAULT_ENTRIES, ...this.#options.entries };
     const moduleBundle = await isModuleBundle(this.#options.base, entries.glue);
 
-    const worker = new Worker(WORKER_URL, { type: moduleBundle ? 'module' : 'classic' });
+    const worker = createIsolatedWorker(WORKER_URL, moduleBundle ? 'module' : 'classic');
     this.#worker = worker;
 
     const readyPromise = new Promise<void>((resolve, reject) => {

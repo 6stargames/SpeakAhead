@@ -1,5 +1,6 @@
 import { Emitter } from '@/lib/events';
 import { createId } from '@/lib/id';
+import { createIsolatedWorker } from '@/lib/isolatedWorker';
 import { deriveVitsConfig, inspectBundle } from '../bundleShape';
 import type { EngineInfo, SynthesisRequest, SynthesisResult, TtsEvents, TtsProvider, TtsVoice } from '../types';
 
@@ -116,8 +117,8 @@ export class SherpaOnnxTtsProvider implements TtsProvider {
     this.#bundled = moduleBundle && (await hasBundledWorker(this.#options.base));
 
     const worker = this.#bundled
-      ? new Worker(`${this.#options.base}/${BUNDLED_WORKER}`, { type: 'module' })
-      : new Worker(WORKER_URL, { type: moduleBundle ? 'module' : 'classic' });
+      ? createIsolatedWorker(`${this.#options.base}/${BUNDLED_WORKER}`, 'module')
+      : createIsolatedWorker(WORKER_URL, moduleBundle ? 'module' : 'classic');
     this.#worker = worker;
 
     const readyPromise = new Promise<void>((resolve, reject) => {

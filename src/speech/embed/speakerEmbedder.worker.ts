@@ -21,11 +21,10 @@ import { FBANK_BINS, kaldiFbank } from '@/speech/fbank';
 // scripts/copy-ort-assets.mjs) and cached offline by the *.wasm runtime rule.
 // Only the wasm key is set: a directory here would force the loader to be
 // fetched externally too, which Vite refuses to serve as a module in dev.
-ort.env.wasm.wasmPaths = { wasm: '/ort/ort-wasm-simd-threaded.wasm' };
 ort.env.wasm.numThreads = 1;
 
 type Request =
-  | { type: 'load'; modelUrl: string }
+  | { type: 'load'; modelUrl: string; wasmUrl: string }
   | { type: 'embed'; id: number; samples: Float32Array; sampleRate: number };
 
 type Response =
@@ -40,7 +39,10 @@ const post = (message: Response, transfer: Transferable[] = []): void => {
 let session: ort.InferenceSession | null = null;
 let loading: Promise<void> | null = null;
 
-async function load(modelUrl: string): Promise<void> {
+async function load(modelUrl: string, wasmUrl: string): Promise<void> {
+  // The worker can run behind a blob bootstrap, where root-relative URLs have
+  // no hierarchical base. The main thread supplies an absolute trusted URL.
+  ort.env.wasm.wasmPaths = { wasm: wasmUrl };
   const response = await fetch(modelUrl);
   if (!response.ok) throw new Error(`HTTP ${response.status} for ${modelUrl}`);
   const bytes = new Uint8Array(await response.arrayBuffer());
@@ -83,7 +85,7 @@ self.onmessage = (event: MessageEvent<Request>): void => {
   const message = event.data;
 
   if (message.type === 'load') {
-    loading ??= load(message.modelUrl)
+    loading ??= load(message.modelUrl, message.wasmUrl)
       // The runtime tag deliberately versions the emitted worker asset. The
       // previous content-hashed URL may be preserved by an installed service
       // worker together with its pre-isolation response headers; a new URL

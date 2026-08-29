@@ -8,7 +8,8 @@
  * downloading) and fully offline (model already in the cache).
  */
 
-import SpeakerEmbedderWorker from './speakerEmbedder.worker.ts?worker';
+import { createIsolatedWorker } from '@/lib/isolatedWorker';
+import speakerEmbedderWorkerUrl from './speakerEmbedder.worker.ts?worker&url';
 
 interface Pending {
   resolve: (embedding: Float32Array | null) => void;
@@ -40,11 +41,7 @@ export class SpeakerEmbedder {
   start(modelUrl: string): void {
     if (this.#worker || this.#failed !== null) return;
     try {
-      // The Vite worker constructor keeps Vinext's server-side source URL out
-      // of the browser bundle. `new URL(..., import.meta.url)` is normally
-      // equivalent, but Vinext rewrites that base to a `file:///ROOT/...`
-      // placeholder, which browsers correctly reject on an HTTPS origin.
-      this.#worker = new SpeakerEmbedderWorker();
+      this.#worker = createIsolatedWorker(speakerEmbedderWorkerUrl, 'module');
     } catch (error) {
       this.#failed = error instanceof Error ? error.message : String(error);
       this.#announce('error', this.#failed);
@@ -84,7 +81,11 @@ export class SpeakerEmbedder {
       this.#announce('error', this.#failed);
     };
 
-    this.#worker.postMessage({ type: 'load', modelUrl });
+    this.#worker.postMessage({
+      type: 'load',
+      modelUrl,
+      wasmUrl: new URL('/ort/ort-wasm-simd-threaded.wasm', globalThis.location.href).href,
+    });
   }
 
   get ready(): boolean {
