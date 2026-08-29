@@ -2,13 +2,17 @@
 
 import { useEffect } from 'react';
 import { registerSW } from 'virtual:pwa-register';
-import { ensureCurrentBuild } from '@/lib/freshness';
 
 export function PwaRegistration() {
   useEffect(() => {
     if (!import.meta.env.PROD) return;
 
-    void ensureCurrentBuild(import.meta.url);
+    // Do not call the legacy Firebase freshness endpoint here. This component
+    // is bundled as a Vinext chunk on Sites, while `/api/build` belongs to the
+    // original Firebase deployment and reports its Vite `index-*.js` asset.
+    // Comparing those unrelated filenames makes every Sites build look stale
+    // and can trigger an unnecessary reload. The service worker's own update
+    // check below is the source of truth for this deployment.
     registerSW({
       immediate: true,
       onRegisteredSW(_url, registration) {
