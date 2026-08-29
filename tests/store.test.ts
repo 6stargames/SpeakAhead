@@ -182,6 +182,32 @@ describe('predictions and notices', () => {
   });
 });
 
+describe('assistant activity', () => {
+  beforeEach(() => {
+    store.reset();
+  });
+
+  it('tracks concurrent work without allowing a negative task count', () => {
+    actions.beginAssistTask('themes');
+    actions.beginAssistTask('themes');
+    expect(store.getState().assistFeatures.themes.activeTasks).toBe(2);
+
+    actions.finishAssistTask('themes', 'ready', 9);
+    expect(store.getState().assistFeatures.themes).toMatchObject({
+      activeTasks: 1,
+      status: 'working',
+    });
+
+    actions.finishAssistTask('themes', 'ready', 18);
+    actions.finishAssistTask('themes', 'ready', 18);
+    expect(store.getState().assistFeatures.themes).toEqual({
+      activeTasks: 0,
+      status: 'ready',
+      resultCount: 18,
+    });
+  });
+});
+
 describe('settings persistence', () => {
   beforeEach(() => {
     store.reset();

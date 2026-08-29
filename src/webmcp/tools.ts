@@ -145,7 +145,9 @@ export function useAacWebMcpTools(): WebMcpToolStates {
         if (suggestions.length === 0) {
           return errorResult('No usable suggestions were supplied. Provide three non-empty strings.');
         }
+        actions.beginAssistTask('suggestions');
         actions.setPredictions(suggestions.map((text) => ({ text, source: 'webmcp-agent' })));
+        actions.finishAssistTask('suggestions', 'ready', suggestions.length);
         return textResult(`Presented ${suggestions.length} suggestions to the user.`);
       },
     }),
@@ -295,6 +297,7 @@ export function useAacWebMcpTools(): WebMcpToolStates {
         if (!turn?.words?.some((word) => word.confidence < 0.5)) {
           return errorResult('That turn has no low-confidence recogniser word to correct.');
         }
+        actions.beginAssistTask('corrections');
         const applied = actions.applyContextCorrection(
           input.turnId,
           input.originalText,
@@ -302,6 +305,7 @@ export function useAacWebMcpTools(): WebMcpToolStates {
           input.reason,
           'chatgpt',
         );
+        actions.finishAssistTask('corrections', applied ? 'ready' : 'error', applied ? 1 : 0);
         return applied
           ? textResult('Correction applied and labelled with an undo control.')
           : errorResult('The turn changed or the correction was not usable, so nothing was overwritten.');
@@ -324,8 +328,10 @@ export function useAacWebMcpTools(): WebMcpToolStates {
         if (words.length !== 3 || phrases.length !== 3) {
           return errorResult('Provide exactly three words and three phrases, each with text and an emoji symbol.');
         }
+        actions.beginAssistTask('suggestions');
         actions.setContextSuggestions(words, phrases);
         actions.setAssistStatus('ready');
+        actions.finishAssistTask('suggestions', 'ready', words.length + phrases.length);
         return textResult('Context words and phrases are ready for the user.');
       },
     }),
@@ -343,6 +349,7 @@ export function useAacWebMcpTools(): WebMcpToolStates {
         const theme = (args as { theme?: unknown }).theme;
         if (theme !== 'emoji' && theme !== 'anime') return errorResult('theme must be emoji or anime.');
         actions.setSettings({ symbolTheme: theme });
+        actions.setAssistFeatureStatus('themes', 'idle');
         return textResult(`Button picture style changed to ${theme}.`);
       },
     }),

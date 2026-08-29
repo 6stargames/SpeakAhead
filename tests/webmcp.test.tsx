@@ -7,6 +7,7 @@ import { errorResult, findModelContext, isWebMcpAvailable, textResult } from '@/
 import type { JsonSchema, WebMcpToolDefinition } from '@/webmcp/types';
 import { useAacWebMcpTools } from '@/webmcp/tools';
 import { actions, store } from '@/state/store';
+import { ChatGPTAuthButton } from '@/components/ChatGPTAuthButton';
 
 const schema: JsonSchema = { type: 'object', properties: { value: { type: 'string' } } };
 
@@ -263,6 +264,11 @@ describe('AAC context tools', () => {
       ],
     });
     expect(store.getState().contextualWords).toHaveLength(3);
+    expect(store.getState().assistFeatures.suggestions).toMatchObject({
+      activeTasks: 0,
+      status: 'ready',
+      resultCount: 6,
+    });
 
     await toolRegistry.invoke('set-symbol-theme', { theme: 'anime' });
     expect(store.getState().settings.symbolTheme).toBe('anime');
@@ -282,6 +288,37 @@ describe('AAC context tools', () => {
       reason: 'Water was already being discussed.',
     });
     expect(store.getState().turns[0]?.text).toBe('some water');
+    expect(store.getState().assistFeatures.corrections).toMatchObject({
+      activeTasks: 0,
+      status: 'ready',
+      resultCount: 1,
+    });
+
+    unmount();
+  });
+
+  it('shows all three feature icons and a live working-task count beside the user', () => {
+    store.reset();
+    render(
+      <ChatGPTAuthButton
+        identity={{ displayName: 'Danny', email: 'danny@example.com', signOutPath: '/signout' }}
+      />,
+    );
+
+    expect(container.querySelectorAll('.assist-feature')).toHaveLength(3);
+    const replies = [...container.querySelectorAll<HTMLElement>('.assist-feature')].find((element) =>
+      element.getAttribute('aria-label')?.startsWith('Quick replies:'),
+    );
+    expect(replies).toBeDefined();
+    expect(replies?.querySelector('.assist-feature__count')?.textContent).toBe('0');
+
+    act(() => actions.beginAssistTask('suggestions'));
+    expect(replies?.querySelector('.assist-feature__count')?.textContent).toBe('1');
+    expect(replies?.classList.contains('assist-feature--working')).toBe(true);
+
+    act(() => actions.finishAssistTask('suggestions', 'ready', 6));
+    expect(replies?.querySelector('.assist-feature__count')?.textContent).toBe('6');
+    expect(replies?.classList.contains('assist-feature--ready')).toBe(true);
 
     unmount();
   });

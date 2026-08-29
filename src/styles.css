@@ -513,6 +513,18 @@ body {
   text-decoration: none;
   white-space: nowrap;
 }
+.chatgpt-auth-cluster {
+  position: fixed;
+  z-index: 30;
+  top: calc(var(--space-3) + 0.375rem);
+  left: calc(var(--space-4) + 0.375rem);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.chatgpt-auth-cluster .chatgpt-auth-overlay {
+  position: static;
+}
 .chatgpt-auth-overlay:hover,
 .chatgpt-auth-overlay:focus-visible {
   border-color: var(--border-strong);
@@ -536,10 +548,91 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.assist-features {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.assist-feature {
+  position: relative;
+  width: 2.35rem;
+  height: 2.35rem;
+  display: grid;
+  place-items: center;
+  flex: 0 0 2.35rem;
+  color: var(--text-muted);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+.assist-feature__icon {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+.assist-feature__count {
+  position: absolute;
+  right: -0.28rem;
+  top: -0.28rem;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  display: grid;
+  place-items: center;
+  padding: 0 0.2rem;
+  border: 2px solid var(--surface);
+  border-radius: 999px;
+  color: var(--text-inverse);
+  background: var(--text-muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.assist-feature--working {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  animation: assist-feature-pulse 1s ease-in-out infinite;
+}
+.assist-feature--working .assist-feature__count {
+  background: var(--accent);
+}
+.assist-feature--ready {
+  color: var(--success);
+  border-color: var(--success);
+  background: var(--success-soft);
+}
+.assist-feature--ready .assist-feature__count {
+  background: var(--success);
+}
+.assist-feature--local {
+  color: var(--warning);
+  border-color: var(--warning);
+  background: var(--warning-soft);
+}
+.assist-feature--local .assist-feature__count {
+  color: var(--surface);
+  background: var(--warning);
+}
+.assist-feature--unavailable,
+.assist-feature--error {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+.assist-feature--unavailable .assist-feature__count,
+.assist-feature--error .assist-feature__count {
+  background: var(--danger-fill);
+}
+@keyframes assist-feature-pulse {
+  50% { transform: scale(1.08); }
+}
 /* Text is right-aligned, so this only reserves the otherwise-empty left edge
    under the sign-in control; it does not resize the field or ribbon. */
 .app:has(.chatgpt-auth-overlay) .ribbon__input {
   padding-left: 12rem;
+}
+.app:has(.chatgpt-auth-cluster) .ribbon__input {
+  padding-left: 20rem;
 }
 
 .ribbon__message {

@@ -78,6 +78,24 @@ export interface ContextSuggestion {
   readonly symbol: string;
 }
 
+export type AssistFeature = 'corrections' | 'suggestions' | 'themes';
+export type AssistFeatureStatus =
+  | 'idle'
+  | 'working'
+  | 'ready'
+  | 'local'
+  | 'unavailable'
+  | 'error';
+
+export interface AssistFeatureActivity {
+  /** Work currently in flight. This is the number shown beside the user. */
+  readonly activeTasks: number;
+  /** Last durable outcome, retained after the active count returns to zero. */
+  readonly status: AssistFeatureStatus;
+  /** Corrections, choices, or pictures produced by the most recent pass. */
+  readonly resultCount: number;
+}
+
 /**
  * One favourited word or phrase. Favs are collected in place: every card on
  * the word and phrase boards carries a small star, and starring it puts it
@@ -139,6 +157,7 @@ export interface AppState {
   readonly contextualWords: ContextSuggestion[];
   readonly contextualPhrases: ContextSuggestion[];
   readonly assistStatus: 'idle' | 'thinking' | 'ready' | 'local' | 'unavailable' | 'error';
+  readonly assistFeatures: Record<AssistFeature, AssistFeatureActivity>;
 
   readonly asr: EngineInfo;
   readonly tts: EngineInfo;
@@ -209,6 +228,11 @@ const initialState: AppState = {
   contextualWords: [],
   contextualPhrases: [],
   assistStatus: 'idle',
+  assistFeatures: {
+    corrections: { activeTasks: 0, status: 'idle', resultCount: 0 },
+    suggestions: { activeTasks: 0, status: 'idle', resultCount: 0 },
+    themes: { activeTasks: 0, status: 'idle', resultCount: 0 },
+  },
 
   asr: idleEngine,
   tts: idleEngine,
@@ -411,6 +435,52 @@ export const actions = {
 
   setAssistStatus(assistStatus: AppState['assistStatus']): void {
     store.set({ assistStatus });
+  },
+
+  beginAssistTask(feature: AssistFeature): void {
+    const current = store.getState().assistFeatures[feature];
+    store.set((state) => ({
+      assistFeatures: {
+        ...state.assistFeatures,
+        [feature]: {
+          ...current,
+          activeTasks: current.activeTasks + 1,
+          status: 'working',
+        },
+      },
+    }));
+  },
+
+  finishAssistTask(
+    feature: AssistFeature,
+    status: Exclude<AssistFeatureStatus, 'working'>,
+    resultCount = 0,
+  ): void {
+    const current = store.getState().assistFeatures[feature];
+    const activeTasks = Math.max(0, current.activeTasks - 1);
+    store.set((state) => ({
+      assistFeatures: {
+        ...state.assistFeatures,
+        [feature]: {
+          activeTasks,
+          status: activeTasks > 0 ? 'working' : status,
+          resultCount: Math.max(0, Math.floor(resultCount)),
+        },
+      },
+    }));
+  },
+
+  setAssistFeatureStatus(
+    feature: AssistFeature,
+    status: Exclude<AssistFeatureStatus, 'working'>,
+    resultCount = 0,
+  ): void {
+    store.set((state) => ({
+      assistFeatures: {
+        ...state.assistFeatures,
+        [feature]: { activeTasks: 0, status, resultCount: Math.max(0, Math.floor(resultCount)) },
+      },
+    }));
   },
 
   /**

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties, type JSX } from 'react';
+import { actions } from '@/state/store';
 import type { ThemeIconRequestItem, ThemeSprite } from './types';
 
 export interface ThemeTile extends ThemeSprite {
@@ -128,10 +129,16 @@ export function useThemedSymbols(
     void (async () => {
       const next = new Map<string, ThemeTile>();
       for (const group of chunk(stableItems, 9)) {
+        actions.beginAssistTask('themes');
         const sprite = await loadSprite(group);
-        if (cancelled) return;
-        if (!sprite) continue;
+        if (!sprite) {
+          actions.finishAssistTask('themes', 'unavailable', next.size);
+          if (cancelled) return;
+          continue;
+        }
         group.forEach((item, index) => next.set(itemKey(item), { ...sprite, index }));
+        actions.finishAssistTask('themes', 'ready', next.size);
+        if (cancelled) return;
         // Publish each completed sheet so the first nine icons do not wait for
         // an entire board to finish generating.
         setTiles(new Map(next));
@@ -171,4 +178,3 @@ export function ThemedSymbol({
   };
   return <span className="cell__symbol cell__symbol--themed" style={style} aria-hidden="true" />;
 }
-
