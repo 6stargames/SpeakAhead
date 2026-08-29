@@ -253,26 +253,6 @@ body {
   flex-direction: column;
 }
 
-.app-loading {
-  min-height: 100dvh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-  color: var(--text-muted);
-  background: var(--surface);
-  font-weight: 700;
-}
-.app-loading__mark {
-  width: 2.25rem;
-  height: 2.25rem;
-  display: grid;
-  place-items: center;
-  color: #fff;
-  background: #111827;
-  border-radius: 50%;
-}
-
 /*
  * WCAG 2.2 SC 2.4.13 at AAA: a two-layer ring at least 2px thick with 3:1
  * contrast against every adjacent colour. The transparent outline keeps the
@@ -470,7 +450,9 @@ body {
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
-  min-height: calc(var(--cell-min) * 1.15);
+  /* Keep all four board destinations visible at the reference desktop
+     height; the original fixed minimum could push Voice below the nav crop. */
+  min-height: clamp(var(--tap-min), 9vh, calc(var(--cell-min) * 1.15));
   padding: var(--space-2);
   font: inherit;
   font-weight: 700;
@@ -507,14 +489,16 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
-.ribbon__auth {
-  display: flex;
-  align-items: center;
-  flex: 0 0 auto;
-}
-
-.chatgpt-auth {
-  min-height: var(--tap-min);
+/* ChatGPT authentication is an inset overlay, not a ribbon column. The
+   original ribbon keeps its exact height and the entire spine keeps the same
+   vertical room as the ZIP. */
+.chatgpt-auth-overlay {
+  position: fixed;
+  z-index: 30;
+  top: calc(var(--space-3) + 0.375rem);
+  left: calc(var(--space-4) + 0.375rem);
+  max-width: 11rem;
+  min-height: calc(var(--tap-min) - var(--space-3));
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -522,36 +506,40 @@ body {
   color: var(--text);
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: calc(var(--radius) - 3px);
   font-size: 0.78em;
   font-weight: 700;
   line-height: 1.15;
   text-decoration: none;
   white-space: nowrap;
 }
-.chatgpt-auth:hover,
-.chatgpt-auth:focus-visible {
+.chatgpt-auth-overlay:hover,
+.chatgpt-auth-overlay:focus-visible {
   border-color: var(--border-strong);
   background: var(--surface);
 }
-.chatgpt-auth__mark {
-  width: 1.75rem;
-  height: 1.75rem;
+.chatgpt-auth-overlay__mark {
+  width: 1.65rem;
+  height: 1.65rem;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
   color: #fff;
   background: #111827;
   border-radius: 50%;
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
-.chatgpt-auth--signed-in .chatgpt-auth__mark {
+.chatgpt-auth-overlay--signed-in .chatgpt-auth-overlay__mark {
   background: var(--success);
 }
-.chatgpt-auth__name {
-  max-width: 9rem;
+.chatgpt-auth-overlay__name {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* Text is right-aligned, so this only reserves the otherwise-empty left edge
+   under the sign-in control; it does not resize the field or ribbon. */
+.app:has(.chatgpt-auth-overlay) .ribbon__input {
+  padding-left: 12rem;
 }
 
 .ribbon__message {
@@ -1639,7 +1627,7 @@ body {
 }
 .emergency__phrase,
 .emergency__latch {
-  min-height: calc(var(--tap-min) * 1.15);
+  min-height: clamp(var(--tap-min), 5.75vh, calc(var(--tap-min) * 1.15));
   font-weight: 800;
   letter-spacing: 0.02em;
   padding-inline: var(--space-2);
@@ -1955,9 +1943,6 @@ body {
   .ribbon__actions {
     width: 100%;
   }
-  .ribbon__message {
-    flex-basis: calc(100% - 10rem);
-  }
   .ribbon__actions .button--speak {
     flex: 1;
   }
@@ -1982,12 +1967,6 @@ body {
 }
 
 @media (max-width: 640px) {
-  .ribbon__auth {
-    width: 100%;
-  }
-  .chatgpt-auth {
-    min-height: 2.75rem;
-  }
   .board__grid--core {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }

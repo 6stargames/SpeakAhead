@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useId, useRef, useState, type JSX } from 'react';
-import type { ChatGPTIdentity } from '@/auth/chatgpt';
 import { session } from '@/session/AacSession';
 import { actions, selectComposition, selectCompositionAuthor, useStore, type AppState } from '@/state/store';
 
@@ -15,11 +14,7 @@ const selectLastSpoken = (state: AppState): string | null => state.lastSpokenTex
  * exists to inform it. Nothing above or beside it competes for the Speak
  * action, and it never moves, whatever view is open underneath.
  */
-export function OutputRibbon({
-  chatGPTIdentity,
-}: {
-  chatGPTIdentity: ChatGPTIdentity | null;
-}): JSX.Element {
+export function OutputRibbon(): JSX.Element {
   const composition = useStore(selectComposition);
   const compositionAuthor = useStore(selectCompositionAuthor);
   const speaking = useStore(selectSpeaking);
@@ -55,33 +50,6 @@ export function OutputRibbon({
       <h2 className="visually-hidden" id={`${inputId}-label`}>
         Your message
       </h2>
-
-      {chatGPTIdentity && (
-        <div className="ribbon__auth">
-          {'signInPath' in chatGPTIdentity ? (
-            <a
-              className="chatgpt-auth"
-              href={chatGPTIdentity.signInPath}
-              target="_top"
-              aria-label="Sign in with ChatGPT"
-            >
-              <span className="chatgpt-auth__mark" aria-hidden="true">✦</span>
-              <span>ChatGPT sign in</span>
-            </a>
-          ) : (
-            <a
-              className="chatgpt-auth chatgpt-auth--signed-in"
-              href={chatGPTIdentity.signOutPath}
-              target="_top"
-              title={`${chatGPTIdentity.email} · Sign out`}
-              aria-label={`Signed in with ChatGPT as ${chatGPTIdentity.displayName}. Sign out`}
-            >
-              <span className="chatgpt-auth__mark" aria-hidden="true">✓</span>
-              <span className="chatgpt-auth__name">{chatGPTIdentity.displayName}</span>
-            </a>
-          )}
-        </div>
-      )}
 
       <div className="ribbon__message">
         {agentAuthored && (

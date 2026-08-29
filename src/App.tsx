@@ -1,5 +1,6 @@
 import { useEffect, useState, type JSX } from 'react';
 import type { ChatGPTIdentity } from '@/auth/chatgpt';
+import { ChatGPTAuthButton } from '@/components/ChatGPTAuthButton';
 import { CoreBoard } from '@/components/CoreBoard';
 import { EmergencyBar } from '@/components/EmergencyBar';
 import { FringeBoard } from '@/components/FringeBoard';
@@ -122,7 +123,8 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
           fixed motor plan. Machine suggestions arrive as a floating overlay —
           no reserved row, no reflow. The transcript lives behind the Listen
           view — useful, passive, and no longer the landlord of the layout. */}
-      <OutputRibbon chatGPTIdentity={chatGPTIdentity ?? null} />
+      <OutputRibbon />
+      <ChatGPTAuthButton identity={chatGPTIdentity ?? null} />
 
       <div className="app__main">
         {/* The conversation always sits to the LEFT of the spine, so the
