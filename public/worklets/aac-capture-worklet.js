@@ -12,7 +12,7 @@
  * route from the microphone to the speakers or to the peer connection.
  */
 
-import { computePeak, computeRms, createResampler } from './resampler.js';
+import { computePeak, computeRms, createResampler } from './resampler.js?coep=v1';
 
 const DEFAULT_FRAME_SIZE = 1024;
 

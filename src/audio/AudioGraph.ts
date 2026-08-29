@@ -11,7 +11,7 @@ const CAPTURE_SAMPLE_RATE = 16000;
 const CAPTURE_FRAME_SIZE = 1024;
 // Keep this root-relative in every bundler. Sites otherwise compiles the
 // import.meta base to file:///ROOT and startup stops before requesting the mic.
-const WORKLET_URL = '/worklets/aac-capture-worklet.js';
+const WORKLET_URL = '/worklets/aac-capture-worklet.js?coep=v1';
 
 export type CaptureChannel = 'local' | 'remote';
 

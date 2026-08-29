@@ -29,7 +29,7 @@ type Request =
   | { type: 'embed'; id: number; samples: Float32Array; sampleRate: number };
 
 type Response =
-  | { type: 'ready' }
+  | { type: 'ready'; runtime: 'coep-v1' }
   | { type: 'load-error'; message: string }
   | { type: 'embedding'; id: number; embedding: Float32Array | null };
 
@@ -84,7 +84,11 @@ self.onmessage = (event: MessageEvent<Request>): void => {
 
   if (message.type === 'load') {
     loading ??= load(message.modelUrl)
-      .then(() => post({ type: 'ready' }))
+      // The runtime tag deliberately versions the emitted worker asset. The
+      // previous content-hashed URL may be preserved by an installed service
+      // worker together with its pre-isolation response headers; a new URL
+      // guarantees the browser fetches the corrected isolated response.
+      .then(() => post({ type: 'ready', runtime: 'coep-v1' }))
       .catch((error: unknown) => {
         loading = null;
         post({ type: 'load-error', message: error instanceof Error ? error.message : String(error) });

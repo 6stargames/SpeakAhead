@@ -54,7 +54,7 @@ export class SpeakerEmbedder {
 
     this.#worker.onmessage = (
       event: MessageEvent<
-        | { type: 'ready' }
+        | { type: 'ready'; runtime?: string }
         | { type: 'load-error'; message: string }
         | { type: 'embedding'; id: number; embedding: Float32Array | null }
       >,

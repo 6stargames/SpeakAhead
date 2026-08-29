@@ -3,7 +3,9 @@ import { createId } from '@/lib/id';
 import { deriveVitsConfig, inspectBundle } from '../bundleShape';
 import type { EngineInfo, SynthesisRequest, SynthesisResult, TtsEvents, TtsProvider, TtsVoice } from '../types';
 
-const WORKER_URL = '/workers/sherpa-tts-worker.js';
+// Version the URL so an older service-worker cache cannot return the script
+// without the cross-origin isolation headers required by the current page.
+const WORKER_URL = '/workers/sherpa-tts-worker.js?coep=v1';
 
 /**
  * Newer bundles ship their own module worker, and it is the supported way in.

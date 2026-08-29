@@ -5,7 +5,9 @@ import { wordConfidences } from '../confidence';
 import { EnergyVad, type VadOptions } from '../vad';
 import type { AsrEvents, AsrProvider, EngineInfo } from '../types';
 
-const WORKER_URL = '/workers/sherpa-asr-worker.js';
+// Version the URL so an older service-worker cache cannot return the script
+// without the cross-origin isolation headers required by the current page.
+const WORKER_URL = '/workers/sherpa-asr-worker.js?coep=v1';
 
 /**
  * Frames retained before speech is confirmed.
