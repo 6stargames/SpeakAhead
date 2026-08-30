@@ -1,5 +1,6 @@
 import { env, type R2Bucket } from 'cloudflare:workers';
 import { normalizedChoice } from '@/assist/choiceAvailability';
+import { isPictureTheme, type PictureTheme } from '@/assist/pictureThemes';
 import { themeImageCacheOwner, themeImageCacheScope } from '@/assist/themeImageSharing';
 import {
   json,
@@ -10,7 +11,7 @@ import {
 } from '../server';
 
 type IconItem = { text: string; symbol: string };
-type PictureTheme = 'anime' | 'baby-shark' | 'hello-kitty';
+type AudienceGender = 'male' | 'female' | 'neutral';
 type PicturePresentation =
   | 'subject'
   | 'control-icon'
@@ -22,6 +23,7 @@ type ThemeIconInput = {
   items: IconItem[];
   singleSubject: boolean;
   presentation: PicturePresentation;
+  audienceGender: AudienceGender;
   lookupOnly: boolean;
 };
 
@@ -81,10 +83,8 @@ function decodeBase64(value: string): ArrayBuffer {
 function parseInput(value: unknown): ThemeIconInput | null {
   if (!value || typeof value !== 'object') return null;
   const body = value as Record<string, unknown>;
-  if (
-    (body.theme !== 'anime' && body.theme !== 'baby-shark' && body.theme !== 'hello-kitty') ||
-    !Array.isArray(body.items)
-  ) return null;
+  const theme = body.theme === 'anime' ? 'ghibli' : body.theme;
+  if (!isPictureTheme(theme) || !Array.isArray(body.items)) return null;
   const items = body.items
     .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
     .filter((item) => typeof item.text === 'string' && typeof item.symbol === 'string')
@@ -103,10 +103,14 @@ function parseInput(value: unknown): ThemeIconInput | null {
   if (presentation !== 'subject' && items.length !== 1) return null;
   return items.length > 0
     ? {
-      theme: body.theme,
+      theme,
       items,
       singleSubject: body.singleSubject === true,
       presentation,
+      audienceGender:
+        presentation !== 'subject' && (body.audienceGender === 'male' || body.audienceGender === 'female')
+          ? body.audienceGender
+          : 'neutral',
       lookupOnly: body.lookupOnly === true,
     }
     : null;
@@ -114,49 +118,116 @@ function parseInput(value: unknown): ThemeIconInput | null {
 
 function parseLookupUrl(request: Request): ThemeIconInput | null {
   const url = new URL(request.url);
-  const theme = url.searchParams.get('theme');
+  const requestedTheme = url.searchParams.get('theme');
+  const theme = requestedTheme === 'anime' ? 'ghibli' : requestedTheme;
   const text = url.searchParams.get('text')?.trim().slice(0, 100) ?? '';
-  if ((theme !== 'anime' && theme !== 'baby-shark' && theme !== 'hello-kitty') || !text) return null;
+  if (!isPictureTheme(theme) || !text) return null;
+  const presentation =
+    url.searchParams.get('presentation') === 'control-icon' ||
+    url.searchParams.get('presentation') === 'button-background' ||
+    url.searchParams.get('presentation') === 'wallpaper-background'
+      ? url.searchParams.get('presentation') as Exclude<PicturePresentation, 'subject'>
+      : 'subject';
   return {
     theme,
     items: [{ text, symbol: '●' }],
     singleSubject: url.searchParams.get('singleSubject') === 'true',
-    presentation:
-      url.searchParams.get('presentation') === 'control-icon' ||
-      url.searchParams.get('presentation') === 'button-background' ||
-      url.searchParams.get('presentation') === 'wallpaper-background'
-        ? url.searchParams.get('presentation') as Exclude<PicturePresentation, 'subject'>
-        : 'subject',
+    presentation,
+    audienceGender:
+      presentation !== 'subject' && (
+        url.searchParams.get('audienceGender') === 'male' ||
+        url.searchParams.get('audienceGender') === 'female'
+      )
+        ? url.searchParams.get('audienceGender') as Exclude<AudienceGender, 'neutral'>
+        : 'neutral',
     lookupOnly: true,
   };
 }
 
 const THEME_DIRECTION: Record<PictureTheme, string> = {
-  anime:
-    'Use friendly original anime-inspired character art, expressive faces, bold silhouettes, and a bright modern palette.',
+  ghibli:
+    'Use an original hand-drawn anime cel illustration with clean ink lines, a warm nostalgic gouache palette, expressive characterization, and a plain soft background. Do not copy any existing character.',
   'baby-shark':
     'Use a cheerful Baby Shark undersea cartoon theme: cute smiling shark pups, friendly sea creatures, bubbly ocean shapes, and a bright blue, coral, and sunny-yellow palette.',
   'hello-kitty':
     'Use a sweet Hello Kitty theme: cute rounded white kitten characters with red or pink bows, simple kawaii faces, soft pastel pink accents, and friendly toy-like props.',
+  claymation:
+    'Use tactile plasticine claymation art, subtle fingerprint texture, soft studio lighting, chunky rounded shapes, and a clean neutral background.',
+  'pixel-art':
+    'Use crisp 16-bit pixel art with a classic console-sprite feeling, pixel-perfect dark outlines, a vibrant limited palette, and a solid dark background.',
+  'halo-hud':
+    'Use a sci-fi military tactical HUD style with hard-surface industrial design, matte olive and titanium plating, glowing cyan vector accents, angular geometry, and a dark backdrop.',
+  'stained-glass':
+    'Use a luminous stained-glass window style with thick black lead contours, jewel-toned translucent glass, bright backlighting, and a centered medallion composition.',
+  'pop-art':
+    'Use bold pop-art graphics with thick uniform black outlines, solid primary colour fills, Ben-Day dots, stark contrast, and a clean light background.',
+  cubism:
+    'Use approachable synthetic cubism with deconstructed geometric planes, bold angular contours, collage-paper textures, and a muted ochre and cobalt palette while keeping the subject easy to recognise.',
+  'ukiyo-e':
+    'Use a traditional Japanese ukiyo-e woodblock style with bold black sumi-ink lines, flat bokashi colour gradations, and an aged washi-paper background.',
+  papercraft:
+    'Use layered papercraft illustration with multi-depth paper cutouts, soft drop shadows between layers, crisp edges, and vibrant cardstock.',
+  'neon-cyberpunk':
+    'Use a sleek neon cyberpunk style with glowing cyan and magenta linework, a dark graphite background, minimal vector geometry, and very high contrast.',
+  'felted-wool':
+    'Use a clean macro photograph of a needle-felted wool sculpture with soft fuzzy fibres, a chunky rounded silhouette, studio lighting, and a solid background.',
+  'mid-century':
+    'Use a sophisticated mid-century 1950s graphic illustration with gouache texture, flat geometric colour blocking, simplified shapes, and bold editorial composition.',
 };
 
 const CONTROL_THEME_DIRECTION: Record<PictureTheme, string> = {
-  anime:
-    'Use crisp anime interface linework, energetic highlights, and a bright modern palette without adding a person or character.',
+  ghibli:
+    'Use warm hand-inked cel linework, soft gouache colour, and gentle nostalgic highlights without adding a person or character.',
   'baby-shark':
     'Use bubbly undersea colours, rounded ocean textures, and subtle wave or fin details integrated into the icon without adding a shark or sea-creature character.',
   'hello-kitty':
     'Use soft kawaii colours, rounded toy-like linework, and a small bow accent integrated into the icon without adding a kitten or character.',
+  claymation: 'Render the icon itself as chunky tactile plasticine with subtle fingerprint texture and soft studio highlights.',
+  'pixel-art': 'Render the icon itself as crisp 16-bit pixel art with a limited vibrant palette and pixel-perfect dark outline.',
+  'halo-hud': 'Render the icon itself as an angular tactical HUD glyph with titanium surfaces and glowing cyan vector accents.',
+  'stained-glass': 'Render the icon itself in luminous jewel-toned glass with thick black lead contours and strong backlighting.',
+  'pop-art': 'Render the icon itself with thick black outlines, flat primary colours, Ben-Day dots, and stark graphic contrast.',
+  cubism: 'Render the icon itself with a small number of clear angular planes, ochre and cobalt collage textures, while preserving its silhouette.',
+  'ukiyo-e': 'Render the icon itself with bold sumi-ink contours, flat bokashi colour, and subtle washi-paper texture.',
+  papercraft: 'Render the icon itself as layered cardstock with crisp cut edges and soft depth shadows.',
+  'neon-cyberpunk': 'Render the icon itself as a minimal glowing cyan and magenta wireframe glyph on dark graphite.',
+  'felted-wool': 'Render the icon itself as a chunky needle-felted wool shape with clear edges and soft studio lighting.',
+  'mid-century': 'Render the icon itself with simplified 1950s geometry, flat gouache colour blocking, and a bold editorial silhouette.',
 };
 
 const WALLPAPER_THEME_DIRECTION: Record<PictureTheme, string> = {
-  anime:
-    'Use an abstract anime-inspired atmosphere made only from luminous colour gradients, soft cel-shaded light, subtle speed-line textures, and layered glow.',
+  ghibli:
+    'Use an abstract hand-painted atmosphere made only from warm gouache colour fields, soft cel-shaded light, gentle wind-like brush rhythms, and layered glow.',
   'baby-shark':
     'Use an abstract underwater atmosphere made only from flowing blue, coral, and sunny-yellow colour fields, soft caustic light, and gentle bubbly textures.',
   'hello-kitty':
     'Use an abstract kawaii atmosphere made only from soft pink, white, and red colour fields, rounded gradients, tiny light speckles, and plush-looking texture.',
+  claymation: 'Use an abstract plasticine atmosphere made only from softly pressed clay layers, subtle fingerprints, rounded ridges, and warm studio light.',
+  'pixel-art': 'Use an abstract 16-bit atmosphere made only from crisp pixel gradients, tiled light rhythms, and a vibrant limited palette on dark colour fields.',
+  'halo-hud': 'Use an abstract tactical HUD atmosphere made only from dark titanium and olive surfaces, angular cyan vector traces, grid rhythm, and restrained glow.',
+  'stained-glass': 'Use an abstract stained-glass atmosphere made only from jewel-toned translucent fields, bold lead contours, and luminous backlighting.',
+  'pop-art': 'Use an abstract pop-art atmosphere made only from bold primary colour fields, thick black graphic divisions, Ben-Day dots, and strong contrast.',
+  cubism: 'Use an abstract synthetic-cubist atmosphere made only from angular ochre and cobalt planes, collage-paper texture, and balanced geometric rhythm.',
+  'ukiyo-e': 'Use an abstract woodblock atmosphere made only from bold sumi curves, flat bokashi gradients, wave-like rhythm, and aged washi texture.',
+  papercraft: 'Use an abstract layered-cardstock atmosphere made only from crisp paper-cut contours, overlapping colour fields, and soft depth shadows.',
+  'neon-cyberpunk': 'Use an abstract neon atmosphere made only from glowing cyan and magenta line rhythms, dark graphite fields, and sleek high-contrast gradients.',
+  'felted-wool': 'Use an abstract felted-wool atmosphere made only from soft interlocking fibres, rounded colour fields, fuzzy texture, and warm studio light.',
+  'mid-century': 'Use an abstract mid-century atmosphere made only from simplified 1950s geometry, flat gouache colour blocks, and confident editorial rhythm.',
 };
+
+function audienceDirection(input: ThemeIconInput): string {
+  if (input.audienceGender === 'neutral') {
+    return 'Keep the visual language welcoming and gender-inclusive without strongly gender-coded styling.';
+  }
+  if (input.presentation === 'button-background') {
+    return input.audienceGender === 'male'
+      ? 'Design this for a male user. When the theme includes a character or mascot, use an original boyish or masculine-coded variation with a confident, dignified mood and a balanced colour palette. Avoid crude stereotypes.'
+      : 'Design this for a female user. When the theme includes a character or mascot, use an original feminine-coded variation with a confident, dignified mood and a balanced colour palette. Avoid crude stereotypes.';
+  }
+  return input.audienceGender === 'male'
+    ? 'Tune the colour balance and visual energy for a male user in an inclusive, confident way without adding people, characters, or stereotypes.'
+    : 'Tune the colour balance and visual energy for a female user in an inclusive, confident way without adding people, characters, or stereotypes.';
+}
 
 function bytesToHex(bytes: Uint8Array): string {
   return [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
@@ -172,12 +243,21 @@ function inputOwner(userId: string, input: ThemeIconInput): string | null {
   return owners.size === 1 ? [...owners][0]! : null;
 }
 
+function cacheAudience(
+  input: Pick<ThemeIconInput, 'presentation' | 'audienceGender'>,
+): Exclude<AudienceGender, 'neutral'> | undefined {
+  return input.presentation !== 'subject' && input.audienceGender !== 'neutral'
+    ? input.audienceGender
+    : undefined;
+}
+
 async function savedImageKey(owner: string, input: ThemeIconInput): Promise<string> {
   return digestKey(`theme-icons/${CACHE_VERSION}/sprites`, {
     version: CACHE_VERSION,
     owner,
     theme: input.theme,
     singleSubject: cacheLayout(input),
+    audience: cacheAudience(input),
     items: input.items,
   }, 'png');
 }
@@ -204,7 +284,7 @@ async function legacyImageKey(userId: string, input: ThemeIconInput): Promise<st
 
 async function savedTileKey(
   userId: string,
-  input: Pick<ThemeIconInput, 'theme' | 'singleSubject' | 'presentation'>,
+  input: Pick<ThemeIconInput, 'theme' | 'singleSubject' | 'presentation' | 'audienceGender'>,
   item: IconItem,
 ): Promise<string> {
   return digestKey(`theme-icons/${CACHE_VERSION}/tiles`, {
@@ -212,6 +292,7 @@ async function savedTileKey(
     owner: themeImageCacheOwner(userId, item.text),
     theme: input.theme,
     singleSubject: cacheLayout(input),
+    audience: cacheAudience(input),
     text: normalizedChoice(item.text),
   }, 'json');
 }
@@ -232,7 +313,7 @@ async function previousUserTileKey(
 
 async function generationLockKey(
   userId: string,
-  input: Pick<ThemeIconInput, 'theme' | 'singleSubject' | 'presentation'>,
+  input: Pick<ThemeIconInput, 'theme' | 'singleSubject' | 'presentation' | 'audienceGender'>,
   item: IconItem,
 ): Promise<string> {
   return digestKey(`theme-icons/${CACHE_VERSION}/locks`, {
@@ -240,6 +321,7 @@ async function generationLockKey(
     owner: themeImageCacheOwner(userId, item.text),
     theme: input.theme,
     singleSubject: cacheLayout(input),
+    audience: cacheAudience(input),
     text: normalizedChoice(item.text),
   }, 'json');
 }
@@ -364,7 +446,7 @@ async function readManifest(key: string, expectedVersion: string): Promise<Saved
 
 async function findSavedTile(
   userId: string,
-  input: Pick<ThemeIconInput, 'theme' | 'singleSubject' | 'presentation'>,
+  input: Pick<ThemeIconInput, 'theme' | 'singleSubject' | 'presentation' | 'audienceGender'>,
   item: IconItem,
 ): Promise<SavedTile | null> {
   const currentKey = await savedTileKey(userId, input, item);
@@ -608,6 +690,7 @@ export async function POST(request: Request): Promise<Response> {
       ? [
         'Create one continuous panoramic abstract wallpaper divider for a wide accessible communication interface.',
         WALLPAPER_THEME_DIRECTION[input.theme],
+        audienceDirection(input),
         'It must coordinate visually with the selected theme while remaining purely atmospheric and decorative.',
         `Use this internal label only to choose the abstract motion, rhythm, and colour mood: ${JSON.stringify(input.items[0]?.text ?? '')}. Do not illustrate any noun from the label literally.`,
         'Do not include any characters, people, creatures, faces, eyes, animals, mascots, objects, props, icons, symbols, letters, text, logos, borders, or focal subjects.',
@@ -619,6 +702,7 @@ export async function POST(request: Request): Promise<Response> {
       ? [
         'Create one continuous panoramic background for a wide accessible interface banner or return button.',
         THEME_DIRECTION[input.theme],
+        audienceDirection(input),
         'Decorate the full perimeter and outer thirds as one cohesive scene, not as two matching icons placed at opposite ends.',
         'Keep the broad middle area calm, uncluttered, and visually dark or soft so a short white button label will remain easy to read over it.',
         'Place every important character, face, and decorative detail inside a narrow horizontal safe band through the vertical centre of the canvas. The final interface is extremely wide and will crop most of the top and bottom.',
@@ -631,6 +715,7 @@ export async function POST(request: Request): Promise<Response> {
         ? [
           'Create one clean square functional interface icon for an accessible communication control.',
           CONTROL_THEME_DIRECTION[input.theme],
+          audienceDirection(input),
           'Faithfully redraw the supplied symbol itself in that art style. Its original silhouette and function must remain unmistakable at 32 pixels.',
           'Do not put the icon beside a mascot, character, face, scene, or prop. Do not show anyone holding, wearing, pointing at, or presenting the icon.',
           'Use exactly one centered icon with generous transparent padding. Keep the complete icon inside the canvas.',

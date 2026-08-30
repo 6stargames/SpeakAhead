@@ -1981,6 +1981,67 @@ body {
   height: 3.4rem;
   flex-basis: 3.4rem;
 }
+.option-row--theme-previews > .option,
+.option-row--theme-previews > .theme-option-stack {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.theme-option-stack {
+  display: grid;
+  grid-template-rows: minmax(0, 2fr) minmax(var(--tap-min), 0.75fr);
+  gap: var(--space-2);
+}
+.settings-panel .theme-option-stack .option {
+  min-height: 0;
+}
+.settings-panel .theme-option-stack__more {
+  padding-block: var(--space-1);
+  color: var(--accent-strong);
+  font-size: 0.9em;
+}
+.theme-more {
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.theme-more__scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: var(--space-1);
+}
+.theme-more__header {
+  margin-bottom: var(--space-3);
+}
+.theme-more__header h2,
+.theme-more__header p {
+  margin: 0;
+}
+.theme-more__header h2 {
+  font-size: 1.6em;
+}
+.theme-more__header p {
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+}
+.theme-more__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--gutter);
+}
+.settings-panel .theme-more__grid .option {
+  min-height: calc(var(--cell-min) * 1.18);
+}
+.theme-more__done {
+  width: 100%;
+  min-height: calc(var(--cell-min) * 0.78);
+  flex: 0 0 auto;
+  font-size: 1.35em;
+  font-weight: 850;
+}
 .settings-panel .field__label {
   font-size: 1.3em;
   font-weight: 800;
@@ -2577,6 +2638,9 @@ body {
 @media (max-width: 900px) {
   .app__main {
     flex-direction: column;
+  }
+  .theme-more__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .spine {
     flex-direction: column;

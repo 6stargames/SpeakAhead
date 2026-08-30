@@ -8,6 +8,7 @@ import {
   filterNovelChoices,
 } from '@/assist/choiceAvailability';
 import { suggestionText } from '@/assist/suggestionText';
+import { ALL_PICTURE_THEMES, normaliseSymbolTheme } from '@/assist/pictureThemes';
 import {
   CHATGPT_VOICE_NAMES,
   CHATGPT_VOICE_PREFIX,
@@ -58,7 +59,7 @@ const contextualVocabularySchema: JsonSchema = {
 const themeSchema: JsonSchema = {
   type: 'object',
   properties: {
-    theme: { type: 'string', enum: ['emoji', 'anime', 'baby-shark', 'hello-kitty'] },
+    theme: { type: 'string', enum: ALL_PICTURE_THEMES.map((option) => option.value) },
   },
   required: ['theme'],
 };
@@ -216,13 +217,13 @@ export function useAacWebMcpTools(): WebMcpToolStates {
     () => ({
       name: 'set-symbol-theme',
       description:
-        'Change the device-local button picture style. Only call this after the user explicitly asks for Emoji, Anime, Baby Shark, or Hello Kitty. ' +
+        `Change the device-local button picture style. Only call this after the user explicitly asks for one of these styles: ${ALL_PICTURE_THEMES.map((option) => option.label).join(', ')}. ` +
         'Themed pictures generate in the background, are cached on this device, and keep emoji fallbacks while loading.',
       inputSchema: themeSchema,
       execute: (args) => {
-        const theme = (args as { theme?: unknown }).theme;
-        if (theme !== 'emoji' && theme !== 'anime' && theme !== 'baby-shark' && theme !== 'hello-kitty') {
-          return errorResult('theme must be emoji, anime, baby-shark, or hello-kitty.');
+        const theme = normaliseSymbolTheme((args as { theme?: unknown }).theme);
+        if (!theme) {
+          return errorResult(`theme must be one of: ${ALL_PICTURE_THEMES.map((option) => option.value).join(', ')}.`);
         }
         actions.setSettings({ symbolTheme: theme });
         actions.setAssistFeatureStatus('themes', 'idle');

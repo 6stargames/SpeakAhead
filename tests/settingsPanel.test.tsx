@@ -56,4 +56,31 @@ describe('Settings voice type', () => {
     expect(store.getState().settings.voiceGender).toBe('neutral');
     expect(store.getState().settings.voiceId).toBe('9');
   });
+
+  it('opens the researched picture styles and keeps Done docked in the picker', () => {
+    act(() => root.render(<SettingsPanel signedIn symbolTheme="emoji" />));
+
+    const viewMore = [...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent?.trim() === 'View more');
+    expect(viewMore).toBeDefined();
+    expect(container.textContent).toContain('Ghibli Style');
+
+    act(() => viewMore?.click());
+
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(container.textContent).toContain('Claymation');
+    expect(container.textContent).toContain('Pixel Art');
+    expect(container.textContent).toContain('Mid-Century');
+    const done = [...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent?.trim() === 'DONE');
+    expect(done?.classList.contains('theme-more__done')).toBe(true);
+
+    const pixelArt = container.querySelector<HTMLButtonElement>('button[aria-label="Pixel Art"]');
+    act(() => pixelArt?.click());
+    expect(store.getState().settings.symbolTheme).toBe('pixel-art');
+
+    act(() => done?.click());
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(container.textContent).toContain('What kind of voice?');
+  });
 });

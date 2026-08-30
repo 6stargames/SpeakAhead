@@ -1,5 +1,11 @@
-import type { JSX } from 'react';
+import { useState, type JSX } from 'react';
 import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
+import {
+  ALL_PICTURE_THEMES,
+  MORE_PICTURE_THEMES,
+  PRIMARY_PICTURE_THEMES,
+  type PictureThemeOption,
+} from '@/assist/pictureThemes';
 import { session } from '@/session/AacSession';
 import { isChatGptVoiceId, voiceChoicesForGender } from '@/speech/tts/voiceChoices';
 import { actions, selectSettings, useStore, type SymbolTheme } from '@/state/store';
@@ -21,11 +27,26 @@ export const SETTINGS_THEME_ITEMS = [
 ] as const;
 
 export const THEME_PREVIEW_ITEMS: Record<SymbolTheme, { text: string; symbol: string }> = {
-  emoji: { text: 'Friendly picture-style preview', symbol: '🙂' },
-  anime: { text: 'Friendly picture-style preview', symbol: '🎨' },
-  'baby-shark': { text: 'Friendly picture-style preview', symbol: '🦈' },
-  'hello-kitty': { text: 'Friendly picture-style preview', symbol: '🎀' },
+  emoji: { text: 'Emoji art style preview', symbol: '🙂' },
+  ghibli: { text: 'Ghibli art style preview', symbol: '🌤️' },
+  'baby-shark': { text: 'Baby Shark art style preview', symbol: '🦈' },
+  'hello-kitty': { text: 'Hello Kitty art style preview', symbol: '🎀' },
+  claymation: { text: 'Claymation art style preview', symbol: '🟠' },
+  'pixel-art': { text: 'Pixel art style preview', symbol: '👾' },
+  'halo-hud': { text: 'Halo HUD art style preview', symbol: '🛡️' },
+  'stained-glass': { text: 'Stained glass art style preview', symbol: '💎' },
+  'pop-art': { text: 'Pop art style preview', symbol: '💥' },
+  cubism: { text: 'Cubism art style preview', symbol: '🖼️' },
+  'ukiyo-e': { text: 'Ukiyo-e art style preview', symbol: '🌊' },
+  papercraft: { text: 'Papercraft art style preview', symbol: '✂️' },
+  'neon-cyberpunk': { text: 'Neon cyberpunk art style preview', symbol: '🌃' },
+  'felted-wool': { text: 'Felted wool art style preview', symbol: '🧶' },
+  'mid-century': { text: 'Mid-century art style preview', symbol: '🛋️' },
 };
+
+export const THEME_PREVIEW_PRELOADS = ALL_PICTURE_THEMES
+  .filter((option): option is PictureThemeOption & { value: Exclude<SymbolTheme, 'emoji'> } => option.value !== 'emoji')
+  .map((option) => ({ theme: option.value, item: THEME_PREVIEW_ITEMS[option.value] }));
 
 /**
  * One setting, several big buttons.
@@ -114,13 +135,30 @@ function ThemePreview({ theme }: { theme: SymbolTheme }): JSX.Element {
   return <ThemedSymbol symbol={item.symbol} tile={themeTileFor(tiles, item)} />;
 }
 
-function ThemeOptionRow({ value }: { value: SymbolTheme }): JSX.Element {
-  const options: { label: string; value: SymbolTheme }[] = [
-    { label: 'Emoji', value: 'emoji' },
-    { label: 'Anime', value: 'anime' },
-    { label: 'Baby Shark', value: 'baby-shark' },
-    { label: 'Hello Kitty', value: 'hello-kitty' },
-  ];
+function ThemeOptionButton({ option, selected }: {
+  option: PictureThemeOption;
+  selected: boolean;
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      className="option option--theme-preview"
+      aria-label={option.label}
+      aria-pressed={selected}
+      onClick={() => actions.setSettings({ symbolTheme: option.value })}
+    >
+      <span className="option__symbol" aria-hidden="true">
+        <ThemePreview theme={option.value} />
+      </span>
+      {option.label}
+    </button>
+  );
+}
+
+function ThemeOptionRow({ value, onViewMore }: {
+  value: SymbolTheme;
+  onViewMore: () => void;
+}): JSX.Element {
   return (
     <div className="option-group" role="group" aria-label="Button pictures">
       <p className="field__heading">
@@ -128,22 +166,46 @@ function ThemeOptionRow({ value }: { value: SymbolTheme }): JSX.Element {
         <span className="field__hint"> Each button previews its own art style. Pictures are saved and reused.</span>
       </p>
       <div className="option-row option-row--theme-previews">
-        {options.map((option) => (
+        <div className="theme-option-stack">
+          <ThemeOptionButton option={PRIMARY_PICTURE_THEMES[0]!} selected={value === 'emoji'} />
           <button
-            key={option.value}
             type="button"
-            className="option option--theme-preview"
-            aria-pressed={value === option.value}
-            onClick={() => actions.setSettings({ symbolTheme: option.value })}
+            className="option theme-option-stack__more"
+            aria-haspopup="dialog"
+            onClick={onViewMore}
           >
-            <span className="option__symbol" aria-hidden="true">
-              <ThemePreview theme={option.value} />
-            </span>
-            {option.label}
+            View more
           </button>
+        </div>
+        {PRIMARY_PICTURE_THEMES.slice(1).map((option) => (
+          <ThemeOptionButton key={option.value} option={option} selected={value === option.value} />
         ))}
       </div>
     </div>
+  );
+}
+
+function MoreThemesPanel({ value, onDone }: {
+  value: SymbolTheme;
+  onDone: () => void;
+}): JSX.Element {
+  return (
+    <section className="theme-more" role="dialog" aria-modal="true" aria-labelledby="theme-more-title">
+      <div className="theme-more__scroll">
+        <div className="theme-more__header">
+          <h2 id="theme-more-title">More button pictures</h2>
+          <p>Choose a style. Pictures are saved and reused.</p>
+        </div>
+        <div className="theme-more__grid" data-scan="grid">
+          {MORE_PICTURE_THEMES.map((option) => (
+            <ThemeOptionButton key={option.value} option={option} selected={value === option.value} />
+          ))}
+        </div>
+      </div>
+      <button type="button" className="button button--primary theme-more__done" onClick={onDone}>
+        DONE
+      </button>
+    </section>
   );
 }
 
@@ -155,11 +217,22 @@ export function SettingsPanel({
   symbolTheme?: SymbolTheme;
 }): JSX.Element {
   const settings = useStore(selectSettings);
+  const [showMoreThemes, setShowMoreThemes] = useState(false);
   const displayedTheme = signedIn ? (symbolTheme ?? settings.symbolTheme) : 'emoji';
+
+  if (signedIn && showMoreThemes) {
+    return (
+      <div className="panel settings-panel settings-panel--theme-picker">
+        <MoreThemesPanel value={settings.symbolTheme} onDone={() => setShowMoreThemes(false)} />
+      </div>
+    );
+  }
 
   return (
     <div className="panel settings-panel">
-      {signedIn && <ThemeOptionRow value={settings.symbolTheme} />}
+      {signedIn && (
+        <ThemeOptionRow value={settings.symbolTheme} onViewMore={() => setShowMoreThemes(true)} />
+      )}
 
       <OptionRow
         label="What kind of voice?"

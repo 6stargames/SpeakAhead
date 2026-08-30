@@ -9,7 +9,7 @@ import {
 } from '@/assist/themeIcons';
 import type { ThemePreparationGroup } from '@/assist/themeIcons';
 import type { ThemeIconRequestItem } from '@/assist/types';
-import { store } from '@/state/store';
+import { actions, store } from '@/state/store';
 
 let container: HTMLDivElement;
 let root: Root;
@@ -147,8 +147,41 @@ describe('themed image reuse', () => {
       expect(container.firstElementChild?.getAttribute('data-count')).toBe('1');
     });
     expect(bodies).toEqual(expect.arrayContaining([
-      expect.objectContaining({ presentation: 'control-icon', singleSubject: false }),
+      expect.objectContaining({
+        presentation: 'control-icon',
+        singleSubject: false,
+        audienceGender: 'neutral',
+      }),
     ]));
+  });
+
+  it('regenerates interface art for the selected gender but reuses ordinary word art', async () => {
+    const generatedBodies: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (isLookup(init)) return Response.json({ groups: [] });
+      if (init?.method === 'POST' && typeof init.body === 'string') {
+        generatedBodies.push(JSON.parse(init.body) as Record<string, unknown>);
+      }
+      return pngResponse();
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const control = { text: 'Settings', symbol: '⚙️', presentation: 'control-icon' as const };
+    const word = { text: 'water', symbol: '💧' };
+
+    act(() => root.render(<><Harness items={[control]} batchSize={1} /><Harness items={[word]} /></>));
+    await vi.waitFor(() => expect(generatedBodies).toHaveLength(2));
+
+    act(() => actions.setSettings({ voiceGender: 'male' }));
+    await vi.waitFor(() => expect(generatedBodies).toHaveLength(3));
+
+    expect(generatedBodies.map((body) => ({
+      text: (body.items as ThemeIconRequestItem[])[0]?.text,
+      audienceGender: body.audienceGender,
+    }))).toEqual([
+      { text: 'Settings', audienceGender: 'neutral' },
+      { text: 'water', audienceGender: 'neutral' },
+      { text: 'Settings', audienceGender: 'male' },
+    ]);
   });
 
   it('restores saved pictures silently even when two surfaces ask at once', async () => {

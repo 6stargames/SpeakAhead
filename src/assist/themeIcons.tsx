@@ -6,8 +6,8 @@ import {
   type CSSProperties,
   type JSX,
 } from 'react';
-import { actions } from '@/state/store';
-import type { SymbolTheme } from '@/state/store';
+import { actions, useStore } from '@/state/store';
+import type { AppState, SymbolTheme } from '@/state/store';
 import { normalizedChoice } from './choiceAvailability';
 import { themeImageCacheScope } from './themeImageSharing';
 import type { ThemeIconRequestItem, ThemeSprite } from './types';
@@ -18,6 +18,7 @@ export interface ThemeTile extends ThemeSprite {
 
 type ThemedKey = string;
 type ThemePresentation = NonNullable<ThemeIconRequestItem['presentation']>;
+type ThemeAudienceGender = AppState['settings']['voiceGender'];
 
 interface SpritePayload {
   readonly blob: Blob;
@@ -91,10 +92,15 @@ function themedItemKey(
   theme: Exclude<SymbolTheme, 'emoji'>,
   item: ThemeIconRequestItem,
   singleSubject: boolean,
+  audienceGender: ThemeAudienceGender,
 ): ThemedKey {
   // A button's meaning, rather than its fallback emoji or punctuation, owns
   // the picture. This is the same identity used by the signed-in R2 library.
-  return `${theme}\u0000${singleSubject ? 'single' : 'board'}\u0000${item.presentation ?? 'subject'}\u0000${normalizedChoice(item.text)}`;
+  const presentation = item.presentation ?? 'subject';
+  const audience = presentation === 'subject' || audienceGender === 'neutral'
+    ? ''
+    : `\u0000audience:${audienceGender}`;
+  return `${theme}\u0000${singleSubject ? 'single' : 'board'}\u0000${presentation}\u0000${normalizedChoice(item.text)}${audience}`;
 }
 
 function itemPresentation(items: readonly ThemeIconRequestItem[]): ThemePresentation {
@@ -143,6 +149,7 @@ async function requestGeneratedSprite(
   items: readonly ThemeIconRequestItem[],
   theme: Exclude<SymbolTheme, 'emoji'>,
   singleSubject: boolean,
+  audienceGender: ThemeAudienceGender,
 ): Promise<GenerationResult> {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
@@ -155,6 +162,7 @@ async function requestGeneratedSprite(
           items,
           singleSubject,
           presentation: itemPresentation(items),
+          audienceGender,
         }),
       });
       if (response.status === 409 && response.headers.get('x-aac-cache-refresh') === 'true') {
@@ -188,6 +196,7 @@ async function lookupSavedGroups(
   items: readonly ThemeIconRequestItem[],
   theme: Exclude<SymbolTheme, 'emoji'>,
   singleSubject: boolean,
+  audienceGender: ThemeAudienceGender,
 ): Promise<readonly SavedGroup[]> {
   try {
     const response = await fetch('/api/assist/theme-icons', {
@@ -199,6 +208,7 @@ async function lookupSavedGroups(
         items,
         singleSubject,
         presentation: itemPresentation(items),
+        audienceGender,
         lookupOnly: true,
       }),
     });
@@ -223,6 +233,7 @@ async function requestSavedSprite(
   text: string,
   singleSubject: boolean,
   presentation: ThemePresentation,
+  audienceGender: ThemeAudienceGender,
 ): Promise<SpritePayload | null> {
   try {
     const params = new URLSearchParams({
@@ -230,6 +241,7 @@ async function requestSavedSprite(
       text,
       singleSubject: String(singleSubject),
       presentation,
+      audienceGender,
     });
     const response = await fetch(`/api/assist/theme-icons?${params.toString()}`, {
       credentials: 'same-origin',
@@ -258,6 +270,7 @@ async function loadMissingTiles(
   items: readonly ThemeIconRequestItem[],
   theme: Exclude<SymbolTheme, 'emoji'>,
   singleSubject: boolean,
+  audienceGender: ThemeAudienceGender,
 ): Promise<ReadonlyMap<ThemedKey, ThemeTile>> {
   const result = new Map<ThemedKey, ThemeTile>();
   let missing = [...items];
@@ -266,7 +279,7 @@ async function loadMissingTiles(
   // shared library after its short lease response instead of submitting a
   // second image request. Eight passes cover the normal generation window.
   for (let pass = 0; pass < 8 && missing.length > 0; pass += 1) {
-    const groups = await lookupSavedGroups(missing, theme, singleSubject);
+    const groups = await lookupSavedGroups(missing, theme, singleSubject, audienceGender);
 
     // One saved sheet may contain several requested buttons. Fetch that sheet
     // once, then reconnect every matching button to its original cell.
@@ -276,6 +289,7 @@ async function loadMissingTiles(
         group.probeText,
         singleSubject,
         itemPresentation(items),
+        audienceGender,
       );
       if (!payload) return;
       const sprite = spriteFromBlob(payload.blob, group.columns, group.rows);
@@ -283,12 +297,12 @@ async function loadMissingTiles(
       group.tiles.forEach(({ requestIndex, index }) => {
         const item = missing[requestIndex];
         if (!item || !Number.isInteger(index) || index < 0) return;
-        result.set(themedItemKey(theme, item, singleSubject), { ...sprite, index });
+        result.set(themedItemKey(theme, item, singleSubject, audienceGender), { ...sprite, index });
       });
       publishResolvedTiles(result);
     }));
 
-    missing = items.filter((item) => !result.has(themedItemKey(theme, item, singleSubject)));
+    missing = items.filter((item) => !result.has(themedItemKey(theme, item, singleSubject, audienceGender)));
     if (missing.length === 0) break;
 
     // Never place a private choice beside a shared one in the same downloaded
@@ -302,7 +316,7 @@ async function loadMissingTiles(
     const generatedPartitions = await Promise.all(partitions.map(async (partition) => {
       const taskId = actions.beginAssistTask('themes', pictureTaskLabel(partition));
       const generated = await withGenerationSlot(
-        () => requestGeneratedSprite(partition, theme, singleSubject),
+        () => requestGeneratedSprite(partition, theme, singleSubject, audienceGender),
       );
       return { generated, partition, taskId };
     }));
@@ -328,7 +342,7 @@ async function loadMissingTiles(
       }
       const published = new Map<ThemedKey, ThemeTile>();
       partition.forEach((item, index) => {
-        const key = themedItemKey(theme, item, singleSubject);
+        const key = themedItemKey(theme, item, singleSubject, audienceGender);
         const tile = { ...sprite, index };
         result.set(key, tile);
         published.set(key, tile);
@@ -339,7 +353,7 @@ async function loadMissingTiles(
       actions.finishAssistTask('themes', 'ready', partition.length, taskId);
     });
 
-    missing = items.filter((item) => !result.has(themedItemKey(theme, item, singleSubject)));
+    missing = items.filter((item) => !result.has(themedItemKey(theme, item, singleSubject, audienceGender)));
     if (missing.length === 0 || refreshDelay === 0) break;
     await new Promise((resolve) => setTimeout(resolve, refreshDelay));
   }
@@ -350,10 +364,11 @@ async function loadTiles(
   items: readonly ThemeIconRequestItem[],
   theme: Exclude<SymbolTheme, 'emoji'>,
   singleSubject: boolean,
+  audienceGender: ThemeAudienceGender,
 ): Promise<ReadonlyMap<string, ThemeTile>> {
   const uniqueMissing = new Map<ThemedKey, ThemeIconRequestItem>();
   items.forEach((item) => {
-    const key = themedItemKey(theme, item, singleSubject);
+    const key = themedItemKey(theme, item, singleSubject, audienceGender);
     if (!itemMemory.has(key)) uniqueMissing.set(key, item);
   });
 
@@ -361,9 +376,9 @@ async function loadTiles(
     const missing = [...uniqueMissing.values()];
     // Register the shared promise immediately so overlapping prewarm and
     // visible-board hooks join the same restore/generation work.
-    const groupPromise = loadMissingTiles(missing, theme, singleSubject);
+    const groupPromise = loadMissingTiles(missing, theme, singleSubject, audienceGender);
     missing.forEach((item) => {
-      const key = themedItemKey(theme, item, singleSubject);
+      const key = themedItemKey(theme, item, singleSubject, audienceGender);
       const tilePromise = groupPromise
         .then((tiles) => tiles.get(key) ?? null)
         .catch(() => null);
@@ -377,14 +392,14 @@ async function loadTiles(
   const resolved = await Promise.all(
     items.map(async (item) => ({
       item,
-      tile: await itemMemory.get(themedItemKey(theme, item, singleSubject)),
+      tile: await itemMemory.get(themedItemKey(theme, item, singleSubject, audienceGender)),
     })),
   );
   const result = new Map<string, ThemeTile>();
   const published = new Map<ThemedKey, ThemeTile>();
   resolved.forEach(({ item, tile }) => {
     if (tile) {
-      const memoryKey = themedItemKey(theme, item, singleSubject);
+      const memoryKey = themedItemKey(theme, item, singleSubject, audienceGender);
       published.set(memoryKey, tile);
       result.set(itemKey(item), tile);
     }
@@ -411,6 +426,7 @@ export function useThemedSymbols(
   theme: SymbolTheme,
   options: { batchSize?: number; singleSubject?: boolean } = {},
 ): ReadonlyMap<string, ThemeTile> {
+  const audienceGender = useStore((state) => state.settings.voiceGender);
   useSyncExternalStore(
     subscribeResolvedMemory,
     resolvedMemorySnapshot,
@@ -438,13 +454,13 @@ export function useThemedSymbols(
     // this session appear in the first render; missing pictures keep their
     // emoji fallback and fill in independently as their batch finishes.
     stableItems.forEach((item) => {
-      const tile = resolvedMemory.get(themedItemKey(theme, item, singleSubject));
+      const tile = resolvedMemory.get(themedItemKey(theme, item, singleSubject, audienceGender));
       if (tile) next.set(itemKey(item), tile);
     });
     setResolved({ theme, signature, tiles: new Map(next) });
 
     chunk(stableItems, batchSize).forEach((group) => {
-      void loadTiles(group, theme, singleSubject).then((groupTiles) => {
+      void loadTiles(group, theme, singleSubject, audienceGender).then((groupTiles) => {
         if (cancelled) return;
         groupTiles.forEach((tile, key) => next.set(key, tile));
         setResolved({ theme, signature, tiles: new Map(next) });
@@ -453,7 +469,7 @@ export function useThemedSymbols(
     return () => {
       cancelled = true;
     };
-  }, [batchSize, singleSubject, stableItems, theme]);
+  }, [audienceGender, batchSize, singleSubject, stableItems, theme]);
 
   // The application-level preparation and visible surfaces share one memory.
   // Merge it during every render so a completed image appears everywhere in
@@ -463,7 +479,7 @@ export function useThemedSymbols(
     : new Map<string, ThemeTile>();
   if (theme !== 'emoji') {
     stableItems.forEach((item) => {
-      const tile = resolvedMemory.get(themedItemKey(theme, item, singleSubject));
+      const tile = resolvedMemory.get(themedItemKey(theme, item, singleSubject, audienceGender));
       if (tile) immediate.set(itemKey(item), tile);
     });
   }
@@ -484,6 +500,7 @@ export function usePreparedSymbolTheme(
   requestedTheme: SymbolTheme,
   groups: readonly ThemePreparationGroup[],
 ): SymbolTheme {
+  const audienceGender = useStore((state) => state.settings.voiceGender);
   const signature = groups.map((group) => [
     group.singleSubject === true ? 'single' : 'board',
     Math.max(1, Math.min(9, group.batchSize ?? 9)),
@@ -501,13 +518,39 @@ export function usePreparedSymbolTheme(
     stableGroups.forEach((group) => {
       const size = Math.max(1, Math.min(9, group.batchSize ?? 9));
       chunk(group.items, size).forEach((items) => {
-        void loadTiles(items, requestedTheme, group.singleSubject === true);
+        void loadTiles(items, requestedTheme, group.singleSubject === true, audienceGender);
       });
     });
     return undefined;
-  }, [requestedTheme, stableGroups]);
+  }, [audienceGender, requestedTheme, stableGroups]);
 
   return requestedTheme;
+}
+
+export interface ThemePreviewPreload {
+  readonly theme: Exclude<SymbolTheme, 'emoji'>;
+  readonly item: ThemeIconRequestItem;
+}
+
+/** Warm every style preview before Settings opens without mounting hidden UI. */
+export function usePreloadedThemePreviews(
+  previews: readonly ThemePreviewPreload[],
+  enabled: boolean,
+): void {
+  const signature = previews
+    .map(({ theme, item }) => `${theme}\u0000${itemKey(item)}`)
+    .join('\u0002');
+  const stablePreviews = useMemo(
+    () => previews.map(({ theme, item }) => ({ theme, item: { ...item } })),
+    [signature],
+  );
+  useEffect(() => {
+    if (!enabled) return undefined;
+    stablePreviews.forEach(({ theme, item }) => {
+      void loadTiles([item], theme, true, 'neutral');
+    });
+    return undefined;
+  }, [enabled, stablePreviews]);
 }
 
 export function themeTileFor(

@@ -271,7 +271,7 @@ describe('settings persistence', () => {
     actions.setSettings({
       speechRate: 1.4,
       highContrast: true,
-      symbolTheme: 'anime',
+      symbolTheme: 'ghibli',
     });
     store.reset();
     expect(store.getState().settings.speechRate).toBe(1);
@@ -279,7 +279,15 @@ describe('settings persistence', () => {
     actions.loadSettings();
     expect(store.getState().settings.speechRate).toBe(1.4);
     expect(store.getState().settings.highContrast).toBe(true);
-    expect(store.getState().settings.symbolTheme).toBe('anime');
+    expect(store.getState().settings.symbolTheme).toBe('ghibli');
+  });
+
+  it('moves a saved Anime preference to Ghibli Style', () => {
+    localStorage.setItem('aac.settings.v1', JSON.stringify({ symbolTheme: 'anime' }));
+
+    actions.loadSettings();
+
+    expect(store.getState().settings.symbolTheme).toBe('ghibli');
   });
 
   it('survives corrupt stored settings', () => {

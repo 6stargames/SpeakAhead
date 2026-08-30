@@ -8,6 +8,7 @@ import { createId } from '@/lib/id';
 import type { FitzgeraldClass } from '@/lib/fitzgerald';
 import type { AttributionAttempt, SpeakerProfile } from '@/speech/speakers';
 import { filterNovelChoices } from '@/assist/choiceAvailability';
+import { normaliseSymbolTheme, type SymbolTheme as PictureSymbolTheme } from '@/assist/pictureThemes';
 
 export type TurnSource = 'user' | 'peer';
 
@@ -67,7 +68,7 @@ export interface Settings {
   symbolTheme: SymbolTheme;
 }
 
-export type SymbolTheme = 'emoji' | 'anime' | 'baby-shark' | 'hello-kitty';
+export type SymbolTheme = PictureSymbolTheme;
 
 export interface ContextSuggestion {
   readonly text: string;
@@ -750,7 +751,12 @@ export const actions = {
       // options lingering in old localStorage cannot come back to life.
       const settings = { ...store.getState().settings };
       for (const key of Object.keys(settings) as (keyof Settings)[]) {
-        if (key in parsed) (settings as Record<string, unknown>)[key] = parsed[key];
+        if (key !== 'symbolTheme' && key in parsed) {
+          (settings as Record<string, unknown>)[key] = parsed[key];
+        }
+      }
+      if ('symbolTheme' in parsed) {
+        settings.symbolTheme = normaliseSymbolTheme(parsed.symbolTheme) ?? 'emoji';
       }
       store.set({ settings });
     } catch {

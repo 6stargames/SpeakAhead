@@ -287,8 +287,8 @@ describe('AAC context tools', () => {
       resultCount: 10,
     });
 
-    await toolRegistry.invoke('set-symbol-theme', { theme: 'anime' });
-    expect(store.getState().settings.symbolTheme).toBe('anime');
+    await toolRegistry.invoke('set-symbol-theme', { theme: 'ghibli' });
+    expect(store.getState().settings.symbolTheme).toBe('ghibli');
     await toolRegistry.invoke('set-symbol-theme', { theme: 'baby-shark' });
     expect(store.getState().settings.symbolTheme).toBe('baby-shark');
     await toolRegistry.invoke('set-symbol-theme', { theme: 'hello-kitty' });
@@ -404,7 +404,7 @@ describe('AAC context tools', () => {
   it('shows live WebMCP work in the chat area and provides a large return button', () => {
     store.reset();
     const onClose = vi.fn();
-    act(() => actions.setSettings({ symbolTheme: 'anime' }));
+    act(() => actions.setSettings({ symbolTheme: 'ghibli' }));
     let taskId = '';
     act(() => { taskId = actions.beginAssistTask('themes', 'Pictures for “help”, “water”'); });
     render(<AssistTasksPanel selectedFeature="themes" onClose={onClose} symbolTheme="emoji" />);
