@@ -216,6 +216,8 @@ export interface AppState {
   readonly voiceAttempts: AttributionAttempt[];
   /** Who is speaking right now, guessed while they are still talking. */
   readonly liveSpeaker: { id: string; label: string; isOwner: boolean } | null;
+  /** Who is speaking in the shared browser tab right now. */
+  readonly liveTabSpeaker: { id: string; label: string; isOwner: boolean } | null;
   readonly micActive: boolean;
   /** Retained for saved-state compatibility; the room microphone stays primary. */
   readonly audioInputSource: 'microphone' | 'browser-tab';
@@ -311,6 +313,7 @@ const initialState: AppState = {
   pendingVoices: 0,
   voiceAttempts: [],
   liveSpeaker: null,
+  liveTabSpeaker: null,
   micActive: false,
   audioInputSource: 'microphone',
   tabAudioActive: false,
@@ -836,6 +839,10 @@ export const actions = {
 
   setLiveSpeaker(liveSpeaker: AppState['liveSpeaker']): void {
     store.set({ liveSpeaker });
+  },
+
+  setLiveTabSpeaker(liveTabSpeaker: AppState['liveTabSpeaker']): void {
+    store.set({ liveTabSpeaker });
   },
 
   setSpeakers(

@@ -1,5 +1,5 @@
 import { useEffect, useRef, type JSX } from 'react';
-import type { AudioFrame } from '@/audio/AudioGraph';
+import type { AudioFrame, CaptureChannel } from '@/audio/AudioGraph';
 import { session } from '@/session/AacSession';
 import { speakerHue } from '@/lib/speakerColour';
 
@@ -32,7 +32,13 @@ interface Column {
  * and re-rendering the React tree at that rate to move a waveform would be a
  * poor trade on a device that must not stutter its audio.
  */
-export function Waveform({ active }: { active: boolean }): JSX.Element | null {
+export function Waveform({
+  active,
+  channel = 'local',
+}: {
+  active: boolean;
+  channel?: CaptureChannel;
+}): JSX.Element | null {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const columnsRef = useRef<Column[]>([]);
 
@@ -96,9 +102,9 @@ export function Waveform({ active }: { active: boolean }): JSX.Element | null {
     };
 
     const onFrame = (frame: AudioFrame) => {
-      if (frame.channel !== 'local') return;
+      if (frame.channel !== channel) return;
 
-      const hue = speakerHue(session.liveSpeakerId());
+      const hue = speakerHue(session.liveSpeakerId(channel));
       const samples = frame.samples;
       const chunk = Math.max(1, Math.floor(samples.length / COLUMNS_PER_FRAME));
 
@@ -132,13 +138,14 @@ export function Waveform({ active }: { active: boolean }): JSX.Element | null {
       observer?.disconnect();
       columnsRef.current = [];
     };
-  }, [active]);
+  }, [active, channel]);
 
   if (!active) return null;
 
   return (
     <canvas
-      className="waveform"
+      className={`waveform waveform--${channel}`}
+      data-audio-channel={channel}
       ref={canvasRef}
       // The waveform is decorative for anyone who cannot see it; the spoken
       // words themselves are announced by the transcript's live region.

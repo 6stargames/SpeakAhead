@@ -807,6 +807,10 @@ body {
   --waveform-line: var(--accent);
   --waveform-axis: var(--border);
 }
+.waveform--tab {
+  --waveform-line: var(--fitz-question);
+  --waveform-axis: color-mix(in srgb, var(--fitz-question) 35%, var(--border));
+}
 
 /* --- Predictions ----------------------------------------------------------
 
@@ -1521,6 +1525,36 @@ body {
 .listening-bar .waveform {
   height: 1.75rem;
   min-width: 0;
+}
+.listening-bar__waves {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.listening-bar__waves--split {
+  gap: 0.1rem;
+}
+.listening-bar__wave-lane {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.listening-bar__waves--split .waveform {
+  height: 1rem;
+}
+.listening-bar__wave-label {
+  width: 2.25rem;
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-size: 0.55em;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-align: end;
+}
+.listening-bar__wave-lane--tab .listening-bar__wave-label {
+  color: var(--fitz-question);
 }
 .listening-bar .loadbar {
   flex: 1;

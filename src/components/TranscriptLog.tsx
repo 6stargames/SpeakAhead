@@ -32,8 +32,18 @@ function attribute(
   turn: Turn,
   speakers: readonly SpeakerProfile[],
   liveSpeaker: AppState['liveSpeaker'],
+  liveTabSpeaker: AppState['liveTabSpeaker'],
 ): { mine: boolean; who: string; speakerId?: string } {
-  if (turn.audioSource === 'browser-tab') return { mine: false, who: 'Tab audio' };
+  if (turn.audioSource === 'browser-tab') {
+    const speaker = turn.speakerId
+      ? speakers.find((candidate) => candidate.id === turn.speakerId)
+      : undefined;
+    if (speaker) return { mine: false, who: speaker.label, speakerId: speaker.id };
+    if (!turn.final && liveTabSpeaker) {
+      return { mine: false, who: liveTabSpeaker.label, speakerId: liveTabSpeaker.id };
+    }
+    return { mine: false, who: 'Tab audio' };
+  }
   if (turn.source === 'peer') return { mine: false, who: 'Partner' };
 
   // Anything the device said on the user's behalf is unambiguously theirs.
@@ -152,16 +162,18 @@ function TurnRow({
   turn,
   speakers,
   liveSpeaker,
+  liveTabSpeaker,
   menuOpen,
   onToggleMenu,
 }: {
   turn: Turn;
   speakers: readonly SpeakerProfile[];
   liveSpeaker: AppState['liveSpeaker'];
+  liveTabSpeaker: AppState['liveTabSpeaker'];
   menuOpen: boolean;
   onToggleMenu: (id: string | null) => void;
 }): JSX.Element {
-  const { mine, who, speakerId } = attribute(turn, speakers, liveSpeaker);
+  const { mine, who, speakerId } = attribute(turn, speakers, liveSpeaker, liveTabSpeaker);
   const speaker = speakerId ? speakers.find((candidate) => candidate.id === speakerId) : undefined;
   const lowContent = isLowContent(turn);
   // Dictated-but-unspoken words never reached the room. They render as an
@@ -258,6 +270,7 @@ const selectCallInfo = (state: AppState) => ({
   peerEmergency: state.peerEmergency,
 });
 const selectLiveSpeaker = (state: AppState) => state.liveSpeaker;
+const selectLiveTabSpeaker = (state: AppState) => state.liveTabSpeaker;
 const selectListening = (state: AppState) => ({
   micActive: state.micActive,
   micPermission: state.micPermission,
@@ -275,6 +288,7 @@ export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolT
   const speakers = useStore(selectSpeakers);
   const pendingVoices = useStore(selectPendingVoices);
   const liveSpeaker = useStore(selectLiveSpeaker);
+  const liveTabSpeaker = useStore(selectLiveTabSpeaker);
   const listening = useStore(selectListening);
   const callInfo = useStore(selectCallInfo);
   const onCall = callInfo.call !== 'idle' && callInfo.call !== 'closed';
@@ -485,7 +499,24 @@ export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolT
           {!listening.asrReady ? (
             <LoadProgress percent={formatLoadPercent(listening.asrDetail)} />
           ) : (
-            <Waveform active={listening.micActive} />
+            <div
+              className={`listening-bar__waves${
+                listening.micActive && listening.tabAudioActive ? ' listening-bar__waves--split' : ''
+              }`}
+            >
+              {listening.micActive && (
+                <div className="listening-bar__wave-lane">
+                  {listening.tabAudioActive && <span className="listening-bar__wave-label">Room</span>}
+                  <Waveform active channel="local" />
+                </div>
+              )}
+              {listening.tabAudioActive && (
+                <div className="listening-bar__wave-lane listening-bar__wave-lane--tab">
+                  <span className="listening-bar__wave-label">Tab</span>
+                  <Waveform active channel="tab" />
+                </div>
+              )}
+            </div>
           )}
           {listening.asrReady && browserTabAudioAvailable && (
             <button
@@ -578,6 +609,7 @@ export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolT
               turn={turn}
               speakers={speakers}
               liveSpeaker={liveSpeaker}
+              liveTabSpeaker={liveTabSpeaker}
               menuOpen={openMenuTurn === turn.id}
               onToggleMenu={setOpenMenuTurn}
             />

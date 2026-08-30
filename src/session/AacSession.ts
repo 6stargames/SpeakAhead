@@ -127,6 +127,9 @@ export class AacSession {
   #tabUtteranceAudio: Float32Array[] = [];
   #tabUtteranceSampleRate = 16000;
   #tabUtteranceFramesConsidered = 0;
+  #tabUtterancePitches: number[] = [];
+  #tabUtteranceCrossings: number[] = [];
+  #tabUtteranceTimbres: Float32Array[] = [];
   /**
    * Frames loud enough to examine, whether or not a pitch came out.
    *
@@ -158,6 +161,8 @@ export class AacSession {
   /** Provisional speaker while someone is still talking. */
   #liveSpeakerId: string | null = null;
   #framesSinceIdentify = 0;
+  #tabLiveSpeakerId: string | null = null;
+  #tabFramesSinceIdentify = 0;
 
   /** Voiceprint change detection state for the open utterance. */
   #utteranceGeneration = 0;
@@ -690,6 +695,12 @@ export class AacSession {
     this.#tabUtteranceAudio = [];
     this.#tabUtteranceSampleRate = 16000;
     this.#tabUtteranceFramesConsidered = 0;
+    this.#tabUtterancePitches = [];
+    this.#tabUtteranceCrossings = [];
+    this.#tabUtteranceTimbres = [];
+    this.#tabLiveSpeakerId = null;
+    this.#tabFramesSinceIdentify = 0;
+    actions.setLiveTabSpeaker(null);
   }
 
   #onFrame = (frame: AudioFrame): void => {
@@ -746,14 +757,33 @@ export class AacSession {
       }
     }
 
-    // Tab audio has an independent utterance buffer. It is never passed to the
-    // room speaker tracker, but keeping its samples means signed-in users still
-    // get the same bounded GPT accuracy check after ONNX finishes the turn.
+    // Tab audio has an independent utterance buffer. Its samples and voice
+    // features never mix with the room utterance, while the shared profile
+    // tracker can still recognise the same speaker across either source.
     if (frame.channel === 'tab' && frame.rms > 0.004) {
       this.#tabUtteranceFramesConsidered += 1;
       this.#tabUtteranceAudio.push(frame.samples.slice());
       this.#tabUtteranceSampleRate = frame.sampleRate;
       if (this.#tabUtteranceAudio.length > 960) this.#tabUtteranceAudio.shift();
+
+      const pitch = estimatePitch(frame.samples, frame.sampleRate);
+      if (pitch !== null) {
+        this.#tabUtterancePitches.push(pitch);
+        this.#tabUtteranceCrossings.push(zeroCrossingRate(frame.samples));
+        const timbre = frameTimbre(frame.samples, frame.sampleRate);
+        if (timbre) this.#tabUtteranceTimbres.push(timbre);
+        if (this.#tabUtterancePitches.length > 200) {
+          this.#tabUtterancePitches.shift();
+          this.#tabUtteranceCrossings.shift();
+        }
+        if (this.#tabUtteranceTimbres.length > 200) this.#tabUtteranceTimbres.shift();
+
+        this.#tabFramesSinceIdentify += 1;
+        if (this.#tabFramesSinceIdentify >= 4) {
+          this.#tabFramesSinceIdentify = 0;
+          this.#updateLiveTabSpeaker();
+        }
+      }
     }
   };
 
@@ -778,9 +808,24 @@ export class AacSession {
     actions.setLiveSpeaker(guess ? { id: guess.id, label: guess.label, isOwner: guess.isOwner } : null);
   }
 
+  /** Name a speaker from shared-tab audio without touching the room buffers. */
+  #updateLiveTabSpeaker(): void {
+    const guess = this.speakers.identify({
+      pitches: this.#tabUtterancePitches,
+      crossingRates: this.#tabUtteranceCrossings,
+      timbres: this.#tabUtteranceTimbres,
+    });
+    if (guess?.id === this.#tabLiveSpeakerId) return;
+
+    this.#tabLiveSpeakerId = guess?.id ?? null;
+    actions.setLiveTabSpeaker(
+      guess ? { id: guess.id, label: guess.label, isOwner: guess.isOwner } : null,
+    );
+  }
+
   /** The voice currently being heard, for the waveform to colour itself by. */
-  liveSpeakerId(): string | null {
-    return this.#liveSpeakerId;
+  liveSpeakerId(channel: CaptureChannel = 'local'): string | null {
+    return channel === 'tab' ? this.#tabLiveSpeakerId : this.#liveSpeakerId;
   }
 
   #splitOnSpeakerChange(carry = 5): void {
@@ -894,15 +939,21 @@ export class AacSession {
 
   #captureTabUtterance(): CapturedUtterance {
     const captured: CapturedUtterance = {
-      pitches: [],
-      crossings: [],
-      timbres: [],
+      pitches: this.#tabUtterancePitches,
+      crossings: this.#tabUtteranceCrossings,
+      timbres: this.#tabUtteranceTimbres,
       audio: this.#tabUtteranceAudio,
       sampleRate: this.#tabUtteranceSampleRate,
       considered: this.#tabUtteranceFramesConsidered,
     };
     this.#tabUtteranceAudio = [];
     this.#tabUtteranceFramesConsidered = 0;
+    this.#tabUtterancePitches = [];
+    this.#tabUtteranceCrossings = [];
+    this.#tabUtteranceTimbres = [];
+    this.#tabLiveSpeakerId = null;
+    this.#tabFramesSinceIdentify = 0;
+    actions.setLiveTabSpeaker(null);
     return captured;
   }
 
@@ -1157,7 +1208,10 @@ export class AacSession {
         ...(final && words ? { words } : {}),
         ...(final ? { transcriptionStatus: willCheck ? 'checking' as const : 'local' as const } : {}),
       });
-      if (captured && willCheck) this.#queueAccurateTranscription(id, finalText, captured);
+      if (captured) {
+        void this.#attributeCaptured(id, captured);
+        if (willCheck) this.#queueAccurateTranscription(id, finalText, captured);
+      }
       if (final) this.#recognitionTurns.finalize('tab', utteranceId);
       return;
     }

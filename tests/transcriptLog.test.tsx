@@ -55,4 +55,40 @@ describe('transient chat labels', () => {
     expect(container.textContent).toContain('Tab audio said');
     expect(container.querySelector('[aria-label="From shared tab audio"]')?.textContent).toBe('▶');
   });
+
+  it('shows the recognised speaker name on a finished shared-tab message', () => {
+    actions.setSpeakers([{
+      id: 'speaker-7',
+      label: 'Speaker 7',
+      pitchHz: 180,
+      brightness: 0.08,
+      utterances: 2,
+      isOwner: false,
+    }]);
+    actions.upsertTurn({
+      id: 'tab-speaker-turn',
+      source: 'peer',
+      text: 'A second person joined the video.',
+      final: true,
+      dictated: true,
+      spoken: false,
+      audioSource: 'browser-tab',
+      speakerId: 'speaker-7',
+    });
+
+    act(() => root.render(<TranscriptLog />));
+
+    expect(container.textContent).toContain('Speaker 7 said');
+    expect(container.querySelector('[aria-label="From shared tab audio"]')?.textContent).toBe('▶');
+  });
+
+  it('shows separate room and tab waveform lanes while both sources are active', () => {
+    act(() => store.set({ tabAudioActive: true }));
+    act(() => root.render(<TranscriptLog />));
+
+    expect(container.querySelector('[data-audio-channel="local"]')).not.toBeNull();
+    expect(container.querySelector('[data-audio-channel="tab"]')).not.toBeNull();
+    expect(container.querySelector('.listening-bar__waves--split')?.textContent).toContain('Room');
+    expect(container.querySelector('.listening-bar__waves--split')?.textContent).toContain('Tab');
+  });
 });
