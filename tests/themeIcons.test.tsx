@@ -144,4 +144,73 @@ describe('themed image reuse', () => {
     expect(generationRequests).toBe(1);
     expect(fetchMock).toHaveBeenCalledTimes(4);
   });
+
+  it('never generates shared and private choices in the same sprite sheet', async () => {
+    const generatedBatches: ThemeIconRequestItem[][] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (isLookup(init)) return Response.json({ groups: [] });
+      if (init?.method === 'POST' && typeof init.body === 'string') {
+        const body = JSON.parse(init.body) as { items: ThemeIconRequestItem[] };
+        generatedBatches.push(body.items);
+      }
+      return pngResponse();
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const items = [
+      { text: 'pizza', symbol: '🍕' },
+      { text: 'Please call Danny.', symbol: '📞' },
+    ];
+
+    act(() => root.render(<Harness items={items} />));
+    await vi.waitFor(() => {
+      expect(container.firstElementChild?.getAttribute('data-count')).toBe('2');
+    });
+    expect(generatedBatches).toEqual([
+      [{ text: 'pizza', symbol: '🍕' }],
+      [{ text: 'Please call Danny.', symbol: '📞' }],
+    ]);
+  });
+
+  it('refreshes the library when another user is already generating the image', async () => {
+    let lookupCount = 0;
+    let generationRequests = 0;
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (isLookup(init)) {
+        lookupCount += 1;
+        return Response.json({
+          groups: lookupCount > 1
+            ? [{
+              probeText: 'pizza',
+              columns: 3,
+              rows: 3,
+              tiles: [{ requestIndex: 0, index: 2 }],
+            }]
+            : [],
+        });
+      }
+      if (init?.method === 'POST') {
+        generationRequests += 1;
+        return Response.json(
+          { error: 'image_cache_refresh' },
+          {
+            status: 409,
+            headers: {
+              'retry-after': '0.001',
+              'x-aac-cache-refresh': 'true',
+            },
+          },
+        );
+      }
+      return pngResponse(2);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    act(() => root.render(<Harness items={[{ text: 'pizza', symbol: '🍕' }]} />));
+    await vi.waitFor(() => {
+      expect(container.firstElementChild?.getAttribute('data-count')).toBe('1');
+    });
+    expect(generationRequests).toBe(1);
+    expect(lookupCount).toBe(2);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
 });

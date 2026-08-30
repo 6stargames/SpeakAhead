@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type JSX } from 'reac
 import { actions } from '@/state/store';
 import type { SymbolTheme } from '@/state/store';
 import { normalizedChoice } from './choiceAvailability';
+import { themeImageCacheScope } from './themeImageSharing';
 import type { ThemeIconRequestItem, ThemeSprite } from './types';
 
 export interface ThemeTile extends ThemeSprite {
@@ -23,6 +24,11 @@ interface SavedGroup {
   readonly rows: number;
   readonly tiles: readonly { requestIndex: number; index: number }[];
 }
+
+type GenerationResult =
+  | { readonly kind: 'image'; readonly payload: SpritePayload }
+  | { readonly kind: 'refresh'; readonly retryAfterMs: number }
+  | { readonly kind: 'unavailable' };
 
 const itemMemory = new Map<ThemedKey, Promise<ThemeTile | null>>();
 let queue: Promise<unknown> = Promise.resolve();
@@ -71,7 +77,7 @@ async function requestGeneratedSprite(
   items: readonly ThemeIconRequestItem[],
   theme: Exclude<SymbolTheme, 'emoji'>,
   singleSubject: boolean,
-): Promise<SpritePayload | null> {
+): Promise<GenerationResult> {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const response = await fetch('/api/assist/theme-icons', {
@@ -80,6 +86,16 @@ async function requestGeneratedSprite(
         credentials: 'same-origin',
         body: JSON.stringify({ theme, items, singleSubject }),
       });
+      if (response.status === 409 && response.headers.get('x-aac-cache-refresh') === 'true') {
+        const retryAfter = Number(response.headers.get('retry-after'));
+        await response.body?.cancel();
+        return {
+          kind: 'refresh',
+          retryAfterMs: Number.isFinite(retryAfter) && retryAfter > 0
+            ? Math.min(5_000, retryAfter * 1_000)
+            : 2_000,
+        };
+      }
       if (response.status === 429 && attempt < 2) {
         const retryAfter = Number(response.headers.get('retry-after'));
         const delay = Number.isFinite(retryAfter) && retryAfter > 0
@@ -88,12 +104,13 @@ async function requestGeneratedSprite(
         await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
       }
-      return await imagePayload(response);
+      const payload = await imagePayload(response);
+      return payload ? { kind: 'image', payload } : { kind: 'unavailable' };
     } catch {
-      if (attempt === 2) return null;
+      if (attempt === 2) return { kind: 'unavailable' };
     }
   }
-  return null;
+  return { kind: 'unavailable' };
 }
 
 async function lookupSavedGroups(
@@ -160,32 +177,61 @@ async function loadMissingTiles(
   singleSubject: boolean,
 ): Promise<ReadonlyMap<ThemedKey, ThemeTile>> {
   const result = new Map<ThemedKey, ThemeTile>();
-  const groups = await lookupSavedGroups(items, theme, singleSubject);
+  let missing = [...items];
 
-  // One saved sheet may contain several requested buttons. Fetch that sheet
-  // once, then reconnect every matching button to its original cell.
-  for (const group of groups) {
-    const payload = await requestSavedSprite(theme, group.probeText, singleSubject);
-    if (!payload) continue;
-    const sprite = spriteFromBlob(payload.blob, group.columns, group.rows);
-    if (!sprite) continue;
-    group.tiles.forEach(({ requestIndex, index }) => {
-      const item = items[requestIndex];
-      if (!item || !Number.isInteger(index) || index < 0) return;
-      result.set(themedItemKey(theme, item, singleSubject), { ...sprite, index });
-    });
+  // A competing browser may be creating one of these choices. Recheck the
+  // shared library after its short lease response instead of submitting a
+  // second image request. Eight passes cover the normal generation window.
+  for (let pass = 0; pass < 8 && missing.length > 0; pass += 1) {
+    const groups = await lookupSavedGroups(missing, theme, singleSubject);
+
+    // One saved sheet may contain several requested buttons. Fetch that sheet
+    // once, then reconnect every matching button to its original cell.
+    for (const group of groups) {
+      const payload = await requestSavedSprite(theme, group.probeText, singleSubject);
+      if (!payload) continue;
+      const sprite = spriteFromBlob(payload.blob, group.columns, group.rows);
+      if (!sprite) continue;
+      group.tiles.forEach(({ requestIndex, index }) => {
+        const item = missing[requestIndex];
+        if (!item || !Number.isInteger(index) || index < 0) return;
+        result.set(themedItemKey(theme, item, singleSubject), { ...sprite, index });
+      });
+    }
+
+    missing = items.filter((item) => !result.has(themedItemKey(theme, item, singleSubject)));
+    if (missing.length === 0) break;
+
+    // Never place a private choice beside a shared one in the same downloaded
+    // sprite sheet. The server independently enforces this boundary.
+    const partitions = [
+      missing.filter((item) => themeImageCacheScope(item.text) === 'shared'),
+      missing.filter((item) => themeImageCacheScope(item.text) === 'private'),
+    ].filter((partition) => partition.length > 0);
+
+    let refreshDelay = 0;
+    for (const partition of partitions) {
+      const generated = await requestGeneratedSprite(partition, theme, singleSubject);
+      if (generated.kind === 'refresh') {
+        refreshDelay = Math.max(refreshDelay, generated.retryAfterMs);
+        continue;
+      }
+      if (generated.kind !== 'image') continue;
+      const sprite = spriteFromBlob(
+        generated.payload.blob,
+        generated.payload.columns,
+        generated.payload.rows,
+      );
+      if (!sprite) continue;
+      partition.forEach((item, index) => {
+        result.set(themedItemKey(theme, item, singleSubject), { ...sprite, index });
+      });
+    }
+
+    missing = items.filter((item) => !result.has(themedItemKey(theme, item, singleSubject)));
+    if (missing.length === 0 || refreshDelay === 0) break;
+    await new Promise((resolve) => setTimeout(resolve, refreshDelay));
   }
-
-  const missing = items.filter((item) => !result.has(themedItemKey(theme, item, singleSubject)));
-  if (missing.length === 0) return result;
-
-  const generated = await requestGeneratedSprite(missing, theme, singleSubject);
-  if (!generated) return result;
-  const sprite = spriteFromBlob(generated.blob, generated.columns, generated.rows);
-  if (!sprite) return result;
-  missing.forEach((item, index) => {
-    result.set(themedItemKey(theme, item, singleSubject), { ...sprite, index });
-  });
   return result;
 }
 
