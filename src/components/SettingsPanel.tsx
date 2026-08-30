@@ -91,11 +91,13 @@ export function SettingsPanel({ signedIn = false }: { signedIn?: boolean }): JSX
       {signedIn && (
         <OptionRow
           label="Button pictures"
-          hint="Anime pictures are generated once, stored on this device, and reused. Emoji always remain as a fallback."
+          hint="Themed pictures are generated once, stored on this device, and reused. Emoji always remain as a fallback."
           value={settings.symbolTheme}
           options={[
             { label: 'Emoji', value: 'emoji' as const, symbol: '🙂' },
             { label: 'Anime', value: 'anime' as const, symbol: '🎨' },
+            { label: 'Baby Shark', value: 'baby-shark' as const, symbol: '🦈' },
+            { label: 'Hello Kitty', value: 'hello-kitty' as const, symbol: '🎀' },
           ]}
           onChange={(symbolTheme) => actions.setSettings({ symbolTheme })}
         />

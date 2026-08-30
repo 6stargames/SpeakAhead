@@ -34,13 +34,13 @@ export function localWordSuggestions(turns: readonly Pick<Turn, 'text'>[]): Cont
   const candidates = wordsFrom(latest)
     .filter((word) => word.length > 2 && !STOP_WORDS.has(word))
     .filter((word, index, list) => list.indexOf(word) === index)
-    .slice(-3)
+    .slice(-6)
     .reverse();
-  for (const fallback of ['yes', 'no', 'wait']) {
-    if (candidates.length >= 3) break;
+  for (const fallback of ['yes', 'no', 'wait', 'help', 'more', 'please']) {
+    if (candidates.length >= 6) break;
     if (!candidates.includes(fallback)) candidates.push(fallback);
   }
-  return candidates.slice(0, 3).map((text) => ({ text, symbol: symbolForText(text) }));
+  return candidates.slice(0, 6).map((text) => ({ text, symbol: symbolForText(text) }));
 }
 
 function editDistance(a: string, b: string): number {
@@ -114,4 +114,3 @@ export function localContextCorrection(
       }
     : null;
 }
-

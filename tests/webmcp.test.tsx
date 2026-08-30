@@ -256,22 +256,31 @@ describe('AAC context tools', () => {
         { text: 'water', symbol: '💧' },
         { text: 'yes', symbol: '✅' },
         { text: 'wait', symbol: '⏳' },
+        { text: 'help', symbol: '🆘' },
+        { text: 'more', symbol: '➕' },
+        { text: 'please', symbol: '🙏' },
       ],
       phrases: [
         { text: 'Yes, please.', symbol: '✅' },
         { text: 'No, thank you.', symbol: '🚫' },
         { text: 'Please wait.', symbol: '⏳' },
+        { text: 'Could you repeat that?', symbol: '🔁' },
       ],
     });
-    expect(store.getState().contextualWords).toHaveLength(3);
+    expect(store.getState().contextualWords).toHaveLength(6);
+    expect(store.getState().contextualPhrases).toHaveLength(4);
     expect(store.getState().assistFeatures.suggestions).toMatchObject({
       activeTasks: 0,
       status: 'ready',
-      resultCount: 6,
+      resultCount: 10,
     });
 
     await toolRegistry.invoke('set-symbol-theme', { theme: 'anime' });
     expect(store.getState().settings.symbolTheme).toBe('anime');
+    await toolRegistry.invoke('set-symbol-theme', { theme: 'baby-shark' });
+    expect(store.getState().settings.symbolTheme).toBe('baby-shark');
+    await toolRegistry.invoke('set-symbol-theme', { theme: 'hello-kitty' });
+    expect(store.getState().settings.symbolTheme).toBe('hello-kitty');
 
     actions.upsertTurn({
       id: 'uncertain',

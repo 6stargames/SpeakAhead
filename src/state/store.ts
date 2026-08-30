@@ -69,8 +69,10 @@ export interface Settings {
   /** Explicit consent for sending transcript text (never audio) for assistance. */
   chatGPTAssist: boolean;
   /** Device-local visual preference for symbols on vocabulary cards. */
-  symbolTheme: 'emoji' | 'anime';
+  symbolTheme: SymbolTheme;
 }
+
+export type SymbolTheme = 'emoji' | 'anime' | 'baby-shark' | 'hello-kitty';
 
 export interface ContextSuggestion {
   readonly text: string;
@@ -428,8 +430,8 @@ export const actions = {
 
   setContextSuggestions(words: ContextSuggestion[], phrases: ContextSuggestion[]): void {
     store.set({
-      contextualWords: words.slice(0, 3),
-      contextualPhrases: phrases.slice(0, 3),
+      contextualWords: words.slice(0, 6),
+      contextualPhrases: phrases.slice(0, 4),
     });
   },
 

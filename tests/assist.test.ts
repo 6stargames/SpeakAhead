@@ -34,9 +34,9 @@ describe('private context fallback', () => {
     ).toBeNull();
   });
 
-  it('always provides three useful word choices with familiar fallback symbols', () => {
+  it('always provides six useful word choices with familiar fallback symbols', () => {
     const suggestions = localWordSuggestions([{ text: 'Would you like cold water?' }]);
-    expect(suggestions).toHaveLength(3);
+    expect(suggestions).toHaveLength(6);
     expect(suggestions[0]?.text).toBe('water');
     expect(symbolForText('water')).toBe('💧');
   });

@@ -30,6 +30,27 @@ interface ContextAssistJob {
   readonly queuedAt: number;
 }
 
+function completeChoices<T extends { text: string }>(
+  primary: readonly T[],
+  fallback: readonly T[],
+  count: number,
+): T[] {
+  const result: T[] = [];
+  for (const choice of [...primary, ...fallback]) {
+    if (result.some((existing) => existing.text.toLocaleLowerCase() === choice.text.toLocaleLowerCase())) continue;
+    result.push(choice);
+    if (result.length === count) break;
+  }
+  return result;
+}
+
+const SAFE_PHRASE_FALLBACKS = [
+  { text: 'Yes, please.', symbol: '✅' },
+  { text: 'No, thank you.', symbol: '🚫' },
+  { text: 'Please wait.', symbol: '⏳' },
+  { text: 'Could you repeat that?', symbol: '🔁' },
+] as const;
+
 const CONTEXT_SETTLE_MS = 250;
 const CONTEXT_MIN_START_INTERVAL_MS = 5_000;
 const CONTEXT_QUEUE_POLL_MS = 250;
@@ -81,9 +102,11 @@ async function runContextJob(job: ContextAssistJob, signal: AbortSignal): Promis
           )
         ) applied += 1;
       }
-      actions.setContextSuggestions(response.words, response.phrases);
+      const words = completeChoices(response.words, localWordSuggestions(job.finalTurns), 6);
+      const phrases = completeChoices(response.phrases, SAFE_PHRASE_FALLBACKS, 4);
+      actions.setContextSuggestions(words, phrases);
       actions.setAssistStatus('ready');
-      finishTasks('ready', applied, response.words.length + response.phrases.length);
+      finishTasks('ready', applied, words.length + phrases.length);
       return;
     }
 
@@ -129,9 +152,11 @@ async function runContextJob(job: ContextAssistJob, signal: AbortSignal): Promis
       ) applied += 1;
     }
     const words = localWordSuggestions(job.finalTurns);
-    const phrases = outcome.suggestions
-      .slice(0, 3)
-      .map((text) => ({ text, symbol: symbolForText(text) }));
+    const phrases = completeChoices(
+      outcome.suggestions.map((text) => ({ text, symbol: symbolForText(text) })),
+      SAFE_PHRASE_FALLBACKS,
+      4,
+    );
     actions.setContextSuggestions(words, phrases);
     actions.setAssistStatus('local');
     finishTasks('local', applied, words.length + phrases.length);

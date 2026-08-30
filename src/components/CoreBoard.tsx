@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import type { FitzgeraldClass } from '@/lib/fitzgerald';
 import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
-import { actions, useStore, type AppState } from '@/state/store';
+import { actions, useStore, type AppState, type SymbolTheme } from '@/state/store';
 import { ContextSuggestionRow } from '@/components/ContextSuggestionRow';
 
 /**
@@ -96,22 +96,22 @@ const CORE_THEME_ITEMS = Array.from({ length: 6 }, (_, row) =>
 
 export function CoreBoard({
   contextAssistEnabled = false,
-  themedSymbolsEnabled = false,
+  symbolTheme = 'emoji',
 }: {
   contextAssistEnabled?: boolean;
-  themedSymbolsEnabled?: boolean;
+  symbolTheme?: SymbolTheme;
 }): JSX.Element {
   const masked = useStore(selectMasked);
   const editMode = useStore(selectEditMode);
   const favorites = useStore(selectFavorites);
-  const themedSymbols = useThemedSymbols(CORE_THEME_ITEMS, themedSymbolsEnabled);
+  const themedSymbols = useThemedSymbols(CORE_THEME_ITEMS, symbolTheme);
 
   return (
     <section className="board card panel" aria-label="Core words">
       <ContextSuggestionRow
         mode="words"
         enabled={contextAssistEnabled}
-        themedSymbolsEnabled={themedSymbolsEnabled}
+        symbolTheme={symbolTheme}
       />
       {/* Rendered row-major so switch scanning walks rows then columns, but
           authored column-major above so the sentence-building order is legible

@@ -81,8 +81,8 @@ export function ChatGPTAuthButton({
 
   const contextOverride = assist.assistEnabled ? undefined : 'idle';
   const contextDetail = assist.assistEnabled ? undefined : 'turned off in Settings';
-  const themeOverride = assist.symbolTheme === 'anime' ? undefined : 'idle';
-  const themeDetail = assist.symbolTheme === 'anime' ? undefined : 'Emoji theme selected';
+  const themeOverride = assist.symbolTheme !== 'emoji' ? undefined : 'idle';
+  const themeDetail = assist.symbolTheme !== 'emoji' ? undefined : 'Emoji theme selected';
 
   return (
     <div className="chatgpt-auth-cluster" aria-label="ChatGPT and WebMCP activity">

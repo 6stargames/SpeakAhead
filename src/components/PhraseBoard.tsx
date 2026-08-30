@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import { session } from '@/session/AacSession';
-import { actions, useStore, type AppState } from '@/state/store';
+import { actions, useStore, type AppState, type SymbolTheme } from '@/state/store';
 import type { FitzgeraldClass } from '@/lib/fitzgerald';
 import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
 import { ContextSuggestionRow } from '@/components/ContextSuggestionRow';
@@ -104,20 +104,20 @@ const PHRASE_THEME_ITEMS = ALL_PHRASES.map(({ text, symbol }) => ({ text, symbol
 
 export function PhraseBoard({
   contextAssistEnabled = false,
-  themedSymbolsEnabled = false,
+  symbolTheme = 'emoji',
 }: {
   contextAssistEnabled?: boolean;
-  themedSymbolsEnabled?: boolean;
+  symbolTheme?: SymbolTheme;
 }): JSX.Element {
   const favorites = useStore(selectFavorites);
-  const themedSymbols = useThemedSymbols(PHRASE_THEME_ITEMS, themedSymbolsEnabled);
+  const themedSymbols = useThemedSymbols(PHRASE_THEME_ITEMS, symbolTheme);
 
   return (
     <section className="board card panel" aria-label="Phrases">
       <ContextSuggestionRow
         mode="phrases"
         enabled={contextAssistEnabled}
-        themedSymbolsEnabled={themedSymbolsEnabled}
+        symbolTheme={symbolTheme}
       />
       <div className="board__grid board__grid--phrases" role="group" aria-label="Phrases" data-scan="grid">
         {ALL_PHRASES.map((phrase) => {

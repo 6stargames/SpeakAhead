@@ -198,9 +198,12 @@ function TurnRow({
             type="button"
             className="turn__badge turn__correction"
             title={`${turn.correctionReason ?? 'An uncertain word was corrected from context.'} Original: ${turn.originalText}`}
+            aria-label={`${turn.correctionSource === 'chatgpt' ? 'ChatGPT' : 'Context'} corrected this message. Undo correction. ${turn.correctionReason ?? ''}`}
             onClick={() => actions.revertContextCorrection(turn.id)}
           >
-            {turn.correctionSource === 'chatgpt' ? 'ChatGPT corrected' : 'context corrected'} · undo
+            <span className="turn__correction-spark" aria-hidden="true">✦</span>
+            <span>{turn.correctionSource === 'chatgpt' ? 'ChatGPT fix' : 'Context fix'}</span>
+            <span className="turn__correction-undo">Undo ↶</span>
           </button>
         )}
         {!turn.final && <span className="turn__badge">still speaking</span>}

@@ -94,8 +94,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
   const health = useStore(selectHealth);
   const signedIn = Boolean(chatGPTIdentity?.displayName);
   const contextAssistEnabled = signedIn && settings.chatGPTAssist;
-  const themedSymbolsEnabled =
-    signedIn && settings.symbolTheme === 'anime';
+  const symbolTheme = signedIn ? settings.symbolTheme : 'emoji';
 
   // Tools must be registered from a component so their lifetime is bound to the
   // React tree — that is what guarantees the AbortController teardown runs.
@@ -170,14 +169,14 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
           {view === 'core' && (
             <CoreBoard
               contextAssistEnabled={contextAssistEnabled}
-              themedSymbolsEnabled={themedSymbolsEnabled}
+              symbolTheme={symbolTheme}
             />
           )}
-          {view === 'fringe' && <FringeBoard themedSymbolsEnabled={themedSymbolsEnabled} />}
+          {view === 'fringe' && <FringeBoard symbolTheme={symbolTheme} />}
           {view === 'phrases' && (
             <PhraseBoard
               contextAssistEnabled={contextAssistEnabled}
-              themedSymbolsEnabled={themedSymbolsEnabled}
+              symbolTheme={symbolTheme}
             />
           )}
           {view === 'voice' && (

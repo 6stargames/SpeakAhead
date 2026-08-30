@@ -1,16 +1,24 @@
 import type { ContextAssistRequest, ContextAssistResponse } from './types';
+import { suggestionText, type SuggestionMode } from './suggestionText';
 
-function isSuggestion(value: unknown): value is { text: string; symbol: string } {
-  if (!value || typeof value !== 'object') return false;
+function suggestion(value: unknown, mode: SuggestionMode): { text: string; symbol: string } | null {
+  if (!value || typeof value !== 'object') return null;
   const item = value as Record<string, unknown>;
-  return (
-    typeof item.text === 'string' &&
-    item.text.trim().length > 0 &&
-    item.text.length <= 180 &&
-    typeof item.symbol === 'string' &&
-    item.symbol.trim().length > 0 &&
-    item.symbol.length <= 16
-  );
+  if (typeof item.text !== 'string' || typeof item.symbol !== 'string') return null;
+  const text = suggestionText(item.text, mode);
+  const symbol = item.symbol.trim().slice(0, 16);
+  return text && symbol ? { text, symbol } : null;
+}
+
+function suggestions(value: unknown, mode: SuggestionMode, max: number): { text: string; symbol: string }[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => suggestion(item, mode))
+    .filter((item): item is { text: string; symbol: string } => item !== null)
+    .filter((item, index, list) =>
+      list.findIndex((candidate) => candidate.text.toLocaleLowerCase() === item.text.toLocaleLowerCase()) === index,
+    )
+    .slice(0, max);
 }
 
 function parseResponse(value: unknown): ContextAssistResponse | null {
@@ -34,8 +42,8 @@ function parseResponse(value: unknown): ContextAssistResponse | null {
         }))
         .slice(0, 4)
     : [];
-  const words = Array.isArray(record.words) ? record.words.filter(isSuggestion).slice(0, 3) : [];
-  const phrases = Array.isArray(record.phrases) ? record.phrases.filter(isSuggestion).slice(0, 3) : [];
+  const words = suggestions(record.words, 'words', 6);
+  const phrases = suggestions(record.phrases, 'phrases', 4);
   if (words.length === 0 && phrases.length === 0 && corrections.length === 0) return null;
   return { corrections, words, phrases };
 }
@@ -63,4 +71,3 @@ export async function requestContextAssist(
     return null;
   }
 }
-

@@ -31,11 +31,15 @@ beforeEach(() => {
       { text: 'yes', symbol: '✅' },
       { text: 'no', symbol: '❌' },
       { text: 'wait', symbol: '⏳' },
+      { text: 'help', symbol: '🆘' },
+      { text: 'more', symbol: '➕' },
+      { text: 'please', symbol: '🙏' },
     ],
     phrases: [
       { text: 'Yes, please.', symbol: '✅' },
       { text: 'No, thank you.', symbol: '❌' },
       { text: 'Please wait.', symbol: '⏳' },
+      { text: 'Could you repeat that?', symbol: '🔁' },
     ],
   });
   container = document.createElement('div');
@@ -55,6 +59,8 @@ describe('continuous context assistance', () => {
     const route = await readFile(resolve(process.cwd(), 'app/api/assist/context/route.ts'), 'utf8');
     expect(route).toContain("reasoning: { effort: 'minimal' }");
     expect(route).toContain('max_output_tokens: 2_000');
+    expect(route).toContain('minItems: 6');
+    expect(route).toContain('minItems: 4');
   });
 
   it('does not restart the language debounce for unfinished microphone updates', async () => {
@@ -84,8 +90,8 @@ describe('continuous context assistance', () => {
     });
 
     expect(mocks.requestContextAssist).toHaveBeenCalledTimes(1);
-    expect(store.getState().contextualWords).toHaveLength(3);
-    expect(store.getState().contextualPhrases).toHaveLength(3);
+    expect(store.getState().contextualWords).toHaveLength(6);
+    expect(store.getState().contextualPhrases).toHaveLength(4);
   });
 
   it('finishes one request and then drains only the newest pending turn', async () => {
@@ -99,11 +105,15 @@ describe('continuous context assistance', () => {
         { text: 'yes', symbol: '✅' },
         { text: 'no', symbol: '❌' },
         { text: 'wait', symbol: '⏳' },
+        { text: 'help', symbol: '🆘' },
+        { text: 'more', symbol: '➕' },
+        { text: 'please', symbol: '🙏' },
       ],
       phrases: [
         { text: 'Yes, please.', symbol: '✅' },
         { text: 'No, thank you.', symbol: '❌' },
         { text: 'Please wait.', symbol: '⏳' },
+        { text: 'Could you repeat that?', symbol: '🔁' },
       ],
     };
     mocks.requestContextAssist

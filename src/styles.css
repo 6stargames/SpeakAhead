@@ -873,10 +873,15 @@ body {
 .context-row {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--gutter);
   margin-bottom: var(--gutter);
   min-height: var(--cell-min);
+}
+.context-row--words {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+.context-row--phrases {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 .context-row__empty {
   grid-column: 1 / -1;
@@ -897,7 +902,7 @@ body {
 }
 .context-cell {
   position: relative;
-  flex-direction: row;
+  flex-direction: column;
   min-height: var(--cell-min);
   border-color: var(--accent);
   background: var(--accent-soft);
@@ -1455,12 +1460,29 @@ body {
   letter-spacing: 0;
 }
 .turn__correction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  padding: 0.18rem 0.28rem 0.18rem 0.45rem;
   font: inherit;
-  color: inherit;
+  color: #dbeafe;
+  border-color: color-mix(in srgb, var(--accent) 72%, white);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 42%, transparent), rgba(99, 102, 241, 0.2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 7%, transparent), 0 0 0.8rem color-mix(in srgb, var(--accent) 18%, transparent);
   cursor: pointer;
 }
 .turn__correction:hover {
-  background: color-mix(in srgb, currentColor 12%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 58%, transparent), rgba(99, 102, 241, 0.3));
+}
+.turn__correction-spark {
+  color: #fde68a;
+  filter: drop-shadow(0 0 0.25rem rgba(253, 230, 138, 0.55));
+}
+.turn__correction-undo {
+  padding: 0.1rem 0.4rem;
+  color: white;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
 }
 
 /* --- Panels ---------------------------------------------------------------- */
@@ -2117,8 +2139,8 @@ body {
   .board__grid--phrases {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .context-row {
-    grid-template-columns: 1fr;
+  .context-row--phrases {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   /* Stacked: conversation on top, the spine rail as the barrier below it,
      then the board — the same order as the wide layout, rotated. */
@@ -2139,6 +2161,9 @@ body {
 
 @media (max-width: 640px) {
   .board__grid--core {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .context-row--words {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .notices {

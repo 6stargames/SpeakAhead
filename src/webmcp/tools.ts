@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { actions, selectContextWindow, store } from '@/state/store';
 import { useWebMCPTool, type WebMcpRegistrationState } from './useWebMCPTool';
 import { errorResult, textResult, type JsonSchema, type WebMcpToolDefinition } from './types';
+import { suggestionText } from '@/assist/suggestionText';
 
 function readStringArray(value: unknown, max: number): string[] {
   if (!Array.isArray(value)) return [];
@@ -12,12 +13,16 @@ function readStringArray(value: unknown, max: number): string[] {
     .slice(0, max);
 }
 
-function readContextSuggestions(value: unknown, max: number): { text: string; symbol: string }[] {
+function readContextSuggestions(
+  value: unknown,
+  mode: 'words' | 'phrases',
+  max: number,
+): { text: string; symbol: string }[] {
   if (!Array.isArray(value)) return [];
   return value
     .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
     .map((item) => ({
-      text: typeof item.text === 'string' ? item.text.trim().slice(0, 140) : '',
+      text: typeof item.text === 'string' ? suggestionText(item.text, mode) : '',
       symbol: typeof item.symbol === 'string' ? item.symbol.trim().slice(0, 16) : '',
     }))
     .filter((item) => item.text.length > 0 && item.symbol.length > 0)
@@ -96,8 +101,8 @@ const suggestionItemSchema: JsonSchema = {
 const contextualVocabularySchema: JsonSchema = {
   type: 'object',
   properties: {
-    words: { type: 'array', items: suggestionItemSchema, minItems: 3, maxItems: 3 },
-    phrases: { type: 'array', items: suggestionItemSchema, minItems: 3, maxItems: 3 },
+    words: { type: 'array', items: suggestionItemSchema, minItems: 6, maxItems: 6 },
+    phrases: { type: 'array', items: suggestionItemSchema, minItems: 4, maxItems: 4 },
   },
   required: ['words', 'phrases'],
 };
@@ -105,7 +110,7 @@ const contextualVocabularySchema: JsonSchema = {
 const themeSchema: JsonSchema = {
   type: 'object',
   properties: {
-    theme: { type: 'string', enum: ['emoji', 'anime'] },
+    theme: { type: 'string', enum: ['emoji', 'anime', 'baby-shark', 'hello-kitty'] },
   },
   required: ['theme'],
 };
@@ -318,15 +323,15 @@ export function useAacWebMcpTools(): WebMcpToolStates {
     () => ({
       name: 'set-contextual-vocabulary',
       description:
-        'Prepare exactly three useful one-word choices and three short first-person phrase replies for the current conversation. ' +
+        'Prepare exactly six useful one-word choices and four short first-person phrase replies for the current conversation. ' +
         'Read get-conversation-context first. The choices appear only on their matching Words or Phrases board and never speak automatically.',
       inputSchema: contextualVocabularySchema,
       execute: (args) => {
         const input = args as Record<string, unknown>;
-        const words = readContextSuggestions(input.words, 3);
-        const phrases = readContextSuggestions(input.phrases, 3);
-        if (words.length !== 3 || phrases.length !== 3) {
-          return errorResult('Provide exactly three words and three phrases, each with text and an emoji symbol.');
+        const words = readContextSuggestions(input.words, 'words', 6);
+        const phrases = readContextSuggestions(input.phrases, 'phrases', 4);
+        if (words.length !== 6 || phrases.length !== 4) {
+          return errorResult('Provide exactly six single words and four phrases, each with text and an emoji symbol.');
         }
         actions.beginAssistTask('suggestions');
         actions.setContextSuggestions(words, phrases);
@@ -342,12 +347,14 @@ export function useAacWebMcpTools(): WebMcpToolStates {
     () => ({
       name: 'set-symbol-theme',
       description:
-        'Change the device-local button picture style. Only call this after the user explicitly asks for Emoji or Anime. ' +
-        'Anime pictures generate in the background, are cached on this device, and keep emoji fallbacks while loading.',
+        'Change the device-local button picture style. Only call this after the user explicitly asks for Emoji, Anime, Baby Shark, or Hello Kitty. ' +
+        'Themed pictures generate in the background, are cached on this device, and keep emoji fallbacks while loading.',
       inputSchema: themeSchema,
       execute: (args) => {
         const theme = (args as { theme?: unknown }).theme;
-        if (theme !== 'emoji' && theme !== 'anime') return errorResult('theme must be emoji or anime.');
+        if (theme !== 'emoji' && theme !== 'anime' && theme !== 'baby-shark' && theme !== 'hello-kitty') {
+          return errorResult('theme must be emoji, anime, baby-shark, or hello-kitty.');
+        }
         actions.setSettings({ symbolTheme: theme });
         actions.setAssistFeatureStatus('themes', 'idle');
         return textResult(`Button picture style changed to ${theme}.`);

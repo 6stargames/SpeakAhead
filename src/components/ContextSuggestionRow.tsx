@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
 import { session } from '@/session/AacSession';
+import { withoutSpokenEmoji } from '@/assist/suggestionText';
 import {
   actions,
   selectContextualPhrases,
@@ -8,6 +9,7 @@ import {
   useStore,
   type AppState,
   type ContextSuggestion,
+  type SymbolTheme,
 } from '@/state/store';
 
 const selectAssistStatus = (state: AppState): AppState['assistStatus'] => state.assistStatus;
@@ -19,23 +21,24 @@ const selectAssistStatus = (state: AppState): AppState['assistStatus'] => state.
 export function ContextSuggestionRow({
   mode,
   enabled,
-  themedSymbolsEnabled = false,
+  symbolTheme = 'emoji',
 }: {
   mode: 'words' | 'phrases';
   enabled: boolean;
-  themedSymbolsEnabled?: boolean;
+  symbolTheme?: SymbolTheme;
 }): JSX.Element | null {
   const words = useStore(selectContextualWords);
   const phrases = useStore(selectContextualPhrases);
   const assistStatus = useStore(selectAssistStatus);
   const suggestions: ContextSuggestion[] = mode === 'words' ? words : phrases;
-  const themedSymbols = useThemedSymbols(suggestions, themedSymbolsEnabled);
+  const themedSymbols = useThemedSymbols(suggestions, symbolTheme);
+  const limit = mode === 'words' ? 6 : 4;
 
   if (!enabled) return null;
 
   return (
     <div
-      className="context-row"
+      className={`context-row context-row--${mode}`}
       role="group"
       aria-label={`AI-generated context ${mode}`}
       aria-live="polite"
@@ -51,7 +54,7 @@ export function ContextSuggestionRow({
           </span>
         </div>
       ) : (
-        suggestions.slice(0, 3).map((suggestion, index) => (
+        suggestions.slice(0, limit).map((suggestion, index) => (
           <button
             type="button"
             className="cell context-cell"
@@ -59,7 +62,7 @@ export function ContextSuggestionRow({
             title={suggestion.text}
             onClick={() => {
               if (mode === 'words') actions.appendComposition(suggestion.text);
-              else void session.speak(suggestion.text);
+              else void session.speak(withoutSpokenEmoji(suggestion.text));
             }}
           >
             <span className="context-cell__badge">AI</span>

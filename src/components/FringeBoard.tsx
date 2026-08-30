@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import { session } from '@/session/AacSession';
-import { actions, useStore, type AppState, type FavItem } from '@/state/store';
+import { actions, useStore, type AppState, type FavItem, type SymbolTheme } from '@/state/store';
 import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
 
 const selectFavorites = (state: AppState): FavItem[] => state.favorites;
@@ -12,9 +12,9 @@ const selectFavorites = (state: AppState): FavItem[] => state.favorites;
  * boards carries a small star, and starring it puts it here. Tapping a fav
  * speaks it; tapping its star lets it go again.
  */
-export function FringeBoard({ themedSymbolsEnabled = false }: { themedSymbolsEnabled?: boolean }): JSX.Element {
+export function FringeBoard({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolTheme }): JSX.Element {
   const favorites = useStore(selectFavorites);
-  const themedSymbols = useThemedSymbols(favorites, themedSymbolsEnabled);
+  const themedSymbols = useThemedSymbols(favorites, symbolTheme);
 
   return (
     <section className="board card panel" aria-label="Favs">

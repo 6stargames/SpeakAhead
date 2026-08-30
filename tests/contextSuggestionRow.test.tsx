@@ -15,11 +15,15 @@ beforeEach(() => {
       { text: 'water', symbol: '💧' },
       { text: 'cold', symbol: '🥶' },
       { text: 'please', symbol: '🙏' },
+      { text: 'help', symbol: '🆘' },
+      { text: 'more', symbol: '➕' },
+      { text: 'later', symbol: '⏳' },
     ],
     [
       { text: 'Water, please.', symbol: '💧' },
       { text: 'I am cold.', symbol: '🥶' },
       { text: 'Thank you.', symbol: '🙏' },
+      { text: 'Please wait.', symbol: '⏳' },
     ],
   );
   container = document.createElement('div');
@@ -44,10 +48,16 @@ describe('AI context board row', () => {
     });
 
     const choices = container.querySelectorAll<HTMLButtonElement>('.context-cell');
-    expect(choices).toHaveLength(3);
+    expect(choices).toHaveLength(6);
     expect(container.querySelector('.suggest-overlay')).toBeNull();
 
     act(() => choices[0]?.click());
     expect(store.getState().composition).toBe('water');
+  });
+
+  it('renders four phrases so the AI row matches the fixed phrase grid', () => {
+    act(() => root.render(<ContextSuggestionRow mode="phrases" enabled />));
+    expect(container.querySelectorAll('.context-cell')).toHaveLength(4);
+    expect(container.querySelector('.context-row--phrases')).not.toBeNull();
   });
 });

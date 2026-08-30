@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties, type JSX } from 'react';
 import { actions } from '@/state/store';
+import type { SymbolTheme } from '@/state/store';
 import type { ThemeIconRequestItem, ThemeSprite } from './types';
 
 export interface ThemeTile extends ThemeSprite {
@@ -8,7 +9,7 @@ export interface ThemeTile extends ThemeSprite {
 
 const memory = new Map<string, Promise<ThemeSprite | null>>();
 let queue: Promise<unknown> = Promise.resolve();
-const CACHE_NAME = 'aac-themed-symbols-v2';
+const CACHE_NAME = 'aac-themed-symbols-v3';
 const COLUMNS_HEADER = 'x-aac-sprite-columns';
 const ROWS_HEADER = 'x-aac-sprite-rows';
 
@@ -85,13 +86,16 @@ interface SpritePayload {
   readonly rows: number;
 }
 
-async function requestSprite(items: readonly ThemeIconRequestItem[]): Promise<SpritePayload | null> {
+async function requestSprite(
+  items: readonly ThemeIconRequestItem[],
+  theme: Exclude<SymbolTheme, 'emoji'>,
+): Promise<SpritePayload | null> {
   try {
     const response = await fetch('/api/assist/theme-icons', {
       method: 'POST',
       headers: { 'content-type': 'application/json', accept: 'image/png' },
       credentials: 'same-origin',
-      body: JSON.stringify({ theme: 'anime', items }),
+      body: JSON.stringify({ theme, items }),
     });
     if (!response.ok) return null;
     const columns = dimension(response, COLUMNS_HEADER);
@@ -114,15 +118,18 @@ function enqueue<T>(work: () => Promise<T>): Promise<T> {
   return task;
 }
 
-function loadSprite(items: readonly ThemeIconRequestItem[]): Promise<ThemeSprite | null> {
-  const cacheKey = hash(`anime\u0001${items.map(itemKey).join('\u0002')}`);
+function loadSprite(
+  items: readonly ThemeIconRequestItem[],
+  theme: Exclude<SymbolTheme, 'emoji'>,
+): Promise<ThemeSprite | null> {
+  const cacheKey = hash(`${theme}\u0001${items.map(itemKey).join('\u0002')}`);
   const existing = memory.get(cacheKey);
   if (existing) return existing;
 
   const promise = enqueue(async () => {
     const cached = await readCached(cacheKey);
     if (cached) return cached;
-    const payload = await requestSprite(items);
+    const payload = await requestSprite(items, theme);
     if (!payload) return null;
     const sprite = spriteFromBlob(payload.blob, payload.columns, payload.rows);
     if (!sprite) return null;
@@ -145,14 +152,14 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
 /** Generate and cache one 3x3 image sheet at a time, keeping model traffic low. */
 export function useThemedSymbols(
   items: readonly ThemeIconRequestItem[],
-  enabled: boolean,
+  theme: SymbolTheme,
 ): ReadonlyMap<string, ThemeTile> {
   const signature = useMemo(() => items.map(itemKey).join('\u0002'), [items]);
   const stableItems = useMemo(() => items.map((item) => ({ ...item })), [signature]);
   const [tiles, setTiles] = useState<ReadonlyMap<string, ThemeTile>>(new Map());
 
   useEffect(() => {
-    if (!enabled || stableItems.length === 0) {
+    if (theme === 'emoji' || stableItems.length === 0) {
       setTiles(new Map());
       return undefined;
     }
@@ -161,7 +168,7 @@ export function useThemedSymbols(
       const next = new Map<string, ThemeTile>();
       for (const group of chunk(stableItems, 9)) {
         actions.beginAssistTask('themes');
-        const sprite = await loadSprite(group);
+        const sprite = await loadSprite(group, theme);
         if (!sprite) {
           actions.finishAssistTask('themes', 'unavailable', next.size);
           if (cancelled) return;
@@ -178,7 +185,7 @@ export function useThemedSymbols(
     return () => {
       cancelled = true;
     };
-  }, [enabled, stableItems]);
+  }, [stableItems, theme]);
 
   return tiles;
 }
