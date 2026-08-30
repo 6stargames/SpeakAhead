@@ -90,6 +90,16 @@ export type AssistFeatureStatus =
   | 'unavailable'
   | 'error';
 
+export interface AssistTaskEntry {
+  readonly id: string;
+  /** Plain-language description of the actual text or pictures being handled. */
+  readonly label: string;
+  readonly status: AssistFeatureStatus;
+  readonly resultCount: number;
+  readonly startedAt: number;
+  readonly finishedAt: number | null;
+}
+
 export interface AssistFeatureActivity {
   /** Work currently in flight. This is the number shown beside the user. */
   readonly activeTasks: number;
@@ -97,6 +107,8 @@ export interface AssistFeatureActivity {
   readonly status: AssistFeatureStatus;
   /** Corrections, choices, or pictures produced by the most recent pass. */
   readonly resultCount: number;
+  /** Newest work first; active and completed work share this one bounded list. */
+  readonly tasks: readonly AssistTaskEntry[];
 }
 
 /**
@@ -218,6 +230,8 @@ export interface AppState {
 export const CONTEXT_WINDOW = 10;
 const MAX_TURNS = 250;
 const MAX_NOTICES = 6;
+const MAX_ASSIST_TASKS = 30;
+let assistTaskSequence = 0;
 
 const idleEngine: EngineInfo = { status: 'idle', implementation: 'none', offline: true };
 
@@ -240,9 +254,9 @@ const initialState: AppState = {
   contextSuggestionsUpdatedAt: 0,
   assistStatus: 'idle',
   assistFeatures: {
-    corrections: { activeTasks: 0, status: 'idle', resultCount: 0 },
-    suggestions: { activeTasks: 0, status: 'idle', resultCount: 0 },
-    themes: { activeTasks: 0, status: 'idle', resultCount: 0 },
+    corrections: { activeTasks: 0, status: 'idle', resultCount: 0, tasks: [] },
+    suggestions: { activeTasks: 0, status: 'idle', resultCount: 0, tasks: [] },
+    themes: { activeTasks: 0, status: 'idle', resultCount: 0, tasks: [] },
   },
 
   asr: idleEngine,
@@ -494,8 +508,17 @@ export const actions = {
     store.set({ assistStatus });
   },
 
-  beginAssistTask(feature: AssistFeature): void {
+  beginAssistTask(feature: AssistFeature, label = 'Working on the latest request'): string {
     const current = store.getState().assistFeatures[feature];
+    const id = `assist-${Date.now()}-${assistTaskSequence += 1}`;
+    const task: AssistTaskEntry = {
+      id,
+      label: label.trim() || 'Working on the latest request',
+      status: 'working',
+      resultCount: 0,
+      startedAt: Date.now(),
+      finishedAt: null,
+    };
     store.set((state) => ({
       assistFeatures: {
         ...state.assistFeatures,
@@ -503,25 +526,38 @@ export const actions = {
           ...current,
           activeTasks: current.activeTasks + 1,
           status: 'working',
+          tasks: [task, ...current.tasks].slice(0, MAX_ASSIST_TASKS),
         },
       },
     }));
+    return id;
   },
 
   finishAssistTask(
     feature: AssistFeature,
     status: Exclude<AssistFeatureStatus, 'working'>,
     resultCount = 0,
+    taskId?: string,
   ): void {
     const current = store.getState().assistFeatures[feature];
-    const activeTasks = Math.max(0, current.activeTasks - 1);
+    const targetIndex = taskId
+      ? current.tasks.findIndex((task) => task.id === taskId && task.status === 'working')
+      : current.tasks.findIndex((task) => task.status === 'working');
+    const completedCount = Math.max(0, Math.floor(resultCount));
+    const tasks = targetIndex < 0
+      ? current.tasks
+      : current.tasks.map((task, index) => index === targetIndex
+        ? { ...task, status, resultCount: completedCount, finishedAt: Date.now() }
+        : task);
+    const activeTasks = tasks.filter((task) => task.status === 'working').length;
     store.set((state) => ({
       assistFeatures: {
         ...state.assistFeatures,
         [feature]: {
           activeTasks,
           status: activeTasks > 0 ? 'working' : status,
-          resultCount: Math.max(0, Math.floor(resultCount)),
+          resultCount: completedCount,
+          tasks,
         },
       },
     }));
@@ -532,10 +568,15 @@ export const actions = {
     status: Exclude<AssistFeatureStatus, 'working'>,
     resultCount = 0,
   ): void {
+    const current = store.getState().assistFeatures[feature];
+    const completedCount = Math.max(0, Math.floor(resultCount));
+    const tasks = current.tasks.map((task) => task.status === 'working'
+      ? { ...task, status, resultCount: completedCount, finishedAt: Date.now() }
+      : task);
     store.set((state) => ({
       assistFeatures: {
         ...state.assistFeatures,
-        [feature]: { activeTasks: 0, status, resultCount: Math.max(0, Math.floor(resultCount)) },
+        [feature]: { activeTasks: 0, status, resultCount: completedCount, tasks },
       },
     }));
   },

@@ -8,7 +8,7 @@ import { FringeBoard } from '@/components/FringeBoard';
 import { NoticeStack } from '@/components/NoticeStack';
 import { OutputRibbon } from '@/components/OutputRibbon';
 import { PhraseBoard, PHRASE_THEME_ITEMS } from '@/components/PhraseBoard';
-import { SettingsPanel } from '@/components/SettingsPanel';
+import { SettingsPanel, SETTINGS_THEME_ITEMS } from '@/components/SettingsPanel';
 import { SuggestionStrip } from '@/components/SuggestionStrip';
 import { TranscriptLog } from '@/components/TranscriptLog';
 import { VerificationPanel } from '@/components/VerificationPanel';
@@ -130,6 +130,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
     batchSize: 3,
     singleSubject: true,
   });
+  useThemedSymbols(SETTINGS_THEME_ITEMS, symbolTheme, { singleSubject: true });
 
   // Warm every board as soon as a signed-in user selects a picture theme.
   // Opening Phrases, Words, or Favs should reveal saved artwork immediately,
@@ -177,11 +178,14 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
           being built and the Speak button; the board below is the user's
           motor plan. Context choices live in the first row of their matching
           board. The transcript remains visible beside it. */}
-      <OutputRibbon />
-      <ChatGPTAuthButton
-        identity={chatGPTIdentity ?? null}
-        selectedFeature={selectedAssistFeature}
-        onFeatureSelect={setSelectedAssistFeature}
+      <OutputRibbon
+        leading={(
+          <ChatGPTAuthButton
+            identity={chatGPTIdentity ?? null}
+            selectedFeature={selectedAssistFeature}
+            onFeatureSelect={setSelectedAssistFeature}
+          />
+        )}
       />
 
       <div className="app__main">

@@ -92,6 +92,8 @@ export function contextChoicesReadyForRefresh(
 
 async function runContextJob(job: ContextAssistJob, signal: AbortSignal): Promise<void> {
   let tasksOpen = false;
+  let correctionTaskId: string | undefined;
+  let suggestionTaskId: string | undefined;
   const finishTasks = (
     status: 'idle' | 'ready' | 'local' | 'unavailable' | 'error',
     correctionCount = 0,
@@ -99,13 +101,17 @@ async function runContextJob(job: ContextAssistJob, signal: AbortSignal): Promis
   ) => {
     if (!tasksOpen) return;
     tasksOpen = false;
-    actions.finishAssistTask('corrections', status, correctionCount);
-    actions.finishAssistTask('suggestions', status, suggestionCount);
+    actions.finishAssistTask('corrections', status, correctionCount, correctionTaskId);
+    actions.finishAssistTask('suggestions', status, suggestionCount, suggestionTaskId);
   };
 
   actions.setAssistStatus('thinking');
-  actions.beginAssistTask('corrections');
-  actions.beginAssistTask('suggestions');
+  const contextText = (job.finalTurns.at(-1)?.text || job.composition || 'the recent conversation')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 90);
+  correctionTaskId = actions.beginAssistTask('corrections', `Checking “${contextText}”`);
+  suggestionTaskId = actions.beginAssistTask('suggestions', `Preparing replies to “${contextText}”`);
   tasksOpen = true;
 
   try {

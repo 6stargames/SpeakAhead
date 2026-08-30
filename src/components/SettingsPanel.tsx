@@ -1,6 +1,29 @@
 import type { JSX } from 'react';
+import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
 import { session } from '@/session/AacSession';
-import { actions, selectSettings, useStore } from '@/state/store';
+import { actions, selectSettings, useStore, type SymbolTheme } from '@/state/store';
+
+export const SETTINGS_THEME_ITEMS = [
+  { text: 'ChatGPT context help? On', symbol: '✨' },
+  { text: 'ChatGPT context help? Off', symbol: '🔒' },
+  { text: 'Button pictures Emoji', symbol: '🙂' },
+  { text: 'Button pictures Anime', symbol: '🎨' },
+  { text: 'Button pictures Baby Shark', symbol: '🦈' },
+  { text: 'Button pictures Hello Kitty', symbol: '🎀' },
+  { text: 'What kind of voice? Male', symbol: '👨' },
+  { text: 'What kind of voice? Female', symbol: '👩' },
+  { text: 'What kind of voice? Neutral', symbol: '🧑' },
+  { text: 'How fast should it talk? Slower', symbol: '🐢' },
+  { text: 'How fast should it talk? Normal', symbol: '🚶' },
+  { text: 'How fast should it talk? Faster', symbol: '🏃' },
+  { text: 'How fast should it talk? Fastest', symbol: '⚡' },
+  { text: 'How noisy is your room? Quiet', symbol: '🤫' },
+  { text: 'How noisy is your room? Normal', symbol: '🏠' },
+  { text: 'How noisy is your room? Noisy', symbol: '🗣️' },
+  { text: 'How noisy is your room? Very noisy', symbol: '📢' },
+  { text: 'Easier-to-see colours? On', symbol: '🌕' },
+  { text: 'Easier-to-see colours? Off', symbol: '🌑' },
+] as const;
 
 /**
  * One setting, several big buttons.
@@ -21,6 +44,7 @@ function OptionRow<T>({
   caution,
   value,
   options,
+  symbolTheme,
   onChange,
 }: {
   label: string;
@@ -28,8 +52,17 @@ function OptionRow<T>({
   caution?: boolean;
   value: T;
   options: { label: string; value: T; hint?: string; symbol?: string }[];
+  symbolTheme: SymbolTheme;
   onChange: (value: T) => void;
 }): JSX.Element {
+  const themeItems = options.map((option) => ({
+    text: `${label} ${option.label}`,
+    symbol: option.symbol ?? '',
+  }));
+  const themedSymbols = useThemedSymbols(themeItems, symbolTheme, {
+    batchSize: Math.min(9, themeItems.length),
+    singleSubject: true,
+  });
   // Numeric presets highlight the nearest option, so a value persisted from
   // an older build still shows a selection instead of nothing.
   const selected =
@@ -45,7 +78,7 @@ function OptionRow<T>({
     <div className={`option-group${caution ? ' option-group--caution' : ''}`} role="group" aria-label={label}>
       <span className="field__label">{label}</span>
       <div className="option-row">
-        {options.map((option) => (
+        {options.map((option, index) => (
           <button
             key={String(option.value)}
             type="button"
@@ -56,7 +89,10 @@ function OptionRow<T>({
           >
             {option.symbol && (
               <span className="option__symbol" aria-hidden="true">
-                {option.symbol}
+                <ThemedSymbol
+                  symbol={option.symbol}
+                  tile={themeTileFor(themedSymbols, themeItems[index]!)}
+                />
               </span>
             )}
             {option.label}
@@ -80,6 +116,7 @@ export function SettingsPanel({ signedIn = false }: { signedIn?: boolean }): JSX
           label="ChatGPT context help?"
           hint="Uses the recent chat text to repair uncertain words and prepare quick replies. Microphone audio never leaves this device."
           value={settings.chatGPTAssist}
+          symbolTheme={settings.symbolTheme}
           options={[
             { label: 'On', value: true, symbol: '✨' },
             { label: 'Off', value: false, symbol: '🔒' },
@@ -93,6 +130,7 @@ export function SettingsPanel({ signedIn = false }: { signedIn?: boolean }): JSX
           label="Button pictures"
           hint="Themed pictures are generated once, stored on this device, and reused. Emoji always remain as a fallback."
           value={settings.symbolTheme}
+          symbolTheme={settings.symbolTheme}
           options={[
             { label: 'Emoji', value: 'emoji' as const, symbol: '🙂' },
             { label: 'Anime', value: 'anime' as const, symbol: '🎨' },
@@ -107,6 +145,7 @@ export function SettingsPanel({ signedIn = false }: { signedIn?: boolean }): JSX
         label="What kind of voice?"
         hint="Then pick the exact voice on the 🎙️ Voice page."
         value={settings.voiceGender}
+        symbolTheme={settings.symbolTheme}
         options={[
           { label: 'Male', value: 'male' as const, symbol: '👨' },
           { label: 'Female', value: 'female' as const, symbol: '👩' },
@@ -118,6 +157,7 @@ export function SettingsPanel({ signedIn = false }: { signedIn?: boolean }): JSX
       <OptionRow
         label="How fast should it talk?"
         value={settings.speechRate}
+        symbolTheme={settings.symbolTheme}
         options={[
           { label: 'Slower', value: 0.75, symbol: '🐢' },
           { label: 'Normal', value: 1, symbol: '🚶' },
@@ -131,6 +171,7 @@ export function SettingsPanel({ signedIn = false }: { signedIn?: boolean }): JSX
         label="How noisy is your room?"
         hint="Pick the closest — it helps the device hear you instead of the room."
         value={settings.vadSensitivity}
+        symbolTheme={settings.symbolTheme}
         options={[
           { label: 'Quiet', value: 5, symbol: '🤫' },
           { label: 'Normal', value: 9, symbol: '🏠' },
@@ -148,6 +189,7 @@ export function SettingsPanel({ signedIn = false }: { signedIn?: boolean }): JSX
         label="Easier-to-see colours?"
         hint="Everything turns yellow on black — much easier for some eyes."
         value={settings.highContrast}
+        symbolTheme={settings.symbolTheme}
         options={[
           { label: 'On', value: true, symbol: '🌕' },
           { label: 'Off', value: false, symbol: '🌑' },

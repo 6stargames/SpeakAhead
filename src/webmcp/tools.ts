@@ -155,9 +155,12 @@ export function useAacWebMcpTools(): WebMcpToolStates {
         if (suggestions.length === 0) {
           return errorResult('No usable suggestions were supplied. Provide three non-empty strings.');
         }
-        actions.beginAssistTask('suggestions');
+        const taskId = actions.beginAssistTask(
+          'suggestions',
+          `Showing quick replies: ${suggestions.map((text) => `“${text}”`).join(', ')}`,
+        );
         actions.setPredictions(suggestions.map((text) => ({ text, source: 'webmcp-agent' })));
-        actions.finishAssistTask('suggestions', 'ready', suggestions.length);
+        actions.finishAssistTask('suggestions', 'ready', suggestions.length, taskId);
         return textResult(`Presented ${suggestions.length} suggestions to the user.`);
       },
     }),
@@ -319,7 +322,10 @@ export function useAacWebMcpTools(): WebMcpToolStates {
         if (!turn?.words?.some((word) => word.confidence < 0.5)) {
           return errorResult('That turn has no low-confidence recogniser word to correct.');
         }
-        actions.beginAssistTask('corrections');
+        const taskId = actions.beginAssistTask(
+          'corrections',
+          `Correcting “${input.originalText}” to “${input.correctedText}”`,
+        );
         const applied = actions.applyContextCorrection(
           input.turnId,
           input.originalText,
@@ -327,7 +333,7 @@ export function useAacWebMcpTools(): WebMcpToolStates {
           input.reason,
           'chatgpt',
         );
-        actions.finishAssistTask('corrections', applied ? 'ready' : 'error', applied ? 1 : 0);
+        actions.finishAssistTask('corrections', applied ? 'ready' : 'error', applied ? 1 : 0, taskId);
         return applied
           ? textResult('Correction applied and labelled with an undo control.')
           : errorResult('The turn changed or the correction was not usable, so nothing was overwritten.');
@@ -378,10 +384,18 @@ export function useAacWebMcpTools(): WebMcpToolStates {
             'Every choice must be new. Read get-conversation-context again and replace anything listed as unavailable.',
           );
         }
-        actions.beginAssistTask('suggestions');
+        const taskId = actions.beginAssistTask(
+          'suggestions',
+          `Preparing ${novelWords.length} words and ${novelPhrases.length} phrases`,
+        );
         actions.setContextSuggestions(novelWords, novelPhrases);
         actions.setAssistStatus('ready');
-        actions.finishAssistTask('suggestions', 'ready', novelWords.length + novelPhrases.length);
+        actions.finishAssistTask(
+          'suggestions',
+          'ready',
+          novelWords.length + novelPhrases.length,
+          taskId,
+        );
         return textResult('Context words and phrases are ready for the user.');
       },
     }),

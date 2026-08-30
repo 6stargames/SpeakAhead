@@ -30,3 +30,9 @@ export const ASSIST_FEATURE_ORDER: readonly AssistFeature[] = [
   'suggestions',
   'themes',
 ];
+
+/** The tool buttons use the same themed-picture pipeline as communication cards. */
+export const ASSIST_FEATURE_THEME_ITEMS = ASSIST_FEATURE_ORDER.map((feature) => ({
+  text: ASSIST_FEATURE_PRESENTATION[feature].label,
+  symbol: ASSIST_FEATURE_PRESENTATION[feature].icon,
+}));

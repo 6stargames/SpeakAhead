@@ -501,16 +501,12 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
-/* ChatGPT authentication is an inset overlay, not a ribbon column. The
-   original ribbon keeps its exact height and the entire spine keeps the same
-   vertical room as the ZIP. */
+/* The account and WebMCP tools are a true ribbon column, visibly separate
+   from the bordered message field beside them. */
 .chatgpt-auth-overlay {
-  position: fixed;
-  z-index: 30;
-  top: calc(var(--space-3) + 0.375rem);
-  left: calc(var(--space-4) + 0.375rem);
+  position: static;
   max-width: 11rem;
-  min-height: calc(var(--tap-min) - var(--space-3));
+  min-height: var(--tap-min);
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -526,13 +522,10 @@ body {
   white-space: nowrap;
 }
 .chatgpt-auth-cluster {
-  position: fixed;
-  z-index: 30;
-  top: calc(var(--space-3) + 0.375rem);
-  left: calc(var(--space-4) + 0.375rem);
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  flex: 0 0 auto;
 }
 .chatgpt-auth-cluster .chatgpt-auth-overlay {
   position: static;
@@ -545,16 +538,9 @@ body {
 .chatgpt-auth-overlay__mark {
   width: 1.65rem;
   height: 1.65rem;
-  display: grid;
-  place-items: center;
+  display: block;
   flex: 0 0 auto;
-  color: #fff;
-  background: #111827;
   border-radius: 50%;
-  font-size: 0.95rem;
-}
-.chatgpt-auth-overlay--signed-in .chatgpt-auth-overlay__mark {
-  background: var(--success);
 }
 .chatgpt-auth-overlay__name {
   overflow: hidden;
@@ -563,38 +549,47 @@ body {
 .assist-features {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 .assist-feature {
   position: relative;
-  width: 2.35rem;
-  height: 2.35rem;
+  width: 2.75rem;
+  height: 2.75rem;
   display: grid;
   place-items: center;
-  flex: 0 0 2.35rem;
+  flex: 0 0 2.75rem;
   color: var(--text-muted);
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: 50%;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   padding: 0;
   font: inherit;
   cursor: pointer;
   transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 .assist-feature:hover {
-  border-color: var(--border-strong);
   transform: translateY(-1px);
 }
 .assist-feature:focus-visible,
 .assist-feature[aria-pressed='true'] {
-  box-shadow: 0 0 0 2px var(--surface), 0 0 0 5px currentColor;
+  outline: 3px solid currentColor;
+  outline-offset: 2px;
 }
 .assist-feature[aria-pressed='true'] {
-  transform: scale(1.06);
+  transform: translateY(-2px) scale(1.08);
 }
 .assist-feature__icon {
-  font-size: 1.05rem;
+  width: 2.2rem;
+  height: 2.2rem;
+  display: grid;
+  place-items: center;
+  font-size: 1.45rem;
   line-height: 1;
+}
+.assist-feature__icon .cell__symbol--themed {
+  width: 2.2rem;
+  height: 2.2rem;
+  flex-basis: 2.2rem;
 }
 .assist-feature__count {
   position: absolute;
@@ -616,25 +611,19 @@ body {
 }
 .assist-feature--working {
   color: var(--accent);
-  border-color: var(--accent);
-  background: var(--accent-soft);
   animation: assist-feature-pulse 1s ease-in-out infinite;
 }
 .assist-feature--working .assist-feature__count {
   background: var(--accent);
 }
 .assist-feature--ready {
-  color: var(--success);
-  border-color: var(--success);
-  background: var(--success-soft);
+  color: var(--text-muted);
 }
 .assist-feature--ready .assist-feature__count {
   background: var(--success);
 }
 .assist-feature--local {
   color: var(--warning);
-  border-color: var(--warning);
-  background: var(--warning-soft);
 }
 .assist-feature--local .assist-feature__count {
   color: var(--surface);
@@ -643,8 +632,6 @@ body {
 .assist-feature--unavailable,
 .assist-feature--error {
   color: var(--danger);
-  border-color: var(--danger);
-  background: var(--danger-soft);
 }
 .assist-feature--unavailable .assist-feature__count,
 .assist-feature--error .assist-feature__count {
@@ -653,15 +640,6 @@ body {
 @keyframes assist-feature-pulse {
   50% { transform: scale(1.08); }
 }
-/* Text is right-aligned, so this only reserves the otherwise-empty left edge
-   under the sign-in control; it does not resize the field or ribbon. */
-.app:has(.chatgpt-auth-overlay) .ribbon__input {
-  padding-left: 12rem;
-}
-.app:has(.chatgpt-auth-cluster) .ribbon__input {
-  padding-left: 20rem;
-}
-
 .ribbon__message {
   flex: 1;
   min-width: 0;
@@ -1167,9 +1145,18 @@ body {
   min-height: 0;
 }
 
-/* Clicking any WebMCP activity circle temporarily trades the transcript for
-   an honest, live account of the work behind that circle. */
+/* Clicking a WebMCP icon temporarily trades the transcript for that one
+   feature's active and completed work. The footer never joins the scroll. */
 .assist-tasks {
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+}
+.assist-tasks__scroll {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
   gap: var(--space-4);
   overflow-y: auto;
   padding: var(--space-4);
@@ -1260,6 +1247,11 @@ body {
   border-radius: 50%;
   font-size: 1.45em;
 }
+.assist-tasks__hero-icon .cell__symbol--themed {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-basis: 2.5rem;
+}
 .assist-tasks__hero p {
   margin: var(--space-1) 0 var(--space-2);
   color: var(--text-muted);
@@ -1269,23 +1261,12 @@ body {
   color: var(--text);
   font-size: 0.82em;
 }
-.assist-tasks__running {
+.assist-tasks__list {
   display: grid;
   gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
-}
-.assist-tasks__running li {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  color: var(--text-muted);
-  background: var(--accent-soft);
-  border-radius: var(--radius-sm);
-  font-size: 0.78em;
-  line-height: 1.35;
 }
 .assist-tasks__spinner {
   width: 0.8rem;
@@ -1299,10 +1280,6 @@ body {
 @keyframes assist-task-spin {
   to { transform: rotate(360deg); }
 }
-.assist-tasks__all {
-  display: grid;
-  gap: var(--space-2);
-}
 .assist-task-row {
   display: flex;
   align-items: center;
@@ -1313,18 +1290,9 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 }
-.assist-task-row--selected {
+.assist-task-row--working {
   border-color: var(--accent);
   box-shadow: inset 3px 0 0 var(--accent);
-}
-.assist-task-row__icon {
-  width: 2rem;
-  height: 2rem;
-  display: grid;
-  place-items: center;
-  flex: 0 0 2rem;
-  background: var(--surface-sunken);
-  border-radius: 50%;
 }
 .assist-task-row__copy {
   display: flex;
@@ -1334,16 +1302,26 @@ body {
   gap: 0.1rem;
 }
 .assist-task-row__copy span {
-  overflow: hidden;
   color: var(--text-muted);
   font-size: 0.72em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+}
+.assist-tasks__empty {
+  margin: 0;
+  padding: var(--space-4);
+  color: var(--text-muted);
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+.assist-tasks__footer {
+  flex: 0 0 auto;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  background: linear-gradient(to bottom, transparent, var(--surface) var(--space-3));
 }
 .assist-tasks__close {
   width: 100%;
   min-height: calc(var(--tap-min) * 1.45);
-  margin-top: auto;
   font-size: 1.05em;
 }
 
@@ -2374,6 +2352,12 @@ body {
   }
   .ribbon {
     flex-wrap: wrap;
+  }
+  .chatgpt-auth-cluster {
+    width: 100%;
+  }
+  .ribbon__message {
+    flex-basis: 100%;
   }
   .ribbon__actions {
     width: 100%;

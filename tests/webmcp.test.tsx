@@ -322,17 +322,18 @@ describe('AAC context tools', () => {
       element.getAttribute('aria-label')?.startsWith('Quick replies:'),
     );
     expect(replies).toBeDefined();
-    expect(replies?.querySelector('.assist-feature__count')?.textContent).toBe('0');
+    expect(replies?.querySelector('.assist-feature__count')).toBeNull();
 
     act(() => replies?.click());
     expect(onFeatureSelect).toHaveBeenCalledWith('suggestions');
 
-    act(() => actions.beginAssistTask('suggestions'));
+    let taskId = '';
+    act(() => { taskId = actions.beginAssistTask('suggestions', 'Preparing replies to “Hello”'); });
     expect(replies?.querySelector('.assist-feature__count')?.textContent).toBe('1');
     expect(replies?.classList.contains('assist-feature--working')).toBe(true);
 
-    act(() => actions.finishAssistTask('suggestions', 'ready', 6));
-    expect(replies?.querySelector('.assist-feature__count')?.textContent).toBe('6');
+    act(() => actions.finishAssistTask('suggestions', 'ready', 6, taskId));
+    expect(replies?.querySelector('.assist-feature__count')).toBeNull();
     expect(replies?.classList.contains('assist-feature--ready')).toBe(true);
 
     unmount();
@@ -342,13 +343,15 @@ describe('AAC context tools', () => {
     store.reset();
     const onClose = vi.fn();
     act(() => actions.setSettings({ symbolTheme: 'anime' }));
-    act(() => actions.beginAssistTask('themes'));
+    let taskId = '';
+    act(() => { taskId = actions.beginAssistTask('themes', 'Pictures for “help”, “water”'); });
     render(<AssistTasksPanel selectedFeature="themes" onClose={onClose} />);
 
-    expect(container.textContent).toContain('What it is doing');
     expect(container.textContent).toContain('Themed pictures');
     expect(container.textContent).toContain('1 task running now');
-    expect(container.textContent).toContain('Task 1: Generating and saving pictures');
+    expect(container.textContent).toContain('Pictures for “help”, “water”');
+    expect(container.textContent).not.toContain('Context correction');
+    expect(container.textContent).not.toContain('Quick replies');
 
     const close = [...container.querySelectorAll('button')].find((button) =>
       button.textContent?.includes('Close — back to chat'),
@@ -357,7 +360,7 @@ describe('AAC context tools', () => {
     act(() => close?.click());
     expect(onClose).toHaveBeenCalledTimes(1);
 
-    act(() => actions.finishAssistTask('themes', 'ready', 6));
+    act(() => actions.finishAssistTask('themes', 'ready', 6, taskId));
     unmount();
   });
 });

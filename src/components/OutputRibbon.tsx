@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState, type JSX } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type JSX, type ReactNode } from 'react';
 import { session } from '@/session/AacSession';
 import { actions, selectComposition, selectCompositionAuthor, useStore, type AppState } from '@/state/store';
 
@@ -14,7 +14,7 @@ const selectLastSpoken = (state: AppState): string | null => state.lastSpokenTex
  * exists to inform it. Nothing above or beside it competes for the Speak
  * action, and it never moves, whatever view is open underneath.
  */
-export function OutputRibbon(): JSX.Element {
+export function OutputRibbon({ leading }: { leading?: ReactNode } = {}): JSX.Element {
   const composition = useStore(selectComposition);
   const compositionAuthor = useStore(selectCompositionAuthor);
   const speaking = useStore(selectSpeaking);
@@ -50,6 +50,8 @@ export function OutputRibbon(): JSX.Element {
       <h2 className="visually-hidden" id={`${inputId}-label`}>
         Your message
       </h2>
+
+      {leading}
 
       <div className="ribbon__message">
         {agentAuthored && (

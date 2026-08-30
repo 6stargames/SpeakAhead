@@ -188,23 +188,28 @@ describe('assistant activity', () => {
   });
 
   it('tracks concurrent work without allowing a negative task count', () => {
-    actions.beginAssistTask('themes');
-    actions.beginAssistTask('themes');
+    const firstTask = actions.beginAssistTask('themes', 'Pictures for “help”');
+    const secondTask = actions.beginAssistTask('themes', 'Pictures for “water”');
     expect(store.getState().assistFeatures.themes.activeTasks).toBe(2);
 
-    actions.finishAssistTask('themes', 'ready', 9);
+    actions.finishAssistTask('themes', 'ready', 9, firstTask);
     expect(store.getState().assistFeatures.themes).toMatchObject({
       activeTasks: 1,
       status: 'working',
     });
 
+    actions.finishAssistTask('themes', 'ready', 18, secondTask);
     actions.finishAssistTask('themes', 'ready', 18);
-    actions.finishAssistTask('themes', 'ready', 18);
-    expect(store.getState().assistFeatures.themes).toEqual({
+    expect(store.getState().assistFeatures.themes).toMatchObject({
       activeTasks: 0,
       status: 'ready',
       resultCount: 18,
     });
+    expect(store.getState().assistFeatures.themes.tasks).toHaveLength(2);
+    expect(store.getState().assistFeatures.themes.tasks.map((task) => task.label)).toEqual([
+      'Pictures for “water”',
+      'Pictures for “help”',
+    ]);
   });
 
   it('keeps the latest and immediately previous context generations', () => {

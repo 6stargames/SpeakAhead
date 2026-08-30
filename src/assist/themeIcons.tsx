@@ -280,6 +280,12 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
   return result;
 }
 
+function pictureTaskLabel(items: readonly ThemeIconRequestItem[]): string {
+  const names = items.slice(0, 4).map((item) => `“${item.text.trim()}”`).join(', ');
+  const remainder = items.length > 4 ? ` and ${items.length - 4} more` : '';
+  return `Pictures for ${names}${remainder}`;
+}
+
 /** Generate and cache one 3x3 image sheet at a time, keeping model traffic low. */
 export function useThemedSymbols(
   items: readonly ThemeIconRequestItem[],
@@ -301,15 +307,15 @@ export function useThemedSymbols(
     void (async () => {
       const next = new Map<string, ThemeTile>();
       for (const group of chunk(stableItems, batchSize)) {
-        actions.beginAssistTask('themes');
+        const taskId = actions.beginAssistTask('themes', pictureTaskLabel(group));
         const groupTiles = await loadTiles(group, theme, singleSubject);
         if (groupTiles.size === 0) {
-          actions.finishAssistTask('themes', 'unavailable', next.size);
+          actions.finishAssistTask('themes', 'unavailable', 0, taskId);
           if (cancelled) return;
           continue;
         }
         groupTiles.forEach((tile, key) => next.set(key, tile));
-        actions.finishAssistTask('themes', 'ready', next.size);
+        actions.finishAssistTask('themes', 'ready', groupTiles.size, taskId);
         if (cancelled) return;
         setTiles(new Map(next));
       }

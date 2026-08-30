@@ -1,6 +1,15 @@
 import type { JSX } from 'react';
 import type { ChatGPTIdentity } from '@/auth/chatgpt';
-import { ASSIST_FEATURE_PRESENTATION } from '@/assist/featurePresentation';
+import {
+  ASSIST_FEATURE_PRESENTATION,
+  ASSIST_FEATURE_THEME_ITEMS,
+} from '@/assist/featurePresentation';
+import {
+  ThemedSymbol,
+  themeTileFor,
+  useThemedSymbols,
+  type ThemeTile,
+} from '@/assist/themeIcons';
 import {
   useStore,
   type AppState,
@@ -26,6 +35,7 @@ const STATUS_TEXT: Record<AssistFeatureStatus, string> = {
 
 function FeatureIndicator({
   icon,
+  tile,
   label,
   activity,
   overrideStatus,
@@ -34,6 +44,7 @@ function FeatureIndicator({
   onSelect,
 }: {
   icon: string;
+  tile?: ThemeTile;
   label: string;
   activity: AssistFeatureActivity;
   overrideStatus?: AssistFeatureStatus;
@@ -43,11 +54,7 @@ function FeatureIndicator({
 }): JSX.Element {
   const status = overrideStatus ?? activity.status;
   const count = overrideStatus ? 0 : activity.activeTasks;
-  const badgeCount = count > 0 || overrideStatus ? count : activity.resultCount;
-  const resultDetail = activity.resultCount > 0
-    ? ` ${activity.resultCount} result${activity.resultCount === 1 ? '' : 's'} from the last pass.`
-    : '';
-  const title = `${label}: ${overrideDetail ?? STATUS_TEXT[status]}. ${count} task${count === 1 ? '' : 's'} working.${resultDetail}`;
+  const title = `${label}: ${overrideDetail ?? STATUS_TEXT[status]}. ${count} active task${count === 1 ? '' : 's'}.`;
 
   return (
     <button
@@ -60,8 +67,10 @@ function FeatureIndicator({
       aria-expanded={selected}
       onClick={onSelect}
     >
-      <span className="assist-feature__icon" aria-hidden="true">{icon}</span>
-      <span className="assist-feature__count" aria-hidden="true">{badgeCount}</span>
+      <span className="assist-feature__icon" aria-hidden="true">
+        <ThemedSymbol symbol={icon} tile={tile} />
+      </span>
+      {count > 0 && <span className="assist-feature__count" aria-hidden="true">{count}</span>}
     </button>
   );
 }
@@ -77,6 +86,12 @@ export function ChatGPTAuthButton({
   onFeatureSelect?: (feature: AssistFeature) => void;
 }): JSX.Element | null {
   const assist = useStore(selectAssistHeader);
+  const signedIn = Boolean(identity && !('signInPath' in identity));
+  const featureTiles = useThemedSymbols(
+    ASSIST_FEATURE_THEME_ITEMS,
+    signedIn ? assist.symbolTheme : 'emoji',
+    { batchSize: 3, singleSubject: true },
+  );
   if (!identity) return null;
 
   if ('signInPath' in identity) {
@@ -87,7 +102,7 @@ export function ChatGPTAuthButton({
         target="_top"
         aria-label="Sign in with ChatGPT"
       >
-        <span className="chatgpt-auth-overlay__mark" aria-hidden="true">✦</span>
+        <img className="chatgpt-auth-overlay__mark" src="/openai-mark.svg" alt="" />
         <span>ChatGPT sign in</span>
       </a>
     );
@@ -107,12 +122,13 @@ export function ChatGPTAuthButton({
         title={`${identity.email} · Sign out`}
         aria-label={`Signed in with ChatGPT as ${identity.displayName}. Sign out`}
       >
-        <span className="chatgpt-auth-overlay__mark" aria-hidden="true">✓</span>
+        <img className="chatgpt-auth-overlay__mark" src="/openai-mark.svg" alt="" />
         <span className="chatgpt-auth-overlay__name">{identity.displayName}</span>
       </a>
       <div className="assist-features" aria-label="WebMCP features">
         <FeatureIndicator
           icon={ASSIST_FEATURE_PRESENTATION.corrections.icon}
+          tile={themeTileFor(featureTiles, ASSIST_FEATURE_THEME_ITEMS[0]!)}
           label={ASSIST_FEATURE_PRESENTATION.corrections.label}
           activity={assist.features.corrections}
           overrideStatus={contextOverride}
@@ -122,6 +138,7 @@ export function ChatGPTAuthButton({
         />
         <FeatureIndicator
           icon={ASSIST_FEATURE_PRESENTATION.suggestions.icon}
+          tile={themeTileFor(featureTiles, ASSIST_FEATURE_THEME_ITEMS[1]!)}
           label={ASSIST_FEATURE_PRESENTATION.suggestions.label}
           activity={assist.features.suggestions}
           overrideStatus={contextOverride}
@@ -131,6 +148,7 @@ export function ChatGPTAuthButton({
         />
         <FeatureIndicator
           icon={ASSIST_FEATURE_PRESENTATION.themes.icon}
+          tile={themeTileFor(featureTiles, ASSIST_FEATURE_THEME_ITEMS[2]!)}
           label={ASSIST_FEATURE_PRESENTATION.themes.label}
           activity={assist.features.themes}
           overrideStatus={themeOverride}
