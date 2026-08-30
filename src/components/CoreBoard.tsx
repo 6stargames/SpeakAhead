@@ -90,7 +90,7 @@ const selectMasked = (state: AppState): string[] => state.maskedCoreWords;
 const selectEditMode = (state: AppState): boolean => state.editMode;
 const selectFavorites = (state: AppState) => state.favorites;
 
-const CORE_THEME_ITEMS = Array.from({ length: 6 }, (_, row) =>
+export const CORE_THEME_ITEMS = Array.from({ length: 6 }, (_, row) =>
   CORE_WORDS.map((column) => column[row]).filter((cell): cell is CoreWord => Boolean(cell)),
 ).flat().map((cell) => ({ text: cell.word, symbol: cell.symbol }));
 

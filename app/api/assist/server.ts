@@ -16,23 +16,29 @@ export function json(data: unknown, status = 200): Response {
   });
 }
 
-export async function requireAssistUser(
-  bucket: AssistRateBucket,
-  limitPerMinute: number,
-): Promise<
-  | { ok: true; userId: string; apiKey: string }
+export async function requireAssistIdentity(): Promise<
+  | { ok: true; userId: string }
   | { ok: false; response: Response }
 > {
   const user = await getChatGPTUser();
   if (!user) return { ok: false, response: json({ error: 'chatgpt_sign_in_required' }, 401) };
+  return { ok: true, userId: user.userId };
+}
 
+export function requireAssistApi(
+  userId: string,
+  bucket: AssistRateBucket,
+  limitPerMinute: number,
+):
+  | { ok: true; userId: string; apiKey: string }
+  | { ok: false; response: Response } {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) return { ok: false, response: json({ error: 'assist_not_configured' }, 503) };
 
   const now = Date.now();
   // Image batches and language passes are independent work. Sharing one
-  // counter made a busy anime board consume the context checker's allowance.
-  const rateKey = `${bucket}\u0000${user.userId}`;
+  // counter made a busy themed board consume the context checker's allowance.
+  const rateKey = `${bucket}\u0000${userId}`;
   const entry = rateWindows.get(rateKey);
   if (!entry || now - entry.startedAt >= 60_000) {
     rateWindows.set(rateKey, { startedAt: now, count: 1 });
@@ -51,7 +57,19 @@ export async function requireAssistUser(
     }
   }
 
-  return { ok: true, userId: user.userId, apiKey };
+  return { ok: true, userId, apiKey };
+}
+
+export async function requireAssistUser(
+  bucket: AssistRateBucket,
+  limitPerMinute: number,
+): Promise<
+  | { ok: true; userId: string; apiKey: string }
+  | { ok: false; response: Response }
+> {
+  const identity = await requireAssistIdentity();
+  if (!identity.ok) return identity;
+  return requireAssistApi(identity.userId, bucket, limitPerMinute);
 }
 
 export async function readSmallJson(request: Request, maxBytes = 30_000): Promise<unknown> {

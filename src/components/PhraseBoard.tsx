@@ -100,7 +100,7 @@ const ALL_PHRASES = CATEGORIES.flatMap((category) =>
 );
 
 const selectFavorites = (state: AppState) => state.favorites;
-const PHRASE_THEME_ITEMS = ALL_PHRASES.map(({ text, symbol }) => ({ text, symbol }));
+export const PHRASE_THEME_ITEMS = ALL_PHRASES.map(({ text, symbol }) => ({ text, symbol }));
 
 export function PhraseBoard({
   contextAssistEnabled = false,

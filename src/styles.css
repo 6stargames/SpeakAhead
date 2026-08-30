@@ -1067,6 +1067,14 @@ body {
 }
 .cell--phrase .cell__word {
   font-size: 0.95em;
+  /* Phrase text may wrap only at real spaces. `anywhere` made words look
+     fused together when a narrow card split them between arbitrary letters. */
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.context-row--phrases .cell__word {
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 /* Text-only mode: denser, plainer, adult. */

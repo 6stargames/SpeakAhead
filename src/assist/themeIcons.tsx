@@ -8,13 +8,22 @@ export interface ThemeTile extends ThemeSprite {
 }
 
 const memory = new Map<string, Promise<ThemeSprite | null>>();
+const itemMemory = new Map<string, Promise<ThemeTile | null>>();
 let queue: Promise<unknown> = Promise.resolve();
-const CACHE_NAME = 'aac-themed-symbols-v3';
+const CACHE_NAME = 'aac-themed-symbols-v4';
 const COLUMNS_HEADER = 'x-aac-sprite-columns';
 const ROWS_HEADER = 'x-aac-sprite-rows';
 
 function itemKey(item: ThemeIconRequestItem): string {
   return `${item.symbol}\u0000${item.text}`;
+}
+
+function themedItemKey(
+  theme: Exclude<SymbolTheme, 'emoji'>,
+  item: ThemeIconRequestItem,
+  singleSubject: boolean,
+): string {
+  return `${theme}\u0000${singleSubject ? 'single' : 'board'}\u0000${itemKey(item)}`;
 }
 
 function hash(value: string): string {
@@ -89,24 +98,36 @@ interface SpritePayload {
 async function requestSprite(
   items: readonly ThemeIconRequestItem[],
   theme: Exclude<SymbolTheme, 'emoji'>,
+  singleSubject: boolean,
 ): Promise<SpritePayload | null> {
-  try {
-    const response = await fetch('/api/assist/theme-icons', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', accept: 'image/png' },
-      credentials: 'same-origin',
-      body: JSON.stringify({ theme, items }),
-    });
-    if (!response.ok) return null;
-    const columns = dimension(response, COLUMNS_HEADER);
-    const rows = dimension(response, ROWS_HEADER);
-    if (!columns || !rows || !response.headers.get('content-type')?.startsWith('image/png')) return null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch('/api/assist/theme-icons', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'image/png' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ theme, items, singleSubject }),
+      });
+      if (response.status === 429 && attempt < 2) {
+        const retryAfter = Number(response.headers.get('retry-after'));
+        const delay = Number.isFinite(retryAfter) && retryAfter > 0
+          ? Math.min(30_000, retryAfter * 1_000)
+          : 12_000 * (attempt + 1);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+      if (!response.ok) return null;
+      const columns = dimension(response, COLUMNS_HEADER);
+      const rows = dimension(response, ROWS_HEADER);
+      if (!columns || !rows || !response.headers.get('content-type')?.startsWith('image/png')) return null;
 
-    const blob = await response.blob();
-    return blob.size > 100 ? { blob, columns, rows } : null;
-  } catch {
-    return null;
+      const blob = await response.blob();
+      return blob.size > 100 ? { blob, columns, rows } : null;
+    } catch {
+      if (attempt === 2) return null;
+    }
   }
+  return null;
 }
 
 function enqueue<T>(work: () => Promise<T>): Promise<T> {
@@ -121,15 +142,18 @@ function enqueue<T>(work: () => Promise<T>): Promise<T> {
 function loadSprite(
   items: readonly ThemeIconRequestItem[],
   theme: Exclude<SymbolTheme, 'emoji'>,
+  singleSubject: boolean,
 ): Promise<ThemeSprite | null> {
-  const cacheKey = hash(`${theme}\u0001${items.map(itemKey).join('\u0002')}`);
+  const cacheKey = hash(
+    `${theme}\u0001${singleSubject ? 'single' : 'board'}\u0001${items.map(itemKey).join('\u0002')}`,
+  );
   const existing = memory.get(cacheKey);
   if (existing) return existing;
 
   const promise = enqueue(async () => {
     const cached = await readCached(cacheKey);
     if (cached) return cached;
-    const payload = await requestSprite(items, theme);
+    const payload = await requestSprite(items, theme, singleSubject);
     if (!payload) return null;
     const sprite = spriteFromBlob(payload.blob, payload.columns, payload.rows);
     if (!sprite) return null;
@@ -143,6 +167,37 @@ function loadSprite(
   return promise;
 }
 
+async function loadTiles(
+  items: readonly ThemeIconRequestItem[],
+  theme: Exclude<SymbolTheme, 'emoji'>,
+  singleSubject: boolean,
+): Promise<ReadonlyMap<string, ThemeTile>> {
+  const missing = items.filter((item) => !itemMemory.has(themedItemKey(theme, item, singleSubject)));
+  if (missing.length > 0) {
+    const spritePromise = loadSprite(missing, theme, singleSubject);
+    missing.forEach((item, index) => {
+      const key = themedItemKey(theme, item, singleSubject);
+      const tilePromise = spritePromise.then((sprite) => (sprite ? { ...sprite, index } : null));
+      itemMemory.set(key, tilePromise);
+      void tilePromise.then((tile) => {
+        if (!tile) itemMemory.delete(key);
+      });
+    });
+  }
+
+  const resolved = await Promise.all(
+    items.map(async (item) => ({
+      item,
+      tile: await itemMemory.get(themedItemKey(theme, item, singleSubject)),
+    })),
+  );
+  const result = new Map<string, ThemeTile>();
+  resolved.forEach(({ item, tile }) => {
+    if (tile) result.set(itemKey(item), tile);
+  });
+  return result;
+}
+
 function chunk<T>(items: readonly T[], size: number): T[][] {
   const result: T[][] = [];
   for (let index = 0; index < items.length; index += size) result.push(items.slice(index, index + size));
@@ -153,7 +208,10 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
 export function useThemedSymbols(
   items: readonly ThemeIconRequestItem[],
   theme: SymbolTheme,
+  options: { batchSize?: number; singleSubject?: boolean } = {},
 ): ReadonlyMap<string, ThemeTile> {
+  const batchSize = Math.max(1, Math.min(9, options.batchSize ?? 9));
+  const singleSubject = options.singleSubject === true;
   const signature = useMemo(() => items.map(itemKey).join('\u0002'), [items]);
   const stableItems = useMemo(() => items.map((item) => ({ ...item })), [signature]);
   const [tiles, setTiles] = useState<ReadonlyMap<string, ThemeTile>>(new Map());
@@ -166,15 +224,15 @@ export function useThemedSymbols(
     let cancelled = false;
     void (async () => {
       const next = new Map<string, ThemeTile>();
-      for (const group of chunk(stableItems, 9)) {
+      for (const group of chunk(stableItems, batchSize)) {
         actions.beginAssistTask('themes');
-        const sprite = await loadSprite(group, theme);
-        if (!sprite) {
+        const groupTiles = await loadTiles(group, theme, singleSubject);
+        if (groupTiles.size === 0) {
           actions.finishAssistTask('themes', 'unavailable', next.size);
           if (cancelled) return;
           continue;
         }
-        group.forEach((item, index) => next.set(itemKey(item), { ...sprite, index }));
+        groupTiles.forEach((tile, key) => next.set(key, tile));
         actions.finishAssistTask('themes', 'ready', next.size);
         if (cancelled) return;
         // Publish each completed sheet so the first nine icons do not wait for
@@ -185,7 +243,7 @@ export function useThemedSymbols(
     return () => {
       cancelled = true;
     };
-  }, [stableItems, theme]);
+  }, [batchSize, singleSubject, stableItems, theme]);
 
   return tiles;
 }

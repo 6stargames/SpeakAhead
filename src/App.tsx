@@ -2,12 +2,12 @@ import { useEffect, useState, type JSX } from 'react';
 import type { ChatGPTIdentity } from '@/auth/chatgpt';
 import { ChatGPTAuthButton } from '@/components/ChatGPTAuthButton';
 import { AssistTasksPanel } from '@/components/AssistTasksPanel';
-import { CoreBoard } from '@/components/CoreBoard';
+import { CoreBoard, CORE_THEME_ITEMS } from '@/components/CoreBoard';
 import { EmergencyBar } from '@/components/EmergencyBar';
 import { FringeBoard } from '@/components/FringeBoard';
 import { NoticeStack } from '@/components/NoticeStack';
 import { OutputRibbon } from '@/components/OutputRibbon';
-import { PhraseBoard } from '@/components/PhraseBoard';
+import { PhraseBoard, PHRASE_THEME_ITEMS } from '@/components/PhraseBoard';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { SuggestionStrip } from '@/components/SuggestionStrip';
 import { TranscriptLog } from '@/components/TranscriptLog';
@@ -23,6 +23,10 @@ import {
 } from '@/assist/themeIcons';
 import {
   actions,
+  selectContextualPhrases,
+  selectContextualWords,
+  selectPreviousContextualPhrases,
+  selectPreviousContextualWords,
   selectSettings,
   useStore,
   type AppState,
@@ -59,6 +63,7 @@ const SPINE_THEME_ITEMS = [...BOARD_VIEWS, ...SYSTEM_VIEWS].map(({ label, icon }
 
 const selectEmergency = (state: AppState): boolean => state.emergencyOverride;
 const selectEditMode = (state: AppState): boolean => state.editMode;
+const selectFavorites = (state: AppState) => state.favorites;
 
 /**
  * One glance at the Checks button answers "is everything working?": a green
@@ -113,10 +118,29 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
   const emergency = useStore(selectEmergency);
   const editMode = useStore(selectEditMode);
   const health = useStore(selectHealth);
+  const favorites = useStore(selectFavorites);
+  const contextualWords = useStore(selectContextualWords);
+  const contextualPhrases = useStore(selectContextualPhrases);
+  const previousContextualWords = useStore(selectPreviousContextualWords);
+  const previousContextualPhrases = useStore(selectPreviousContextualPhrases);
   const signedIn = Boolean(chatGPTIdentity?.displayName);
   const contextAssistEnabled = signedIn && settings.chatGPTAssist;
   const symbolTheme = signedIn ? settings.symbolTheme : 'emoji';
-  const spineSymbols = useThemedSymbols(SPINE_THEME_ITEMS, symbolTheme);
+  const spineSymbols = useThemedSymbols(SPINE_THEME_ITEMS, symbolTheme, {
+    batchSize: 3,
+    singleSubject: true,
+  });
+
+  // Warm every board as soon as a signed-in user selects a picture theme.
+  // Opening Phrases, Words, or Favs should reveal saved artwork immediately,
+  // never start the generation work for the first time.
+  useThemedSymbols(CORE_THEME_ITEMS, symbolTheme);
+  useThemedSymbols(PHRASE_THEME_ITEMS, symbolTheme);
+  useThemedSymbols(favorites, symbolTheme);
+  useThemedSymbols(contextualWords, symbolTheme);
+  useThemedSymbols(contextualPhrases, symbolTheme);
+  useThemedSymbols(previousContextualWords, symbolTheme);
+  useThemedSymbols(previousContextualPhrases, symbolTheme);
 
   // Tools must be registered from a component so their lifetime is bound to the
   // React tree — that is what guarantees the AbortController teardown runs.
