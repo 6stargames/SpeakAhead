@@ -7,6 +7,7 @@ import {
   useThemedSymbols,
 } from '@/assist/themeIcons';
 import type { ThemeIconRequestItem } from '@/assist/types';
+import { store } from '@/state/store';
 
 let container: HTMLDivElement;
 let root: Root;
@@ -16,7 +17,7 @@ function Harness({ items }: { items: readonly ThemeIconRequestItem[] }) {
   return <div data-count={items.filter((item) => themeTileFor(tiles, item)).length} />;
 }
 
-function pngResponse(index = 0): Response {
+function pngResponse(index = 0, source: 'saved' | 'generated' = 'generated'): Response {
   return new Response(new Uint8Array(256), {
     status: 200,
     headers: {
@@ -24,6 +25,7 @@ function pngResponse(index = 0): Response {
       'x-aac-sprite-columns': '3',
       'x-aac-sprite-rows': '3',
       'x-aac-sprite-index': String(index),
+      'x-aac-image-source': source,
     },
   });
 }
@@ -40,6 +42,7 @@ async function flush(): Promise<void> {
 }
 
 beforeEach(() => {
+  store.reset();
   resetThemedSymbolMemoryForTests();
   container = document.createElement('div');
   document.body.append(container);
@@ -58,6 +61,33 @@ afterEach(() => {
 });
 
 describe('themed image reuse', () => {
+  it('restores saved pictures silently even when two surfaces ask at once', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (isLookup(init)) {
+        return Response.json({
+          groups: [{
+            probeText: 'cached-water',
+            columns: 3,
+            rows: 3,
+            tiles: [{ requestIndex: 0, index: 2 }],
+          }],
+        });
+      }
+      expect(String(input)).toContain('text=cached-water');
+      return pngResponse(2, 'saved');
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const items = [{ text: 'cached-water', symbol: '💧' }];
+
+    act(() => root.render(<><Harness items={items} /><Harness items={items} /></>));
+    await vi.waitFor(() => {
+      expect([...container.children].every((element) => element.getAttribute('data-count') === '1')).toBe(true);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(store.getState().assistFeatures.themes.tasks).toHaveLength(0);
+  });
+
   it('reuses an already loaded word picture when that item later appears in Favs', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
       isLookup(init) ? Response.json({ groups: [] }) : pngResponse(),
@@ -75,6 +105,7 @@ describe('themed image reuse', () => {
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+    expect(store.getState().assistFeatures.themes.tasks).toHaveLength(1);
 
     act(() => root.render(<Harness items={[items[0]!]} />));
     await flush();

@@ -16,6 +16,7 @@ interface SpritePayload {
   readonly columns: number;
   readonly rows: number;
   readonly index: number;
+  readonly source: 'saved' | 'generated' | 'unknown';
 }
 
 interface SavedGroup {
@@ -31,7 +32,9 @@ type GenerationResult =
   | { readonly kind: 'unavailable' };
 
 const itemMemory = new Map<ThemedKey, Promise<ThemeTile | null>>();
-let queue: Promise<unknown> = Promise.resolve();
+// Only new model generations are serialized. Cache lookups must run in
+// parallel or one slow missing image can hold every saved picture hostage.
+let generationQueue: Promise<unknown> = Promise.resolve();
 const COLUMNS_HEADER = 'x-aac-sprite-columns';
 const ROWS_HEADER = 'x-aac-sprite-rows';
 const INDEX_HEADER = 'x-aac-sprite-index';
@@ -75,7 +78,11 @@ async function imagePayload(response: Response): Promise<SpritePayload | null> {
   if (!columns || !rows) return null;
   const headerIndex = Number(response.headers.get(INDEX_HEADER));
   const index = Number.isInteger(headerIndex) && headerIndex >= 0 ? headerIndex : 0;
-  if (response.headers.get(SOURCE_HEADER) === 'generated') {
+  const sourceHeader = response.headers.get(SOURCE_HEADER);
+  const source = sourceHeader === 'saved' || sourceHeader === 'generated'
+    ? sourceHeader
+    : 'unknown';
+  if (source === 'generated') {
     const tokenCount = (header: string) => {
       const value = Number(response.headers.get(header));
       return Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
@@ -87,7 +94,7 @@ async function imagePayload(response: Response): Promise<SpritePayload | null> {
     });
   }
   const blob = await response.blob();
-  return blob.size > 100 ? { blob, columns, rows, index } : null;
+  return blob.size > 100 ? { blob, columns, rows, index, source } : null;
 }
 
 async function requestGeneratedSprite(
@@ -179,9 +186,9 @@ async function requestSavedSprite(
   }
 }
 
-function enqueue<T>(work: () => Promise<T>): Promise<T> {
-  const task = queue.then(work, work);
-  queue = task.then(
+function enqueueGeneration<T>(work: () => Promise<T>): Promise<T> {
+  const task = generationQueue.then(work, work);
+  generationQueue = task.then(
     () => undefined,
     () => undefined,
   );
@@ -204,17 +211,17 @@ async function loadMissingTiles(
 
     // One saved sheet may contain several requested buttons. Fetch that sheet
     // once, then reconnect every matching button to its original cell.
-    for (const group of groups) {
+    await Promise.all(groups.map(async (group) => {
       const payload = await requestSavedSprite(theme, group.probeText, singleSubject);
-      if (!payload) continue;
+      if (!payload) return;
       const sprite = spriteFromBlob(payload.blob, group.columns, group.rows);
-      if (!sprite) continue;
+      if (!sprite) return;
       group.tiles.forEach(({ requestIndex, index }) => {
         const item = missing[requestIndex];
         if (!item || !Number.isInteger(index) || index < 0) return;
         result.set(themedItemKey(theme, item, singleSubject), { ...sprite, index });
       });
-    }
+    }));
 
     missing = items.filter((item) => !result.has(themedItemKey(theme, item, singleSubject)));
     if (missing.length === 0) break;
@@ -228,7 +235,18 @@ async function loadMissingTiles(
 
     let refreshDelay = 0;
     for (const partition of partitions) {
-      const generated = await requestGeneratedSprite(partition, theme, singleSubject);
+      const generated = await enqueueGeneration(async () => {
+        const taskId = actions.beginAssistTask('themes', pictureTaskLabel(partition));
+        const outcome = await requestGeneratedSprite(partition, theme, singleSubject);
+        if (outcome.kind === 'image') {
+          actions.finishAssistTask('themes', 'ready', partition.length, taskId);
+        } else if (outcome.kind === 'refresh') {
+          actions.finishAssistTask('themes', 'idle', 0, taskId);
+        } else {
+          actions.finishAssistTask('themes', 'unavailable', 0, taskId);
+        }
+        return outcome;
+      });
       if (generated.kind === 'refresh') {
         refreshDelay = Math.max(refreshDelay, generated.retryAfterMs);
         continue;
@@ -265,7 +283,9 @@ async function loadTiles(
 
   if (uniqueMissing.size > 0) {
     const missing = [...uniqueMissing.values()];
-    const groupPromise = enqueue(() => loadMissingTiles(missing, theme, singleSubject));
+    // Register the shared promise immediately so overlapping prewarm and
+    // visible-board hooks join the same restore/generation work.
+    const groupPromise = loadMissingTiles(missing, theme, singleSubject);
     missing.forEach((item) => {
       const key = themedItemKey(theme, item, singleSubject);
       const tilePromise = groupPromise
@@ -324,15 +344,12 @@ export function useThemedSymbols(
     void (async () => {
       const next = new Map<string, ThemeTile>();
       for (const group of chunk(stableItems, batchSize)) {
-        const taskId = actions.beginAssistTask('themes', pictureTaskLabel(group));
         const groupTiles = await loadTiles(group, theme, singleSubject);
         if (groupTiles.size === 0) {
-          actions.finishAssistTask('themes', 'unavailable', 0, taskId);
           if (cancelled) return;
           continue;
         }
         groupTiles.forEach((tile, key) => next.set(key, tile));
-        actions.finishAssistTask('themes', 'ready', groupTiles.size, taskId);
         if (cancelled) return;
         setTiles(new Map(next));
       }
@@ -355,7 +372,7 @@ export function themeTileFor(
 /** Allows a fresh app session to be exercised without reloading the test VM. */
 export function resetThemedSymbolMemoryForTests(): void {
   itemMemory.clear();
-  queue = Promise.resolve();
+  generationQueue = Promise.resolve();
 }
 
 export function ThemedSymbol({
