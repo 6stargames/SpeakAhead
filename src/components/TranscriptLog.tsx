@@ -258,7 +258,6 @@ const selectListening = (state: AppState) => ({
   ttsDetail: state.tts.detail,
   accurateTranscriptionEnabled: state.accurateTranscriptionEnabled,
   audioInputSource: state.audioInputSource,
-  loadingMessage: state.asrLoadingMessage,
 });
 
 export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolTheme }): JSX.Element {
@@ -460,7 +459,7 @@ export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolT
         <div className="listening-bar" role="status" aria-live="polite">
           <span className="listening-bar__label">
             {!listening.asrReady
-              ? listening.loadingMessage
+              ? 'Getting ready'
               : showListeningDetails
                 ? `${listening.audioInputSource === 'browser-tab'
                   ? 'Listening · browser tab'

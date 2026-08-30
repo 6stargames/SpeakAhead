@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from 'react';
-import { actions, selectContextWindow, store, useStore } from '@/state/store';
+import { useMemo } from 'react';
+import { actions, selectContextWindow, store } from '@/state/store';
 import { useWebMCPTool, type WebMcpRegistrationState } from './useWebMCPTool';
 import { errorResult, textResult, type JsonSchema, type WebMcpToolDefinition } from './types';
 import {
@@ -15,7 +15,6 @@ import {
   voiceChoice,
   type ChatGptVoiceName,
 } from '@/speech/tts/voiceChoices';
-import { requestLoadingCopy } from '@/assist/loadingCopy';
 
 function readContextSuggestions(
   value: unknown,
@@ -84,7 +83,6 @@ export interface WebMcpToolStates {
   readonly vocabulary: WebMcpRegistrationState;
   readonly speech: WebMcpRegistrationState;
   readonly theme: WebMcpRegistrationState;
-  readonly loadingCopy: WebMcpRegistrationState;
 }
 
 /**
@@ -94,9 +92,7 @@ export interface WebMcpToolStates {
  * DOM. Each one is small, does one thing, and states its purpose in language a
  * model can act on without seeing the interface.
  */
-export function useAacWebMcpTools(enabled = true): WebMcpToolStates {
-  const asrLoading = useStore((state) => state.asr.status === 'loading');
-  const symbolTheme = useStore((state) => state.settings.symbolTheme);
+export function useAacWebMcpTools(): WebMcpToolStates {
   const contextTool = useMemo<WebMcpToolDefinition>(
     () => ({
       name: 'get-conversation-context',
@@ -270,58 +266,10 @@ export function useAacWebMcpTools(enabled = true): WebMcpToolStates {
     [],
   );
 
-  const loadingCopyTool = useMemo<WebMcpToolDefinition>(
-    () => ({
-      name: 'create-loading-message',
-      description:
-        'Create and display one fresh, short, witty text-only status while the on-device speech recognizer loads. ' +
-        'The wording gently matches the current theme. This tool never generates or changes a picture.',
-      inputSchema: emptySchema,
-      execute: async (args) => {
-        if (!enabled) return errorResult('Sign in with ChatGPT before creating a loading message.');
-        const current = store.getState();
-        if (current.asr.status !== 'loading') {
-          return errorResult('The speech recognizer is not loading right now.');
-        }
-        const signal = (args as { _signal?: unknown })._signal instanceof AbortSignal
-          ? (args as { _signal: AbortSignal })._signal
-          : undefined;
-        const theme = current.settings.symbolTheme;
-        const result = await requestLoadingCopy(theme, signal);
-        if (!result) return errorResult('A fresh loading message was unavailable.');
-        const latest = store.getState();
-        if (
-          !signal?.aborted &&
-          latest.asr.status === 'loading' &&
-          latest.settings.symbolTheme === theme
-        ) {
-          actions.setAsrLoadingMessage(result.text);
-          actions.recordAssistUsage('text', result.usage);
-        }
-        return textResult(result.text);
-      },
-    }),
-    [enabled],
-  );
-
-  const contextState = useWebMCPTool(contextTool);
-  const vocabularyState = useWebMCPTool(vocabularyTool);
-  const speechState = useWebMCPTool(speechTool);
-  const themeState = useWebMCPTool(themeTool);
-  const loadingCopyState = useWebMCPTool(loadingCopyTool);
-  useEffect(() => {
-    if (!enabled || !loadingCopyState.registered || !asrLoading) return undefined;
-    actions.setAsrLoadingMessage('Getting ready');
-    const controller = new AbortController();
-    void loadingCopyTool.execute({ _signal: controller.signal });
-    return () => controller.abort();
-  }, [asrLoading, enabled, loadingCopyState.registered, loadingCopyTool, symbolTheme]);
-
   return {
-    context: contextState,
-    vocabulary: vocabularyState,
-    speech: speechState,
-    theme: themeState,
-    loadingCopy: loadingCopyState,
+    context: useWebMCPTool(contextTool),
+    vocabulary: useWebMCPTool(vocabularyTool),
+    speech: useWebMCPTool(speechTool),
+    theme: useWebMCPTool(themeTool),
   };
 }

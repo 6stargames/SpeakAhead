@@ -193,8 +193,6 @@ export interface AppState {
   readonly assistUsage: AssistUsage;
   /** Signed-in users get a bounded GPT pass after immediate ONNX recognition. */
   readonly accurateTranscriptionEnabled: boolean;
-  /** Fresh text supplied by the loading-copy WebMCP tool during ASR startup. */
-  readonly asrLoadingMessage: string;
 
   readonly asr: EngineInfo;
   readonly tts: EngineInfo;
@@ -298,7 +296,6 @@ const initialState: AppState = {
     totalTokens: 0,
   },
   accurateTranscriptionEnabled: false,
-  asrLoadingMessage: 'Getting ready',
 
   asr: idleEngine,
   tts: idleEngine,
@@ -404,11 +401,6 @@ export const actions = {
 
   setDictationPreview(text: string): void {
     store.set({ dictationPreview: text });
-  },
-
-  setAsrLoadingMessage(text: string): void {
-    const next = text.replace(/\s+/g, ' ').trim().slice(0, 48).trim();
-    store.set({ asrLoadingMessage: next || 'Getting ready' });
   },
 
   appendComposition(fragment: string): void {
