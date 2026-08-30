@@ -1288,10 +1288,9 @@ body {
 .assist-tasks__hero--pictured > div {
   padding: var(--space-3);
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--surface) 42%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent),
-    0 0.2rem 1rem color-mix(in srgb, #000 32%, transparent);
-  text-shadow: 0 1px 0.2rem #000, 0 0 0.7rem #000;
+  background: color-mix(in srgb, var(--surface) 68%, transparent);
+  box-shadow: 0 0 1.4rem color-mix(in srgb, var(--surface) 72%, transparent);
+  backdrop-filter: blur(3px);
 }
 .assist-tasks__hero p {
   margin: var(--space-1) 0 var(--space-2);

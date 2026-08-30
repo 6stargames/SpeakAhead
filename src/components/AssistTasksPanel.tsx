@@ -82,8 +82,11 @@ export function AssistTasksPanel({
   const panelTile = themeTileFor(panelTiles, panelItem);
   const panelStyle: CSSProperties | undefined = panelTile
     ? {
-      backgroundImage: `url(${JSON.stringify(panelTile.imageUrl)})`,
-      backgroundPosition: 'center 52%',
+      backgroundImage: [
+        'linear-gradient(color-mix(in srgb, var(--surface-raised) 68%, transparent), color-mix(in srgb, var(--surface-raised) 78%, transparent))',
+        `url(${JSON.stringify(panelTile.imageUrl)})`,
+      ].join(', '),
+      backgroundPosition: 'center, center 52%',
       backgroundRepeat: 'no-repeat',
       backgroundSize: 'cover',
     }
