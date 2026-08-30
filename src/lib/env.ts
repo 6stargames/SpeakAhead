@@ -47,7 +47,7 @@ function resolveSignalingUrl(raw: string | undefined): string {
  * Default model locations.
  *
  * The Sherpa release version is part of the path on purpose. Model files are
- * served `immutable`, so changing a bundle has to change its URL — otherwise
+ * served `immutable`, so changing a bundle has to change its URL - otherwise
  * browsers and the CDN keep serving last year's model to code that expects the
  * new one. `npm run fetch:models` prints the paths it installed.
  */

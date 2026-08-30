@@ -9,7 +9,7 @@ import { cacheControl, contentEtag, etagFor, weakEtag } from '../http-cache.js';
  *
  * The ETag was derived from size and mtime. The container build normalises
  * mtimes, and `sw.js` and `index.html` come out the same length every build
- * because the asset hashes they embed are fixed-length — so two different
+ * because the asset hashes they embed are fixed-length - so two different
  * deploys produced byte-identical ETags. Every conditional request got a 304 and
  * browsers kept a stale service worker and shell indefinitely, which looks like
  * "the fix didn't deploy" rather than a caching bug.

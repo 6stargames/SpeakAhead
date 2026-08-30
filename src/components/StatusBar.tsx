@@ -32,7 +32,7 @@ function engineTone(info: EngineInfo): ChipTone {
 /**
  * Loading is only worth reporting in detail when it is slow enough to worry
  * about. Models are cached by the service worker after first use, so a repeat
- * visit reads them from disk in a moment — flashing "loading 9%" on the way is
+ * visit reads them from disk in a moment - flashing "loading 9%" on the way is
  * noise that makes a fast load look like a struggling one.
  */
 const PROGRESS_VISIBLE_AFTER_MS = 1500;

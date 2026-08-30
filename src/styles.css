@@ -39,8 +39,8 @@
   /*
    * Fill tokens for emergency controls, separate from --danger, which is a
    * text-on-surface colour. Reusing the text token as a button fill is what
-   * produced pale-salmon emergency buttons in dark mode; these are chosen —
-   * and must be verified — as the highest-contrast fills in every theme.
+   * produced pale-salmon emergency buttons in dark mode; these are chosen -
+   * and must be verified - as the highest-contrast fills in every theme.
    */
   --danger-fill: #b42318;
   --danger-fill-hover: #92140c;
@@ -73,7 +73,7 @@
   /*
    * WCAG 2.2 SC 2.4.13 focus ring: a 2px inner ring against a 4px outer ring,
    * so the indicator holds 3:1 contrast on yellow, green, blue and red cells
-   * alike — no single-colour outline can promise that on a Fitzgerald board.
+   * alike - no single-colour outline can promise that on a Fitzgerald board.
    */
   --focus-inner: #ffffff;
   --focus-outer: #101828;
@@ -160,7 +160,7 @@
 /*
  * Opt-in high contrast, independent of the OS theme.
  *
- * Not an inverted filter — inversion corrupts the Fitzgerald Key. A dedicated
+ * Not an inverted filter - inversion corrupts the Fitzgerald Key. A dedicated
  * yellow-on-black palette reduces photophobia and improves reading speed for
  * low vision, while every part-of-speech hue keeps its meaning as a saturated
  * border on black.
@@ -375,7 +375,7 @@ body {
 
    Top to bottom: status, the output ribbon (the utterance and Speak), the
    then the main
-   area — a fixed navigation spine beside the generative board, which owns the
+   area - a fixed navigation spine beside the generative board, which owns the
    bulk of the screen. The emergency bar is pinned last. The app is exactly one
    viewport tall; panels scroll internally so no control ever moves.          */
 
@@ -709,14 +709,14 @@ body {
 /* --- Suggestion overlay -----------------------------------------------------
 
    The quarantine zone. A reserved minimum height keeps the board below at
-   fixed coordinates whether or not anything is suggested — suggestions may
+   fixed coordinates whether or not anything is suggested - suggestions may
    come and go; the motor plan may not move.                                  */
 
 /*
   The suggestion overlay: floats over the board's lower corner, renders only
   while there is something machine-suggested to show. An overlay covers
   pixels rather than displacing them, so the motor plan underneath never
-  moves — and when it is empty, no row of the screen is spent on it.
+  moves - and when it is empty, no row of the screen is spent on it.
 */
 .suggest-overlay {
   position: fixed;
@@ -829,8 +829,8 @@ body {
 
 /* --- Predictions ----------------------------------------------------------
 
-   Whole chips only. Inside the overlay they may wrap onto new lines — the
-   overlay grows upward over the board rather than pushing anything — but a
+   Whole chips only. Inside the overlay they may wrap onto new lines - the
+   overlay grows upward over the board rather than pushing anything - but a
    chip itself never renders partially. */
 
 .predictions {
@@ -996,7 +996,7 @@ body {
 
 /*
   Rows are minmax(cell floor, 1fr): 80px is the floor, not the size. On a tall
-  viewport the cells grow to consume the whole board area — the research's
+  viewport the cells grow to consume the whole board area - the research's
   instruction was "as large as the viewport physically allows", and empty
   space under a motor-impaired user's board is wasted accuracy.
 */
@@ -1354,27 +1354,15 @@ body {
   font-size: 1.05em;
 }
 .themed-close__label {
-  flex: 1;
-}
-.themed-close__edge {
-  display: grid;
-  width: 3rem;
-  height: 3rem;
-  place-items: center;
-  flex: 0 0 3rem;
-  padding-right: var(--space-2);
-  border-right: 2px solid color-mix(in srgb, currentColor 42%, transparent);
-}
-.themed-close__edge--end {
-  padding-right: 0;
-  padding-left: var(--space-2);
-  border-right: 0;
-  border-left: 2px solid color-mix(in srgb, currentColor 42%, transparent);
-}
-.themed-close__edge .cell__symbol {
-  width: 2.65rem;
-  height: 2.65rem;
-  flex-basis: 2.65rem;
+  position: relative;
+  z-index: 1;
+  margin: auto;
+  padding: 0.35em 1.15em;
+  border-radius: 999px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
+  box-shadow: 0 0 1.1rem color-mix(in srgb, var(--surface) 78%, transparent);
+  text-shadow: 0 1px 2px var(--surface);
 }
 
 /* Account details use the same transcript-replacement shell as WebMCP work,
@@ -1713,7 +1701,7 @@ body {
   color: var(--accent);
 }
 
-/* RAUR Need 13: incoming and outgoing text must be unmistakably distinct — by
+/* RAUR Need 13: incoming and outgoing text must be unmistakably distinct - by
    side, by colour and by an explicit textual label, so no single sensory
    channel is load-bearing. The familiar messaging convention does the first two
    for free: your own words on the right in colour, everyone else's on the left
@@ -1759,7 +1747,7 @@ body {
   opacity: 1;
 }
 /*
-  Low-content dictated fragments — a noisy room's "Ta." — collapse to a
+  Low-content dictated fragments - a noisy room's "Ta." - collapse to a
   compact line. The junk-turn policy keeps them visible but never lets them
   carry the weight of real conversation.
 */
@@ -1955,7 +1943,7 @@ body {
   border-radius: var(--radius);
   cursor: pointer;
 }
-/* Symbol above the word, exactly like a board cell — the same reading skill
+/* Symbol above the word, exactly like a board cell - the same reading skill
    works everywhere. */
 .option__symbol {
   font-size: 1.5em;
@@ -1964,7 +1952,7 @@ body {
 
 /* The Settings board: as few rows as possible, each one room-sized. The
    groups share the page's full height so the choices are as big as the
-   words on the boards — nothing here should need reading glasses. */
+   words on the boards - nothing here should need reading glasses. */
 .settings-panel {
   display: flex;
   flex-direction: column;
@@ -2246,7 +2234,7 @@ body {
 
 /* --- Alternative access ----------------------------------------------------
 
-   The scan highlight is the same dual-ring construction as the focus ring —
+   The scan highlight is the same dual-ring construction as the focus ring -
    WCAG 2.4.13 applies to every way a selection can be tracked, not only to
    keyboard focus. Rows glow as a group; the active item gets the full ring. */
 
@@ -2277,7 +2265,7 @@ body {
 }
 
 /* A place to park the eyes. Deliberately inert: not a button, no hover, no
-   dwell — the gaze can live here between selections. */
+   dwell - the gaze can live here between selections. */
 .rest-zone {
   margin-top: auto;
   display: flex;
@@ -2561,7 +2549,7 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   /* Stacked: conversation on top, the spine rail as the barrier below it,
-     then the board — the same order as the wide layout, rotated. */
+     then the board - the same order as the wide layout, rotated. */
   .app__context {
     flex: 0 0 auto;
     padding: var(--space-3) var(--space-3) 0;

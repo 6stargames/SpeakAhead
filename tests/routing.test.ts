@@ -108,7 +108,7 @@ describe('compliance rules', () => {
     expect(evaluateCompliance(buildCompliantGraph()).every((rule) => rule.satisfied)).toBe(true);
   });
 
-  it('rejects the microphone reaching the peer — the BIPA failure', () => {
+  it('rejects the microphone reaching the peer - the BIPA failure', () => {
     const graph = buildCompliantGraph();
     graph.connect('mic-splitter', 'peer');
 

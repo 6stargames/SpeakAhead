@@ -25,7 +25,7 @@ export function hasTurnServer(iceServers: readonly RTCIceServer[]): boolean {
  * back.
  *
  * Worth doing before a call rather than during one. A missing `relay` candidate
- * means the TURN credentials are wrong or the relay is unreachable — and the
+ * means the TURN credentials are wrong or the relay is unreachable - and the
  * symptom of finding that out mid-call is a call that connects, shows every
  * sign of working, and carries no audio. In a hospital or a school district,
  * behind the symmetric NAT this check exists for, that is the common case.
@@ -90,7 +90,7 @@ export async function probeIceServers(
 
     let detail: string;
     if (turnReachable) {
-      detail = 'Relay candidate obtained — calls will connect through restrictive firewalls.';
+      detail = 'Relay candidate obtained - calls will connect through restrictive firewalls.';
     } else if (!turnConfigured) {
       detail =
         'No TURN server configured. Calls will fail behind symmetric NAT, which is the norm on hospital and school networks.';

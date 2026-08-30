@@ -108,7 +108,7 @@ describe('reserved server paths', () => {
 
 describe('engine loading progress', () => {
   // Emscripten counts several packaged files against one declared total, so the
-  // raw ratio overshoots — it displayed "loading 111%" in production.
+  // raw ratio overshoots - it displayed "loading 111%" in production.
   const percentOf = (detail: string): number | null => {
     const match = /\((\d+)\/(\d+)\)/.exec(detail);
     if (!match) return null;

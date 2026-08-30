@@ -4,14 +4,14 @@ import { centsBetween, median } from './pitch';
  * Detect the voice changing part-way through an utterance.
  *
  * The recogniser ends a turn when it hears silence. People do not wait for
- * silence — one person stops, another starts, and with no pause between them
+ * silence - one person stops, another starts, and with no pause between them
  * the recogniser produces a single utterance containing two speakers. It lands
  * in one bubble attributed to whoever's pitch happened to dominate.
  *
  * So the pitch track is watched for a sustained move away from where the
  * utterance started. Sustained is the important word: a single frame jumping is
  * an octave error or a stray harmonic, and splitting on those would chop one
- * person into fragments — a worse failure than merging two people, because the
+ * person into fragments - a worse failure than merging two people, because the
  * transcript would stop being readable at all.
  */
 

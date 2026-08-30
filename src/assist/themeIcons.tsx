@@ -10,6 +10,7 @@ export interface ThemeTile extends ThemeSprite {
 }
 
 type ThemedKey = string;
+type ThemePresentation = NonNullable<ThemeIconRequestItem['presentation']>;
 
 interface SpritePayload {
   readonly blob: Blob;
@@ -50,7 +51,7 @@ const TOTAL_TOKENS_HEADER = 'x-aac-total-tokens';
 function itemKey(item: ThemeIconRequestItem): string {
   // The word's meaning owns the picture. A changing health/fallback emoji must
   // not disconnect the button from artwork already made for the same label.
-  return normalizedChoice(item.text);
+  return `${item.presentation ?? 'subject'}\u0000${normalizedChoice(item.text)}`;
 }
 
 function themedItemKey(
@@ -60,7 +61,11 @@ function themedItemKey(
 ): ThemedKey {
   // A button's meaning, rather than its fallback emoji or punctuation, owns
   // the picture. This is the same identity used by the signed-in R2 library.
-  return `${theme}\u0000${singleSubject ? 'single' : 'board'}\u0000${normalizedChoice(item.text)}`;
+  return `${theme}\u0000${singleSubject ? 'single' : 'board'}\u0000${item.presentation ?? 'subject'}\u0000${normalizedChoice(item.text)}`;
+}
+
+function itemPresentation(items: readonly ThemeIconRequestItem[]): ThemePresentation {
+  return items[0]?.presentation ?? 'subject';
 }
 
 function dimension(response: Response, header: string): number | null {
@@ -112,7 +117,12 @@ async function requestGeneratedSprite(
         method: 'POST',
         headers: { 'content-type': 'application/json', accept: 'image/png' },
         credentials: 'same-origin',
-        body: JSON.stringify({ theme, items, singleSubject }),
+        body: JSON.stringify({
+          theme,
+          items,
+          singleSubject,
+          presentation: itemPresentation(items),
+        }),
       });
       if (response.status === 409 && response.headers.get('x-aac-cache-refresh') === 'true') {
         const retryAfter = Number(response.headers.get('retry-after'));
@@ -151,7 +161,13 @@ async function lookupSavedGroups(
       method: 'POST',
       headers: { 'content-type': 'application/json', accept: 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ theme, items, singleSubject, lookupOnly: true }),
+      body: JSON.stringify({
+        theme,
+        items,
+        singleSubject,
+        presentation: itemPresentation(items),
+        lookupOnly: true,
+      }),
     });
     if (!response.ok) return [];
     const value = await response.json() as { groups?: unknown };
@@ -173,12 +189,14 @@ async function requestSavedSprite(
   theme: Exclude<SymbolTheme, 'emoji'>,
   text: string,
   singleSubject: boolean,
+  presentation: ThemePresentation,
 ): Promise<SpritePayload | null> {
   try {
     const params = new URLSearchParams({
       theme,
       text,
       singleSubject: String(singleSubject),
+      presentation,
     });
     const response = await fetch(`/api/assist/theme-icons?${params.toString()}`, {
       credentials: 'same-origin',
@@ -220,7 +238,12 @@ async function loadMissingTiles(
     // One saved sheet may contain several requested buttons. Fetch that sheet
     // once, then reconnect every matching button to its original cell.
     await Promise.all(groups.map(async (group) => {
-      const payload = await requestSavedSprite(theme, group.probeText, singleSubject);
+      const payload = await requestSavedSprite(
+        theme,
+        group.probeText,
+        singleSubject,
+        itemPresentation(items),
+      );
       if (!payload) return;
       const sprite = spriteFromBlob(payload.blob, group.columns, group.rows);
       if (!sprite) return;

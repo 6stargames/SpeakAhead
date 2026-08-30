@@ -57,7 +57,7 @@ describe('SpeakerChangeDetector', () => {
     const detector = new SpeakerChangeDetector();
     const changes = feed(detector, [...run(200, 10), ...run(100, 5)]);
     // The window holds five frames and is judged on its median, so the change
-    // is declared once a majority of it is the new voice — three frames in,
+    // is declared once a majority of it is the new voice - three frames in,
     // about 190 ms. Fast enough not to lose the newcomer's opening words, slow
     // enough that one bad estimate cannot trigger it.
     expect(changes).toEqual([12]);

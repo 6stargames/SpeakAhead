@@ -10,7 +10,7 @@ const PROGRESS_PATTERN = /\((\d+)\s*\/\s*(\d+)\)/;
 
 /**
  * @returns a fraction between 0 and 1, or null when the detail carries no
- *   countable progress (which is most of the loading time — model
+ *   countable progress (which is most of the loading time - model
  *   initialisation reports nothing).
  */
 export function parseLoadProgress(detail: string | undefined): number | null {
@@ -24,7 +24,7 @@ export function parseLoadProgress(detail: string | undefined): number | null {
   if (!Number.isFinite(loaded) || !Number.isFinite(total) || total <= 0) return null;
 
   // Emscripten counts several files against one declared total, so the raw
-  // ratio overshoots — it reached 111% in production. A progress bar that
+  // ratio overshoots - it reached 111% in production. A progress bar that
   // passes 100% undermines the one thing it exists to communicate.
   return Math.min(1, Math.max(0, loaded / total));
 }

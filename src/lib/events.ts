@@ -1,4 +1,4 @@
-/** Minimal typed event emitter — no dependency, no `any`. */
+/** Minimal typed event emitter - no dependency, no `any`. */
 export type Listener<T> = (payload: T) => void;
 
 export class Emitter<Events extends Record<string, unknown>> {

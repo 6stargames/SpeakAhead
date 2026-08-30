@@ -12,7 +12,7 @@ import { useEffect, useRef } from 'react';
  * The Midas-touch problem is answered architecturally, not by documentation:
  *
  *  - Only buttons dwell. Text, transcripts, labels, gutters, and the
- *    dedicated rest zones are inert — the gaze can park on any of them
+ *    dedicated rest zones are inert - the gaze can park on any of them
  *    indefinitely.
  *  - After a selection fires, the same target will not fire again until the
  *    gaze has left it. Reading the word just selected costs nothing.

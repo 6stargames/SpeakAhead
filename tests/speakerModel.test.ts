@@ -8,7 +8,7 @@ import { cosineSimilarity } from '@/speech/timbre';
  * End-to-end check of the neural speaker path: JS fbank front end feeding the
  * real CAM++ ONNX network. Skipped when the model has not been fetched (it is
  * never committed); run `npm run fetch:models` first. What it proves is that
- * the front end speaks the dialect the network was trained on — if the
+ * the front end speaks the dialect the network was trained on - if the
  * features were on the wrong scale, these margins would collapse.
  */
 const MODEL_PATH = resolve(__dirname, '..', 'public', 'models', 'speaker-v1', 'campplus-en-voxceleb.onnx');

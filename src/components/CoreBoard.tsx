@@ -13,7 +13,7 @@ import { ContextSuggestionRow } from '@/components/ContextSuggestionRow';
  * never reorders, and masking a word hides it without moving its neighbours,
  * because the board is read with muscle memory as much as with the eyes.
  *
- * Colour follows the Modified Fitzgerald Key — the part of speech, not the
+ * Colour follows the Modified Fitzgerald Key - the part of speech, not the
  * position, decides the colour, so a user scanning for "a verb" can filter the
  * whole board by hue.
  */
@@ -30,7 +30,7 @@ interface CoreWord {
 
 /** Column-ordered for left-to-right sentence building: who → does → how → where → ask. */
 const CORE_WORDS: readonly (readonly CoreWord[])[] = [
-  // Column 1 — pronouns (yellow)
+  // Column 1 - pronouns (yellow)
   [
     { word: 'I', fitzgerald: 'pronoun', symbol: '🙋' },
     { word: 'you', fitzgerald: 'pronoun', symbol: '👉' },
@@ -39,7 +39,7 @@ const CORE_WORDS: readonly (readonly CoreWord[])[] = [
     { word: 'it', fitzgerald: 'pronoun', symbol: '📦' },
     { word: 'they', fitzgerald: 'pronoun', symbol: '👥' },
   ],
-  // Column 2 — verbs (green)
+  // Column 2 - verbs (green)
   [
     { word: 'want', fitzgerald: 'verb', symbol: '🤲' },
     { word: 'go', fitzgerald: 'verb', symbol: '➡️' },
@@ -48,7 +48,7 @@ const CORE_WORDS: readonly (readonly CoreWord[])[] = [
     { word: 'get', fitzgerald: 'verb', symbol: '🫴' },
     { word: 'put', fitzgerald: 'verb', symbol: '📥' },
   ],
-  // Column 3 — verbs, and "not"
+  // Column 3 - verbs, and "not"
   [
     { word: 'look', fitzgerald: 'verb', symbol: '👀' },
     { word: 'turn', fitzgerald: 'verb', symbol: '🔄' },
@@ -57,7 +57,7 @@ const CORE_WORDS: readonly (readonly CoreWord[])[] = [
     { word: 'open', fitzgerald: 'verb', symbol: '🔓' },
     { word: 'not', fitzgerald: 'descriptor', symbol: '🚫' },
   ],
-  // Column 4 — descriptors (blue)
+  // Column 4 - descriptors (blue)
   [
     { word: 'good', fitzgerald: 'descriptor', symbol: '👍' },
     { word: 'bad', fitzgerald: 'descriptor', symbol: '👎' },
@@ -66,7 +66,7 @@ const CORE_WORDS: readonly (readonly CoreWord[])[] = [
     { word: 'more', fitzgerald: 'descriptor', symbol: '➕' },
     { word: 'all', fitzgerald: 'descriptor', symbol: '♾️' },
   ],
-  // Column 5 — prepositions and social (pink)
+  // Column 5 - prepositions and social (pink)
   [
     { word: 'in', fitzgerald: 'social', symbol: '⤵️' },
     { word: 'on', fitzgerald: 'social', symbol: '🔛' },
@@ -75,7 +75,7 @@ const CORE_WORDS: readonly (readonly CoreWord[])[] = [
     { word: 'here', fitzgerald: 'social', symbol: '🎯' },
     { word: 'finished', fitzgerald: 'social', symbol: '✅' },
   ],
-  // Column 6 — questions (purple)
+  // Column 6 - questions (purple)
   [
     { word: 'who', fitzgerald: 'question', symbol: '👤' },
     { word: 'what', fitzgerald: 'question', symbol: '❓' },
@@ -125,7 +125,7 @@ export function CoreBoard({
 
             // Progressive masking: a hidden word keeps its coordinates. A
             // beginner's four-word board is this exact board with 32 cells
-            // silent — nothing ever moves when a word is revealed.
+            // silent - nothing ever moves when a word is revealed.
             if (isMasked && !editMode) {
               return <div key={`${columnIndex}-${row}`} className="cell cell--empty" aria-hidden="true" />;
             }

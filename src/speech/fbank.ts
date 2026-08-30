@@ -7,7 +7,7 @@
  * triangular mel filters from 20 Hz to Nyquist on Kaldi's 1127·ln(1+f/700)
  * scale, natural-log energies, and per-utterance mean subtraction (CMN) the
  * way the 3D-Speaker inference pipeline applies it. Matching the training
- * front end is not optional — a model fed features on a different scale
+ * front end is not optional - a model fed features on a different scale
  * produces confident nonsense.
  */
 

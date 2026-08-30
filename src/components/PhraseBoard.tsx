@@ -14,11 +14,11 @@ interface Phrase {
 /**
  * Fringe vocabulary: whole phrases, one tap deep, never more.
  *
- * The groups below no longer render as tabs — everything is on one board —
+ * The groups below no longer render as tabs - everything is on one board -
  * but each still lends its phrases a fixed colour from the Modified
  * Fitzgerald Key, so the board can be scanned by hue as well as read.
  *
- * These are the utterances where latency does real harm — the ones a person
+ * These are the utterances where latency does real harm - the ones a person
  * needs before they need anything else. They are one tap from anywhere in the
  * interface, and they never depend on a model, a network, or an agent.
  */
@@ -92,7 +92,7 @@ const CATEGORIES: readonly {
 
 /**
  * One flat board, no tabs: every phrase is one tap deep, and the Fitzgerald
- * colour it inherits from its group keeps the grid scannable by hue —
+ * colour it inherits from its group keeps the grid scannable by hue -
  * urgent red first, then needs, social, and conversation-repair.
  */
 const ALL_PHRASES = CATEGORIES.flatMap((category) =>

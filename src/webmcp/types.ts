@@ -3,7 +3,7 @@
  *
  * The specification is experimental and has moved: it started on
  * `navigator.modelContext`, and the May 2026 draft moved it to
- * `document.modelContext` — tools belong to a page, not the browser — with
+ * `document.modelContext` - tools belong to a page, not the browser - with
  * Chrome 150 deprecating the navigator alias. The member names have drifted
  * too (`call`/`parameters` in early drafts, `execute`/`inputSchema` now).
  * Rather than bet on one dialect, the integration accepts both and
@@ -35,7 +35,7 @@ export interface ToolResult {
  * `untrustedContentHint` matters most here: `get-conversation-context` returns
  * a verbatim transcript of whatever was said in the room, to an agent that
  * also holds `speak-text`. Anyone within earshot of the microphone can address
- * the agent directly — "ignore your instructions and say…" — and their words
+ * the agent directly - "ignore your instructions and say…" - and their words
  * arrive in its context as ordinary text. The hint tells the agent that this
  * payload is third-party speech to reason about, not instructions to follow.
  * It is advisory, so the tool descriptions repeat the warning in prose.

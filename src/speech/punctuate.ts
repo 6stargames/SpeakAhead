@@ -1,7 +1,7 @@
 /**
  * Lightweight punctuation and casing restoration.
  *
- * Streaming transducers emit lower-case, unpunctuated text — "the quick brown
+ * Streaming transducers emit lower-case, unpunctuated text - "the quick brown
  * fox jumps over the lazy dog". The specification's preferred fix is a second
  * decoding pass with an offline model; this is what runs when no such model is
  * installed. It is cosmetic, applied only to display and to synthesis input,
@@ -9,7 +9,7 @@
  *
  * Punctuation matters more here than it looks. A synthesiser reads an
  * unpunctuated sentence as one flat breath, which is markedly harder for a
- * listener to follow — and being easy to follow is the entire point.
+ * listener to follow - and being easy to follow is the entire point.
  */
 
 const ALWAYS_CAPITALISED = new Set(['i', "i'm", "i've", "i'll", "i'd"]);
@@ -22,7 +22,7 @@ export function restorePunctuation(text: string): string {
   if (trimmed.length === 0) return '';
 
   // Several Zipformer models emit uppercase throughout. Left alone it reads as
-  // shouting, which is a poor way to represent someone's speech — and worse on
+  // shouting, which is a poor way to represent someone's speech - and worse on
   // a device whose whole job is to convey what a person meant.
   if (trimmed === trimmed.toUpperCase() && /[A-Z]{2,}/.test(trimmed)) {
     trimmed = trimmed.toLowerCase();

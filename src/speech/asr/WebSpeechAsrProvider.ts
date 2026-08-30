@@ -53,7 +53,7 @@ export function isWebSpeechRecognitionAvailable(): boolean {
  * audio to a Google service for transcription, which is precisely the data flow
  * the edge architecture exists to avoid. It is included because a user with no
  * model weights installed and no other way to communicate is worse off than a
- * user who has been told the trade-off and chosen it — but it must never be
+ * user who has been told the trade-off and chosen it - but it must never be
  * selected silently, and `offline` is reported as `false` so the interface can
  * say so plainly.
  *
@@ -72,7 +72,7 @@ export class WebSpeechAsrProvider implements AsrProvider {
     implementation: 'web-speech',
     offline: false,
     streaming: true,
-    detail: 'Cloud transcription — not BIPA-compliant.',
+    detail: 'Cloud transcription - not BIPA-compliant.',
   };
 
   constructor(options: { language?: string } = {}) {
@@ -134,7 +134,7 @@ export class WebSpeechAsrProvider implements AsrProvider {
     this.#recognition = recognition;
     this.#shouldRun = true;
     recognition.start();
-    this.#setInfo({ status: 'ready', detail: 'Cloud transcription — not BIPA-compliant.' });
+    this.#setInfo({ status: 'ready', detail: 'Cloud transcription - not BIPA-compliant.' });
   }
 
   /**

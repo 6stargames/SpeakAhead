@@ -46,7 +46,7 @@ import { useAacWebMcpTools } from '@/webmcp/tools';
 
 /**
  * The board area shows exactly one of these; the spine switches between
- * them. The conversation is not a view any more — it is always on screen,
+ * them. The conversation is not a view any more - it is always on screen,
  * to the left of the spine, because a communication device with its ears
  * hidden behind a tab kept surprising its user.
  */
@@ -69,13 +69,13 @@ const SYSTEM_VIEWS: { id: View; label: string; icon: string }[] = [
 const SPINE_THEME_ITEMS = [...BOARD_VIEWS, ...SYSTEM_VIEWS].map(({ label, icon }) => ({
   text: label,
   symbol: icon,
+  presentation: 'control-icon' as const,
 }));
 const INTERFACE_THEME_ITEMS = [
   ...SPINE_THEME_ITEMS,
   ...ASSIST_FEATURE_THEME_ITEMS,
   NEW_CALL_THEME_ITEM,
   CONTEXT_READY_THEME_ITEM,
-  CLOSE_CHAT_THEME_ITEM,
 ];
 
 const selectEmergency = (state: AppState): boolean => state.emergencyOverride;
@@ -85,7 +85,7 @@ const selectFavorites = (state: AppState) => state.favorites;
 /**
  * One glance at the Checks button answers "is everything working?": a green
  * check when it is, an hourglass while engines load, a red cross for a hard
- * failure — an engine error, a failed compliance rule, or a blocked mic.
+ * failure - an engine error, a failed compliance rule, or a blocked mic.
  */
 const selectHealth = (state: AppState): 'ok' | 'loading' | 'error' => {
   const statuses = [state.asr.status, state.tts.status];
@@ -144,7 +144,10 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
   const contextAssistEnabled = signedIn;
   const requestedSymbolTheme = signedIn ? settings.symbolTheme : 'emoji';
   const themePreparationGroups = useMemo(() => [
-    { items: INTERFACE_THEME_ITEMS, batchSize: 9, singleSubject: true },
+    // Functional icons are separate 1x1 images. Generated sprite sheets can
+    // bleed across cells and make a control look like two unrelated pictures.
+    { items: INTERFACE_THEME_ITEMS, batchSize: 1, singleSubject: true },
+    { items: [CLOSE_CHAT_THEME_ITEM], batchSize: 1, singleSubject: true },
     { items: SETTINGS_THEME_ITEMS, batchSize: 9, singleSubject: true },
     { items: CORE_THEME_ITEMS },
     { items: PHRASE_THEME_ITEMS },
@@ -162,7 +165,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
   ]);
   const symbolTheme = usePreparedSymbolTheme(requestedSymbolTheme, themePreparationGroups);
   const interfaceSymbols = useThemedSymbols(INTERFACE_THEME_ITEMS, symbolTheme, {
-    batchSize: 9,
+    batchSize: 1,
     singleSubject: true,
   });
   // Theme previews have their own art direction. Warm each one while the main
@@ -184,7 +187,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
   );
 
   // Tools must be registered from a component so their lifetime is bound to the
-  // React tree — that is what guarantees the AbortController teardown runs.
+  // React tree - that is what guarantees the AbortController teardown runs.
   useAacWebMcpTools();
   useContextAssist(signedIn);
 
@@ -334,7 +337,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
 
       {/* A visual siren for the room: when the override is on, the whole
           perimeter pulses red so a caregiver sees the alert even when they
-          cannot hear it. Purely presentational — never focusable. */}
+          cannot hear it. Purely presentational - never focusable. */}
       {emergency && <div className="emergency-flash" aria-hidden="true" />}
 
       {/* Caregiver editing: unmistakably not communication mode. A hatched
@@ -347,7 +350,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
             className="button button--primary edit-done"
             onClick={() => actions.setEditMode(false)}
           >
-            Done editing — back to talking
+            Done editing - back to talking
           </button>
         </>
       )}

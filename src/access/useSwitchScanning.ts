@@ -13,7 +13,7 @@ import { useEffect, useRef } from 'react';
  * In 'auto' mode the highlight advances on a timer; the primary switch
  * selects, and the secondary reverses the scan direction (recovering a missed
  * target costs one press, not a full loop). In 'step' mode the primary switch
- * advances at the user's own pace and the secondary selects — more presses,
+ * advances at the user's own pace and the secondary selects - more presses,
  * no timer pressure.
  *
  * Global interrupt, non-negotiable: holding the primary switch for two
@@ -24,7 +24,7 @@ import { useEffect, useRef } from 'react';
  * marked `data-scan` contributes its enabled, visible buttons as one row, and
  * a container marked `data-scan="grid"` contributes one row per visual row of
  * buttons (grouped by vertical position). Recomputing per tick means view
- * switches, masking, and appearing controls are simply picked up — the scan
+ * switches, masking, and appearing controls are simply picked up - the scan
  * order is always the truth on screen.
  */
 

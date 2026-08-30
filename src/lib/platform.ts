@@ -17,7 +17,7 @@ export interface PlatformCapabilities {
  *
  * Automating it is worth the few lines: cross-origin isolation is easy to lose
  * to a misconfigured CDN or a proxy that strips headers, and the failure is
- * silent — the ONNX runtime just quietly single-threads and the audio starts
+ * silent - the ONNX runtime just quietly single-threads and the audio starts
  * stuttering under load. Better to state it plainly on screen.
  */
 export function detectPlatform(): PlatformCapabilities {

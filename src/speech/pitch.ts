@@ -17,14 +17,14 @@ const MIN_F0_HZ = 70;
 const MAX_F0_HZ = 350;
 
 /**
- * Below this the frame is too aperiodic to trust — unvoiced consonants, noise,
+ * Below this the frame is too aperiodic to trust - unvoiced consonants, noise,
  * silence. Returning null for those is what keeps door slams out of a voice
  * profile.
  *
  * 0.15 is the usual figure for clean close-mic audio and is too strict for a
  * room: a voice several feet away, through noise suppression, clears it on few
  * enough frames that whole utterances yielded no pitch at all and went
- * unidentified. Loosened for the environment this actually runs in — the cost
+ * unidentified. Loosened for the environment this actually runs in - the cost
  * of the odd bad frame is absorbed by taking the median across an utterance.
  */
 const VOICED_THRESHOLD = 0.25;
@@ -100,7 +100,7 @@ export function centsBetween(a: number, b: number): number {
 /**
  * Zero-crossing rate: how often the waveform changes sign, per sample.
  *
- * A second, nearly free voice feature. It tracks spectral tilt — brightness —
+ * A second, nearly free voice feature. It tracks spectral tilt - brightness -
  * which is largely independent of pitch, so two people who happen to share a
  * fundamental can still separate on voice quality. On its own it is a poor
  * discriminator; alongside pitch it is worth having for the handful of
@@ -117,7 +117,7 @@ export function zeroCrossingRate(frame: Float32Array): number {
   return crossings / (frame.length - 1);
 }
 
-/** Interquartile range in cents — how much a pitch track wandered. */
+/** Interquartile range in cents - how much a pitch track wandered. */
 export function pitchSpreadCents(pitches: readonly number[]): number {
   if (pitches.length < 4) return 0;
   const sorted = [...pitches].sort((a, b) => a - b);

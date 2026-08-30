@@ -47,7 +47,7 @@ function normalise(tool: WebMcpToolDefinition): NormalisedTool {
  * `AbortController`, which is both the shape the specification asks for and the
  * one thing guaranteed to run on unmount.
  *
- * Degrades to a no-op — never a throw — when the browser has no WebMCP surface.
+ * Degrades to a no-op - never a throw - when the browser has no WebMCP surface.
  * The tool is still recorded in the local registry, so the on-device prediction
  * ladder and the verification simulator can reach it.
  */
@@ -103,7 +103,7 @@ export function useWebMCPTool(
       setState({
         agentAttached: false,
         registered: true,
-        detail: 'No WebMCP agent surface in this browser — tool available locally only.',
+        detail: 'No WebMCP agent surface in this browser - tool available locally only.',
       });
     }
 

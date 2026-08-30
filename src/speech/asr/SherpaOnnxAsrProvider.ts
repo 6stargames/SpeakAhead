@@ -14,7 +14,7 @@ const WORKER_URL = '/workers/sherpa-asr-worker.js?coep=v1';
  * Frames retained before speech is confirmed.
  *
  * The VAD needs a couple of frames of evidence before it will commit, and
- * without a pre-roll those frames are thrown away — which reliably decapitates
+ * without a pre-roll those frames are thrown away - which reliably decapitates
  * the first consonant of every utterance. Three frames at 1024/16 kHz is ~190 ms,
  * comfortably more than the detector's own latency.
  */

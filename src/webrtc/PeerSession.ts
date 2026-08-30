@@ -46,7 +46,7 @@ export interface PeerSessionOptions {
  *
  * The only track ever added is the synthesised-voice track produced by the
  * audio graph's MediaStreamAudioDestinationNode. `addTrack` is deliberately not
- * exposed as a general-purpose method — see `setOutboundTrack`.
+ * exposed as a general-purpose method - see `setOutboundTrack`.
  */
 export class PeerSession {
   readonly events = new Emitter<PeerSessionEvents>();
@@ -65,7 +65,7 @@ export class PeerSession {
   /**
    * Candidates gathered before the remote peer is known.
    *
-   * Gathering starts the moment the connection is created — and with a
+   * Gathering starts the moment the connection is created - and with a
    * pre-warmed candidate pool, often finishes before the other person has
    * joined the room. Dropping those candidates leaves the connection with
    * nothing to try and it fails after the ICE timeout, which presents as an

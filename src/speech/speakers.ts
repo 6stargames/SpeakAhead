@@ -6,7 +6,7 @@ import { cosineSimilarity, utteranceEmbedding } from './timbre';
  *
  * Voices are separated primarily by timbre: a mel-cepstral fingerprint of the
  * vocal tract (see timbre.ts), compared by cosine similarity. Timbre is what
- * actually distinguishes voices — it survives the octave of pitch range one
+ * actually distinguishes voices - it survives the octave of pitch range one
  * person covers in an animated conversation, and it differs between two
  * people who happen to share a fundamental. Pitch remains as the assistant:
  * it breaks ties in the uncertain band, and it carries the whole judgement
@@ -51,8 +51,8 @@ export interface VoiceSample {
  * What happened to one utterance.
  *
  * Kept so the Diagnostics panel can show why a voice went unidentified. Tuning
- * this blind — guessing at thresholds without seeing what a real room produces
- * — is how it ended up mis-tuned in the first place.
+ * this blind - guessing at thresholds without seeing what a real room produces
+ * - is how it ended up mis-tuned in the first place.
  */
 export interface AttributionAttempt {
   readonly at: number;
@@ -68,7 +68,7 @@ export interface AttributionAttempt {
  *
  * Four and a half semitones. The previous 250 cents split one looped video
  * voice into three speakers, because a single person's per-utterance median
- * pitch routinely wanders that far — expressive speech easily spans a fourth
+ * pitch routinely wanders that far - expressive speech easily spans a fourth
  * between one sentence and the next. Wider than this starts merging genuinely
  * different adults; the residual confusions (two people near one pitch, one
  * person spanning an octave) are what a diarization model is for, not more
@@ -81,7 +81,7 @@ const PITCH_TOLERANCE_CENTS = 450;
  *
  * 0.045 was catastrophically tight. Zero-crossing rate swings with vowels and
  * consonants far more than that between two utterances by the same person, so
- * it rejected every candidate and each utterance became a brand new voice —
+ * it rejected every candidate and each utterance became a brand new voice -
  * five speakers for one person. Brightness now only disqualifies a match when
  * the gap is wide enough to be a genuinely different voice; below that it is a
  * tie-breaker between candidates, never a veto.
@@ -92,7 +92,7 @@ const BRIGHTNESS_VETO = 0.18;
  * Utterances with less voiced audio than this cannot be judged.
  *
  * Two frames is ~130 ms of voiced speech. Lower than is comfortable, but the
- * alternative is refusing short interjections — "yes", "no", someone's name —
+ * alternative is refusing short interjections - "yes", "no", someone's name -
  * which are exactly the turns a conversation is made of.
  */
 const MIN_VOICED_FRAMES = 2;
@@ -109,7 +109,7 @@ const MAX_UTTERANCE_SPREAD_CENTS = 1500;
  * audio.
  *
  * Set from two observed failures. First a looped video filled the roster
- * with speakers spawned from fragments — "Ta.", a cough's worth of audio.
+ * with speakers spawned from fragments - "Ta.", a cough's worth of audio.
  * Then, with a six-frame bar, a nine-frame burst of excitement (224 Hz from
  * a voice centred at 125) founded a second profile mid-stream, and every
  * later sentence bounced between the two depending on where its median
@@ -134,11 +134,11 @@ const THIN_MATCH_CENTS = 900;
 /**
  * Timbre thresholds, on cosine similarity of utterance embeddings.
  *
- * Above SIM_CONFIDENT the fingerprint alone decides — the same vocal tract,
+ * Above SIM_CONFIDENT the fingerprint alone decides - the same vocal tract,
  * whatever the pitch is doing. Between SIM_POSSIBLE and SIM_CONFIDENT the
  * evidence is real but not conclusive, so pitch gets the casting vote. Below
  * SIM_POSSIBLE the voice does not sound like this profile, however close the
- * pitch — which is exactly the case pitch-only matching got wrong.
+ * pitch - which is exactly the case pitch-only matching got wrong.
  */
 const SIM_CONFIDENT = 0.9;
 const SIM_POSSIBLE = 0.8;
@@ -150,7 +150,7 @@ const SIM_POSSIBLE = 0.8;
  * same synthetic voice saying different things scores ~0.87, a different
  * voice at the same pitch ~0.58; on real VoxCeleb speech the customary
  * verification threshold for this model family sits near 0.5. The scales are
- * unrelated to the MFCC thresholds above — a neural 0.6 is strong evidence,
+ * unrelated to the MFCC thresholds above - a neural 0.6 is strong evidence,
  * a timbre 0.6 is nothing.
  */
 const NEURAL_CONFIDENT = 0.55;
@@ -161,7 +161,7 @@ const NEURAL_POSSIBLE = 0.4;
  *
  * Field data from a two-person podcast: any single utterance crossing the
  * 0.55 match line taught the profile, and one early crossing was enough to
- * start a blend — the profile drifted toward the average of both hosts,
+ * start a blend - the profile drifted toward the average of both hosts,
  * after which both matched it confidently (0.56–0.77 observed) and nothing
  * could ever graduate as a second voice, because nothing was "distinct from"
  * the blend. Against a *pure* profile the hosts sat apart (same voice
@@ -179,7 +179,7 @@ const NEURAL_HISTORY = 16;
  * The nursery: where uncertain voices accumulate evidence.
  *
  * Fast conversation produces utterances of five to nine voiced frames, and a
- * new speaker in that regime can never clear the founding bar — every turn
+ * new speaker in that regime can never clear the founding bar - every turn
  * they take is "too brief", or worse, lands in the possible band against an
  * existing profile and is absorbed into it. Field data showed a two-person
  * podcast merging entirely into speaker-1 this way.
@@ -187,7 +187,7 @@ const NEURAL_HISTORY = 16;
  * So uncertain voiceprints are clustered instead of discarded: each
  * non-confident utterance joins (or starts) a pending cluster, and a cluster
  * graduates into a real speaker once it is coherent, sufficiently evidenced,
- * and distinct from every known profile. The geometry does the safety work —
+ * and distinct from every known profile. The geometry does the safety work -
  * one voice's noisy short utterances deviate in random directions and never
  * cohere into a cluster, while a genuinely different voice deviates the same
  * way every time.
@@ -209,7 +209,7 @@ const NURSERY_EXPIRY_MS = 5 * 60 * 1000;
 /**
  * The MFCC hold band. Field data showed one voice's centered timbre
  * similarity wobbling across the possible line (0.75 founded a duplicate
- * speaker; 0.86 matched) — the single-channel ceiling of these features, and
+ * speaker; 0.86 matched) - the single-channel ceiling of these features, and
  * exactly why the neural network exists. While the network is absent, a warm
  * MFCC score is far more often the same voice on a bad day than a stranger,
  * so it holds the existing voice (without teaching it) instead of founding.
@@ -220,8 +220,8 @@ const MFCC_HOLD = 0.6;
 /**
  * Room centering, the fix for the channel problem.
  *
- * Everything this microphone hears passes through the same chain — the same
- * loudspeakers, room, microphone and noise suppression — and that shared
+ * Everything this microphone hears passes through the same chain - the same
+ * loudspeakers, room, microphone and noise suppression - and that shared
  * colouring dominates raw fingerprints, inflating every comparison toward 1:
  * observed in the field as two different videos scoring 0.93–0.97 against
  * one another. Subtracting most of the running average of everything heard
@@ -229,8 +229,8 @@ const MFCC_HOLD = 0.6;
  * from the room, which is the part that distinguishes speakers.
  *
  * The subtraction is deliberately partial (ROOM_SHRINK < 1): full centering
- * degenerates when one voice dominates the room average — its own centered
- * vectors collapse toward noise — while partial centering keeps a stable
+ * degenerates when one voice dominates the room average - its own centered
+ * vectors collapse toward noise - while partial centering keeps a stable
  * anchor. Calibration on channel-dominated synthetics: raw cross-voice 0.92
  * becomes 0.2–0.3 centered, while same-voice similarity stays above 0.99.
  * Centering activates only once the room has been heard enough to average.
@@ -251,7 +251,7 @@ interface MutableProfile {
   /**
    * Sum of the MFCC utterance embeddings accepted into this profile. Cosine
    * similarity ignores scale, so comparing against the sum is identical to
-   * comparing against the mean — no renormalisation bookkeeping.
+   * comparing against the mean - no renormalisation bookkeeping.
    */
   embeddingSum: Float32Array | null;
   embeddingCount: number;
@@ -268,7 +268,7 @@ interface Candidate {
   pitchDistance: number;
   brightnessGap: number;
   similarity: number | null;
-  /** Which fingerprint produced `similarity` — the scales are unrelated. */
+  /** Which fingerprint produced `similarity` - the scales are unrelated. */
   kind: 'neural' | 'mfcc' | null;
 }
 
@@ -301,8 +301,8 @@ function centreByRoom(sum: Float32Array, count: number, room: Float32Array): Flo
  * outranks pitch. A confident fingerprint match wins whatever the pitch is
  * doing; a possible one needs pitch to agree before the profile is allowed
  * to learn from it; below possible, the voice does not sound like anyone
- * known and pitch proximity cannot overrule that. Without any fingerprint —
- * old callers, tests, degraded input — the original pitch rules apply
+ * known and pitch proximity cannot overrule that. Without any fingerprint -
+ * old callers, tests, degraded input - the original pitch rules apply
  * unchanged.
  */
 function decide(candidates: Candidate[], frames: number, hasFingerprint: boolean): Verdict {
@@ -331,7 +331,7 @@ function decide(candidates: Candidate[], frames: number, hasFingerprint: boolean
           kind: 'match',
           candidate: best,
           update: teach,
-          reason: `matched by voice — ${describeSim(best)}`,
+          reason: `matched by voice - ${describeSim(best)}`,
         };
       }
     }
@@ -342,14 +342,14 @@ function decide(candidates: Candidate[], frames: number, hasFingerprint: boolean
       ) {
         // Attribute, but never teach: a possible-band match is the likeliest
         // label, not proof. Teaching on these is how a two-person podcast
-        // blended into one profile — each absorbed utterance dragged the
+        // blended into one profile - each absorbed utterance dragged the
         // voiceprint toward the average of both people, and the blend then
         // matched everyone confidently.
         return {
           kind: 'match',
           candidate: best,
           update: false,
-          reason: `fingerprint and pitch agree — ${describeSim(best)}`,
+          reason: `fingerprint and pitch agree - ${describeSim(best)}`,
         };
       }
     }
@@ -362,13 +362,13 @@ function decide(candidates: Candidate[], frames: number, hasFingerprint: boolean
 
     for (const best of ranked) {
       if (best.similarity >= thresholdsFor(best.kind).possible) {
-        // Sounds like them, pitched far away — an excited swing more often
+        // Sounds like them, pitched far away - an excited swing more often
         // than a stranger. Attribute without letting it move the profile.
         return {
           kind: 'match',
           candidate: best,
           update: false,
-          reason: `similar voice across a wide pitch move — ${describeSim(best)}`,
+          reason: `similar voice across a wide pitch move - ${describeSim(best)}`,
         };
       }
       if (best.kind === 'mfcc' && best.similarity >= MFCC_HOLD) {
@@ -376,7 +376,7 @@ function decide(candidates: Candidate[], frames: number, hasFingerprint: boolean
           kind: 'match',
           candidate: best,
           update: false,
-          reason: `held to the nearest voice — ${describeSim(best)}`,
+          reason: `held to the nearest voice - ${describeSim(best)}`,
         };
       }
     }
@@ -392,7 +392,7 @@ function decide(candidates: Candidate[], frames: number, hasFingerprint: boolean
     }
     return {
       kind: 'new',
-      reason: `new voice${nearest ? ` — nearest ${describeSim(nearest)}` : ''}`,
+      reason: `new voice${nearest ? ` - nearest ${describeSim(nearest)}` : ''}`,
     };
   }
 
@@ -425,7 +425,7 @@ function decideByPitch(candidates: Candidate[], frames: number): Verdict {
       kind: 'match',
       candidate: closest,
       update: false,
-      reason: 'near an existing voice — too brief to justify a new one',
+      reason: 'near an existing voice - too brief to justify a new one',
     };
   }
   if (thin) {
@@ -438,7 +438,7 @@ function decideByPitch(candidates: Candidate[], frames: number): Verdict {
 interface PendingVoice {
   sum: Float32Array;
   count: number;
-  /** Members that matched no profile at all — stronger evidence of newness. */
+  /** Members that matched no profile at all - stronger evidence of newness. */
   unmatchedCount: number;
   lastAt: number;
 }
@@ -447,7 +447,7 @@ export class SpeakerTracker {
   #profiles = new Map<string, MutableProfile>();
   #nextIndex = 1;
   #attempts: AttributionAttempt[] = [];
-  /** Recent utterance embeddings from everyone — the room's average voice. */
+  /** Recent utterance embeddings from everyone - the room's average voice. */
   #roomEmbeddings: Float32Array[] = [];
   /** Voices accumulating evidence before they earn a profile. */
   #pending: PendingVoice[] = [];
@@ -594,7 +594,7 @@ export class SpeakerTracker {
           return m === null ? null : Math.round(m);
         })(),
         spreadCents: Math.round(spread),
-        reason: 'pitch spanned more than an octave — probably two people at once',
+        reason: 'pitch spanned more than an octave - probably two people at once',
       });
       return null;
     }
@@ -611,7 +611,7 @@ export class SpeakerTracker {
     const candidates = this.#candidates(pitch, brightness, mfccEmbedding, neural);
     const verdict = decide(candidates, pitches.length, mfccEmbedding !== null || neural !== null);
 
-    // Every utterance teaches the room average, whoever said it — including
+    // Every utterance teaches the room average, whoever said it - including
     // the ones that go unidentified. The mean of everything heard is exactly
     // what makes individual voices distinguishable from it.
     if (mfccEmbedding) {
@@ -619,9 +619,9 @@ export class SpeakerTracker {
       if (this.#roomEmbeddings.length > ROOM_WINDOW) this.#roomEmbeddings.shift();
     }
 
-    // The nursery. Any utterance the network did not confidently place — an
+    // The nursery. Any utterance the network did not confidently place - an
     // uncertain attribution (match without teaching) or no attribution at all
-    // — deposits its voiceprint here. A new speaker in fast conversation
+    // - deposits its voiceprint here. A new speaker in fast conversation
     // never gets a long utterance to found with; they earn their profile a
     // few short utterances at a time, and graduate the moment their cluster
     // is coherent, evidenced, and unlike everyone known.
@@ -759,7 +759,7 @@ export class SpeakerTracker {
   ): Candidate[] {
     // Once the room has been heard enough, MFCC comparisons happen on what
     // makes a voice deviate from the room average, not on the colouring the
-    // room stamps on everyone. Neural voiceprints need no such correction —
+    // room stamps on everyone. Neural voiceprints need no such correction -
     // channel robustness is what the network was trained for.
     const room = mfccEmbedding ? this.#roomMean() : null;
     const centred = mfccEmbedding && room ? centreByRoom(mfccEmbedding, 1, room) : mfccEmbedding;
@@ -809,7 +809,7 @@ export class SpeakerTracker {
 
     const candidates = this.#candidates(pitch, brightness, mfccEmbedding, neural);
     // A live guess must be at least as careful as a final attribution, so it
-    // reuses the same policy — but a guess that would found or lean is no
+    // reuses the same policy - but a guess that would found or lean is no
     // guess at all, so only a real match names anyone.
     const verdict = decide(candidates, pitches.length, mfccEmbedding !== null || neural !== null);
     return verdict.kind === 'match' && verdict.update
@@ -851,7 +851,7 @@ export class SpeakerTracker {
   /**
    * Exactly one voice is the owner's; marking a new one clears the previous.
    *
-   * This is the only way a voice ever becomes "You" — ownership is claimed,
+   * This is the only way a voice ever becomes "You" - ownership is claimed,
    * never presumed, because the user of this device may produce no voice for
    * the microphone to hear at all.
    */

@@ -129,6 +129,28 @@ describe('themed image reuse', () => {
     });
   });
 
+  it('requests functional controls as isolated themed glyphs', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (typeof init?.body === 'string') bodies.push(JSON.parse(init.body) as Record<string, unknown>);
+      return isLookup(init) ? Response.json({ groups: [] }) : pngResponse();
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const item = {
+      text: 'Voice',
+      symbol: '🎙️',
+      presentation: 'control-icon' as const,
+    };
+
+    act(() => root.render(<Harness items={[item]} batchSize={1} />));
+    await vi.waitFor(() => {
+      expect(container.firstElementChild?.getAttribute('data-count')).toBe('1');
+    });
+    expect(bodies).toEqual(expect.arrayContaining([
+      expect.objectContaining({ presentation: 'control-icon', singleSubject: false }),
+    ]));
+  });
+
   it('restores saved pictures silently even when two surfaces ask at once', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       if (isLookup(init)) {

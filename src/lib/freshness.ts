@@ -4,8 +4,8 @@
  * A service worker that has cached the application shell will keep serving the
  * previous build until it decides to update, and it can decide not to for a
  * long time. Across this project's deployment history that produced hours of
- * confusion: fixes were live on the origin while the browser — mine and the
- * user's — carried on running the bundle from two deploys earlier, so a working
+ * confusion: fixes were live on the origin while the browser - mine and the
+ * user's - carried on running the bundle from two deploys earlier, so a working
  * fix looked broken and got "fixed" again.
  *
  * A communication aid should never be stuck on an old build because a cache
@@ -57,8 +57,8 @@ export async function ensureCurrentBuild(runningAsset: string): Promise<Freshnes
     return { current: true, running, expected: wanted, reloaded: false };
   }
 
-  // Reload at most once per build, so a mismatch we cannot fix — a proxy
-  // serving something odd — degrades to a stale page rather than a reload loop.
+  // Reload at most once per build, so a mismatch we cannot fix - a proxy
+  // serving something odd - degrades to a stale page rather than a reload loop.
   try {
     if (sessionStorage.getItem(ATTEMPT_KEY) === wanted) {
       console.warn(`[aac] Still running ${running}; the origin serves ${wanted}. Not reloading again.`);
@@ -72,7 +72,7 @@ export async function ensureCurrentBuild(runningAsset: string): Promise<Freshnes
   console.info(`[aac] Running ${running} but the origin serves ${wanted}. Clearing workers and reloading.`);
 
   // Unregister rather than merely update: an worker that will not update is
-  // precisely the situation being escaped. Cached models are untouched — they
+  // precisely the situation being escaped. Cached models are untouched - they
   // live in the Cache API, which outlives the registration.
   try {
     for (const registration of await navigator.serviceWorker.getRegistrations()) {

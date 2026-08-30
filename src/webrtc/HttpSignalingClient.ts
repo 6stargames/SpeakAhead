@@ -12,7 +12,7 @@ import type { SignalingEvents, SignalingStatus } from './SignalingClient';
  *
  * Long-polling rather than Server-Sent Events because every response completes
  * normally, so no proxy can buffer a stream and stall call setup. The extra
- * round trip per message costs nothing that matters — signalling only runs
+ * round trip per message costs nothing that matters - signalling only runs
  * during setup, and once the peer connection is established, media and
  * real-time text flow directly between the browsers with no server involved.
  *
@@ -114,12 +114,12 @@ export class HttpSignalingClient {
         peers: Array.isArray(result.peers) ? (result.peers as string[]) : [],
       });
     } catch (error) {
-      // A 404 is not a bad moment — it is the wrong address. Retrying forever
+      // A 404 is not a bad moment - it is the wrong address. Retrying forever
       // against a server that does not exist looked like "nothing happened"
       // to the person waiting for their call to connect.
       if (error instanceof Error && error.message.includes('HTTP 404')) {
         this.#fatal(
-          'No signalling server answers at this address. Calls work on the deployed app, or on the full local server (npm start) — the dev-only server has no call backend.',
+          'No signalling server answers at this address. Calls work on the deployed app, or on the full local server (npm start) - the dev-only server has no call backend.',
         );
         return;
       }
@@ -149,7 +149,7 @@ export class HttpSignalingClient {
           headers: { Accept: 'application/json' },
         });
 
-        // 409 means the server has forgotten this peer — it was reaped after a
+        // 409 means the server has forgotten this peer - it was reaped after a
         // sleep, or the container restarted. Re-join rather than poll forever
         // against a room we are no longer in.
         if (response.status === 409) {
@@ -158,7 +158,7 @@ export class HttpSignalingClient {
         }
         if (response.status === 404) {
           this.#fatal(
-            'No signalling server answers at this address. Calls work on the deployed app, or on the full local server (npm start) — the dev-only server has no call backend.',
+            'No signalling server answers at this address. Calls work on the deployed app, or on the full local server (npm start) - the dev-only server has no call backend.',
           );
           return;
         }

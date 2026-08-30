@@ -29,14 +29,14 @@ export const THEME_PREVIEW_ITEMS: Record<SymbolTheme, { text: string; symbol: st
 /**
  * One setting, several big buttons.
  *
- * Every control in this panel is a row of large press-once choices — no
+ * Every control in this panel is a row of large press-once choices - no
  * sliders to drag, no small checkboxes to hit. A slider assumes steady
  * sustained contact, which is exactly what many of this device's users do
  * not have; a labelled button states its meaning and takes one tap.
  *
  * The panel is deliberately short. Listening, dictation into the chat,
  * speak-on-tap, live text, symbols and the larger size are how the device
- * works, not options — a settings page full of ways to accidentally make
+ * works, not options - a settings page full of ways to accidentally make
  * the device worse is a hazard, not a feature.
  */
 function OptionRow<T>({
@@ -188,7 +188,7 @@ export function SettingsPanel({
 
       <OptionRow
         label="How noisy is your room?"
-        hint="Pick the closest — it helps the device hear you instead of the room."
+        hint="Pick the closest - it helps the device hear you instead of the room."
         value={settings.vadSensitivity}
         symbolTheme={displayedTheme}
         options={[
@@ -206,7 +206,7 @@ export function SettingsPanel({
 
       <OptionRow
         label="Easier-to-see colours?"
-        hint="Everything turns yellow on black — much easier for some eyes."
+        hint="Everything turns yellow on black - much easier for some eyes."
         value={settings.highContrast}
         symbolTheme={displayedTheme}
         options={[

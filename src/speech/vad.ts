@@ -6,7 +6,7 @@
  * model is installed. Either way the contract is the same: the Zipformer never
  * sees silence, which is most of any real conversation.
  *
- * The noise floor adapts asymmetrically — quickly downward, slowly upward — so
+ * The noise floor adapts asymmetrically - quickly downward, slowly upward - so
  * a quiet room is tracked promptly while speech itself cannot drag the floor up
  * and deafen the detector mid-sentence.
  */

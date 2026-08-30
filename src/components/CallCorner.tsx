@@ -3,7 +3,11 @@ import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcon
 import { session } from '@/session/AacSession';
 import { actions, useStore, type AppState, type SymbolTheme } from '@/state/store';
 
-export const NEW_CALL_THEME_ITEM = { text: 'New call', symbol: '📞' } as const;
+export const NEW_CALL_THEME_ITEM = {
+  text: 'New call',
+  symbol: '📞',
+  presentation: 'control-icon',
+} as const;
 
 const selectCall = (state: AppState) => ({
   call: state.call,
@@ -22,7 +26,7 @@ function formatElapsed(since: number): string {
 /**
  * Calling, from the corner of the chat it belongs to.
  *
- * Idle: a code field and one button — blank creates a room, a typed code
+ * Idle: a code field and one button - blank creates a room, a typed code
  * joins one. Creating copies the code straight to the clipboard (with a
  * toast), because the very next thing anyone does with a new room code is
  * send it to the other person. In a call: the code with a copy button, how
@@ -41,7 +45,7 @@ export function CallCorner({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolThem
   const inCall = state.call !== 'idle' && state.call !== 'closed';
   const connected = state.call === 'connected';
 
-  // The room code shows long enough to be shared, then tucks itself away —
+  // The room code shows long enough to be shared, then tucks itself away -
   // it is a secret, and mid-call it is only noise. Hovering the corner
   // brings it back.
   const [codeFresh, setCodeFresh] = useState(true);
@@ -68,7 +72,7 @@ export function CallCorner({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolThem
   }, [connected, inCall]);
 
   // A room code sitting in the clipboard was almost certainly just sent to
-  // this person — put it in the field so joining is one press. Never while in
+  // this person - put it in the field so joining is one press. Never while in
   // a call, never over something already typed, and never this device's own
   // last code (creating a call copies it, and it must not resurface after).
   useEffect(() => {
@@ -110,7 +114,7 @@ export function CallCorner({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolThem
     const room = await session.joinCall(typed || undefined);
     setCode('');
     if (creating) {
-      await copyCode(room, `Room code ${room} copied to clipboard — send it to the other person.`);
+      await copyCode(room, `Room code ${room} copied to clipboard - send it to the other person.`);
     }
   };
 
@@ -120,7 +124,7 @@ export function CallCorner({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolThem
         <input
           type="text"
           className="call-corner__input"
-          aria-label="Room code — leave blank to create a new call"
+          aria-label="Room code - leave blank to create a new call"
           placeholder="Code"
           autoComplete="off"
           spellCheck={false}

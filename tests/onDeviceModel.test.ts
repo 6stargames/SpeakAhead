@@ -7,7 +7,7 @@ import { isPlausibleExpansion, looksLikeEcho } from '@/prediction/onDeviceModel'
  * A browser shipped a stub Prompt API that reported itself available and then
  * returned its own prompt with a preamble. The expansion tier accepted it, and
  * "On-device model is not available in Chromium, this API is just echoing back
- * the input:" landed in the composition buffer — one tap away from being spoken
+ * the input:" landed in the composition buffer - one tap away from being spoken
  * aloud as the user's own words.
  */
 

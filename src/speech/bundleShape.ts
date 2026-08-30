@@ -9,7 +9,7 @@
  *
  *   classic  helper and Emscripten glue are plain scripts reading a global
  *            `Module`, loaded with `importScripts` from a classic worker.
- *   module   built with `-sEXPORT_ES6=1` — the glue is an ES module whose
+ *   module   built with `-sEXPORT_ES6=1` - the glue is an ES module whose
  *            default export is an async factory, loaded with dynamic `import`.
  *
  * Guessing wrong gives `importScripts: Unexpected token 'export'`, which reads
@@ -19,7 +19,7 @@
  * paths per model type, and those defaults do not always match what the archive
  * contains. The Piper English bundle packages `/en_US-libritts_r-medium.onnx`
  * while the helper asks for `./model.onnx`, so the runtime fails validation with
- * `--vits-model: './model.onnx' does not exist` — and the bundle's own demo page
+ * `--vits-model: './model.onnx' does not exist` - and the bundle's own demo page
  * fails the same way. Reading the manifest lets us pass a config that matches
  * the archive instead of trusting a default that does not.
  *
@@ -83,7 +83,7 @@ function isAtRoot(path: string): boolean {
 /**
  * Build a VITS model configuration matching what the archive actually contains.
  *
- * Returns `undefined` when the helper's own defaults will do — either the
+ * Returns `undefined` when the helper's own defaults will do - either the
  * bundle packages `model.onnx` as expected, or it is not a single-model VITS
  * bundle and guessing would be worse than letting the helper decide.
  */

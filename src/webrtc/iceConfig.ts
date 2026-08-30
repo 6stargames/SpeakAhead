@@ -49,8 +49,8 @@ function parse(payload: IceServerResponse): IceConfiguration | null {
  *
  * TURN credentials are minted server-side and are short-lived, so they are
  * requested when a call is about to start rather than baked into the bundle at
- * build time. If the endpoint is unreachable — an older deployment, a static
- * host, an offline device — this falls back to the build-time configuration,
+ * build time. If the endpoint is unreachable - an older deployment, a static
+ * host, an offline device - this falls back to the build-time configuration,
  * which is STUN-only by default. Calls then work on ordinary networks and fail
  * behind symmetric NAT, which the Check connectivity panel reports honestly.
  */

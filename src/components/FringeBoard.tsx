@@ -8,7 +8,7 @@ const selectFavorites = (state: AppState): FavItem[] => state.favorites;
 /**
  * Favs: the words and phrases this user starred, on one flat board.
  *
- * There are no folders and no editor — every card on the word and phrase
+ * There are no folders and no editor - every card on the word and phrase
  * boards carries a small star, and starring it puts it here. Tapping a fav
  * speaks it; tapping its star lets it go again.
  */
@@ -31,7 +31,7 @@ export function FringeBoard({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolThe
                 type="button"
                 className={`cell cell--phrase cell--${item.fitzgerald}`}
                 onClick={() => {
-                  // A saved word speaks on the tap — that is what it is for.
+                  // A saved word speaks on the tap - that is what it is for.
                   void session.speak(item.text);
                 }}
               >

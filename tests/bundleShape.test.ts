@@ -7,7 +7,7 @@ import { deriveVitsConfig } from '@/speech/bundleShape';
  * The Piper English bundle packages its model as
  * `/en_US-libritts_r-medium.onnx`, but the helper's default VITS configuration
  * asks for `./model.onnx`. The runtime failed validation with
- * `--vits-model: './model.onnx' does not exist` — and so did the bundle's own
+ * `--vits-model: './model.onnx' does not exist` - and so did the bundle's own
  * demo page, so it was not something the integration could assume away.
  */
 

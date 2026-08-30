@@ -3,7 +3,7 @@ import type { AudioFrame } from '@/audio/AudioGraph';
 import { session } from '@/session/AacSession';
 import { speakerHue } from '@/lib/speakerColour';
 
-/** Columns kept on screen — about four seconds at sixteen frames a second. */
+/** Columns kept on screen - about four seconds at sixteen frames a second. */
 const COLUMNS = 256;
 /** Columns drawn per incoming frame. More detail, at no extra data cost. */
 const COLUMNS_PER_FRAME = 4;
@@ -18,7 +18,7 @@ interface Column {
  * Live waveform of what the microphone is hearing.
  *
  * A level bar answers "is it hearing anything". A waveform answers "is it
- * hearing *me*, and did it catch that word" — you can see a syllable land,
+ * hearing *me*, and did it catch that word" - you can see a syllable land,
  * see a gap where the recogniser will end the turn, and see a neighbour's
  * voice arrive as a separate shape. For a device whose speech recognition will
  * sometimes fail, being able to see what it received is the difference between
@@ -51,7 +51,7 @@ export function Waveform({ active }: { active: boolean }): JSX.Element | null {
 
     // Declared before `resize`, which has to repaint: assigning width or height
     // to a canvas clears its bitmap, so without an immediate redraw the trace
-    // disappears on every layout change and stays gone until the next frame —
+    // disappears on every layout change and stays gone until the next frame -
     // and if the microphone has fallen quiet, that is never.
     let draw = () => {};
 

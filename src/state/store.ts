@@ -50,7 +50,7 @@ export interface Prediction {
  * Deliberately small. This device always listens, always dictates into the
  * chat, always speaks phrases on tap, always sends text as it is typed,
  * always shows symbols beside words at the larger size, never sends a live
- * microphone stream to the cloud, and an agent's speech always waits for a confirming tap —
+ * microphone stream to the cloud, and an agent's speech always waits for a confirming tap -
  * none of that is configurable, so none of it is here.
  */
 export interface Settings {
@@ -58,7 +58,7 @@ export interface Settings {
   voiceId: string | null;
   /**
    * Which curated voices the Voice page offers: male only, female only, or no
-   * preference. A shortlist filter only — it never changes the chosen voice.
+   * preference. A shortlist filter only - it never changes the chosen voice.
    */
   voiceGender: 'male' | 'female' | 'neutral';
   vadSensitivity: number;
@@ -119,7 +119,7 @@ export interface AssistUsage {
 /**
  * One favourited word or phrase. Favs are collected in place: every card on
  * the word and phrase boards carries a small star, and starring it puts it
- * here — no folders, no editor, no caregiver mode.
+ * here - no folders, no editor, no caregiver mode.
  */
 export interface FavItem {
   readonly text: string;
@@ -135,12 +135,12 @@ export interface AppState {
   readonly turns: Turn[];
   readonly composition: string;
   /**
-   * 'agent' when the buffer holds text the user has not yet read — an agent
+   * 'agent' when the buffer holds text the user has not yet read - an agent
    * wrote it there, or an expansion rewrote what they typed. The composer
    * marks such text until the user edits or clears it, mirroring what the
    * declarative WebMCP surface does natively with `SubmitEvent.agentInvoked`:
    * nobody should tap Speak believing machine-written words are their own.
-   * Choosing visible text — a prediction chip, a phrase-board entry — counts
+   * Choosing visible text - a prediction chip, a phrase-board entry - counts
    * as the user's, because they read it before it entered the buffer.
    */
   readonly compositionAuthor: CompositionAuthor;
@@ -202,7 +202,7 @@ export interface AppState {
   readonly compliance: ComplianceResult[];
   /** Voices heard in the room, distinguished by pitch. */
   readonly speakers: SpeakerProfile[];
-  /** Voices forming in the nursery — heard, not yet assigned a speaker. */
+  /** Voices forming in the nursery - heard, not yet assigned a speaker. */
   readonly pendingVoices: number;
   /** Recent attribution attempts, for diagnosing voices that go unidentified. */
   readonly voiceAttempts: AttributionAttempt[];
@@ -398,7 +398,7 @@ export const actions = {
    * Remove the last word from the buffer.
    *
    * The repair primitive. A tremor that double-taps a cell must be fixable in
-   * as many selections as it took to make the error — never by clearing the
+   * as many selections as it took to make the error - never by clearing the
    * whole utterance and rebuilding it from nothing.
    */
   deleteLastWord(): string {
@@ -662,7 +662,7 @@ export const actions = {
    *
    * Interim recognition results stream in continuously, so a turn is identified
    * by id and updated in place until it is final. Appending every partial would
-   * make the transcript unreadable — and for a screen-reader user, unusable.
+   * make the transcript unreadable - and for a screen-reader user, unusable.
    */
   upsertTurn(turn: Partial<Turn> & { id: string; source: TurnSource; text: string }): Turn {
     const state = store.getState();
@@ -677,7 +677,7 @@ export const actions = {
     // just identified and the transcript showed "Unidentified voice" for turns
     // that had been matched perfectly well. TypeScript cannot catch it: both are
     // optional, so omitting them is valid. Spreading makes the safe thing the
-    // default — a new optional field carries through without anyone remembering.
+    // default - a new optional field carries through without anyone remembering.
     const merged: Turn = {
       ...existing,
       ...turn,
@@ -702,7 +702,7 @@ export const actions = {
     return actions.upsertTurn({ id: createId('turn'), source, text, final: true, ...options });
   },
 
-  /** Retract a turn — used when a partner clears an in-progress message. */
+  /** Retract a turn - used when a partner clears an in-progress message. */
   removeTurn(id: string): void {
     const turns = store.getState().turns;
     const next = turns.filter((turn) => turn.id !== id);
@@ -771,7 +771,7 @@ export const actions = {
 };
 
 // ---------------------------------------------------------------------------
-// Selectors — defined at module scope so their identity is stable.
+// Selectors - defined at module scope so their identity is stable.
 // ---------------------------------------------------------------------------
 
 export const selectTurns = (state: AppState): Turn[] => state.turns;

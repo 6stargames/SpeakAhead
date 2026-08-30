@@ -14,7 +14,7 @@ const WORKER_URL = '/workers/sherpa-tts-worker.js?coep=v1';
  * Its header explains why, and it matches what happens if you ignore it: the
  * glue is built with -sEXPORT_ES6=1 so its pthread runtime can spawn a worker
  * pool from inside the worker, and loading the same glue any other way hangs
- * during nested pthread bootstrap — silently, with no error and no output.
+ * during nested pthread bootstrap - silently, with no error and no output.
  *
  * So when the bundle provides a worker, use it and translate its protocol.
  * Older classic bundles ship no worker, and those still use ours.
@@ -104,13 +104,13 @@ export class SherpaOnnxTtsProvider implements TtsProvider {
     const entries = { ...DEFAULT_ENTRIES, ...this.#options.entries };
 
     // A worker's type is fixed at construction, so the shape has to be known
-    // first — and the packaged file list tells us whether the helper's default
+    // first - and the packaged file list tells us whether the helper's default
     // model path actually exists. See bundleShape.ts.
     const bundle = await inspectBundle(this.#options.base, entries.glue);
     const moduleBundle = bundle.moduleBundle;
     const config = this.#options.config ?? deriveVitsConfig(bundle.files);
 
-    // Only module bundles need their own worker — those are the ones whose glue
+    // Only module bundles need their own worker - those are the ones whose glue
     // cannot be loaded any other way. Classic bundles also ship a worker, but
     // it is a *classic* worker, so spawning it as a module would break it, and
     // ours gives cancellation, teardown and heap reporting that theirs lacks.

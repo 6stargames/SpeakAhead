@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 // The wasm-only build, deliberately: the default bundle includes the WebGPU
-// backend and loads its `jsep` runtime files, which we do not ship — the
+// backend and loads its `jsep` runtime files, which we do not ship - the
 // symptom was "no available backend" and a silent fall back to heuristics.
 import * as ort from 'onnxruntime-web/wasm';
 import { FBANK_BINS, kaldiFbank } from '@/speech/fbank';
@@ -11,8 +11,8 @@ import { FBANK_BINS, kaldiFbank } from '@/speech/fbank';
  * on VoxCeleb. Runs in a worker because inference takes tens to hundreds of
  * milliseconds, and the main thread is busy being a communication device.
  *
- * Everything stays in this worker's memory. The audio and the voiceprint —
- * the biometric BIPA protects — never touch the network; the only fetch here
+ * Everything stays in this worker's memory. The audio and the voiceprint -
+ * the biometric BIPA protects - never touch the network; the only fetch here
  * is the model weights themselves, from our own origin, cache-first.
  */
 

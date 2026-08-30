@@ -23,14 +23,14 @@ const selectMicPermission = (state: AppState) => state.micPermission;
 const selectPredicting = (state: AppState): boolean => state.predicting;
 
 /**
- * The quarantine surface for everything machine-suggested — staged agent
+ * The quarantine surface for everything machine-suggested - staged agent
  * speech, reply predictions, microphone problems.
  *
  * It no longer owns a row of the layout: it floats over the board's corner
  * and renders nothing at all when there is nothing to show. The board never
- * moves either way — an overlay covers pixels, it does not displace them.
+ * moves either way - an overlay covers pixels, it does not displace them.
  * The air gap is unchanged: nothing here ever speaks on its own. Tapping a
- * suggestion speaks it — that is the user's deliberate act — and staged
+ * suggestion speaks it - that is the user's deliberate act - and staged
  * agent speech still needs its explicit "Speak it" confirmation.
  */
 export function SuggestionStrip(): JSX.Element | null {
@@ -56,7 +56,7 @@ export function SuggestionStrip(): JSX.Element | null {
     <div className="suggest-overlay card" aria-label="Suggestions" aria-live="polite" data-scan="">
       {staged !== null && (
         <div className="staged" role="group" aria-label="Message suggested by the agent">
-          <span className="staged__label">An agent wrote this — you decide whether to say it</span>
+          <span className="staged__label">An agent wrote this - you decide whether to say it</span>
           <p className="staged__text">{staged}</p>
           <button
             type="button"
@@ -95,7 +95,7 @@ export function SuggestionStrip(): JSX.Element | null {
             <p className="suggest-overlay__remedy">
               Click the icon at the left of the address bar, set <strong>Microphone</strong> to{' '}
               <strong>Allow</strong>, then reload this page. Dictation is the only feature that needs
-              it — everything else keeps working without it.
+              it - everything else keeps working without it.
             </p>
           )}
         </div>

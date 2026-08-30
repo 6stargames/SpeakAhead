@@ -19,6 +19,7 @@ const selectAssistStatus = (state: AppState): AppState['assistStatus'] => state.
 export const CONTEXT_READY_THEME_ITEM = {
   text: 'AI suggestions ready',
   symbol: '✨',
+  presentation: 'control-icon',
 } as const;
 
 /**

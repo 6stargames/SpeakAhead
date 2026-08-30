@@ -40,7 +40,7 @@ export type ServerToClient =
 // ---------------------------------------------------------------------------
 
 /**
- * RAUR User Need 13 — deaf and deaf-blind users must be able to tell incoming
+ * RAUR User Need 13 - deaf and deaf-blind users must be able to tell incoming
  * text from outgoing text. Every message therefore carries a stable `id` so the
  * receiving interface can update an in-progress line in place and attribute it
  * to a source, rather than appending an unattributed stream of fragments.

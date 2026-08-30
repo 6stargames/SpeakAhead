@@ -3,7 +3,7 @@
  *
  * The transducer emits a log-probability for every token it decodes. Folded
  * into per-word confidences, they let the transcript mark the words the
- * decoder itself was unsure about — the spell-check squiggle, but for
+ * decoder itself was unsure about - the spell-check squiggle, but for
  * hearing. The marking is honest in both directions: a clean word is left
  * alone, and a low-confidence word is flagged rather than silently presented
  * as fact, because a device that transcribes a room owes its user a visible
@@ -28,7 +28,7 @@ export const UNCERTAIN_BELOW = 0.5;
  *
  * BPE tokens mark word starts with a leading space or "▁"; everything else
  * continues the previous word. A word's confidence is the exponential of its
- * mean token log-prob — the geometric mean of the token probabilities, so
+ * mean token log-prob - the geometric mean of the token probabilities, so
  * one bad token drags a long word honestly rather than being averaged away.
  *
  * Returns null when the evidence is missing or malformed; the caller renders
@@ -70,7 +70,7 @@ export function wordConfidences(
  *
  * Alignment is positional: the display text split on whitespace must have
  * exactly as many words as the confidence list, or no marking happens at all
- * — a misaligned squiggle under the wrong word is worse than none.
+ * - a misaligned squiggle under the wrong word is worse than none.
  */
 export function alignWordsToText(
   displayText: string,

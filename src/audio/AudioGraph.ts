@@ -49,11 +49,11 @@ type DirectRecognizerPortFactory = (channel: CaptureChannel) => MessagePort | nu
  *
  * Two AudioContexts, deliberately:
  *
- *   captureContext  (16 kHz) — microphone + remote-for-analysis. Has no path to
+ *   captureContext  (16 kHz) - microphone + remote-for-analysis. Has no path to
  *                              `destination` at all. Nothing captured here can
  *                              be heard or transmitted; it exists only to feed
  *                              the on-device recogniser.
- *   playbackContext (native) — synthesised speech + remote monitoring + the
+ *   playbackContext (native) - synthesised speech + remote monitoring + the
  *                              MediaStreamAudioDestinationNode handed to WebRTC.
  *
  * Splitting the contexts turns "the microphone must never reach the peer" from a
@@ -129,7 +129,7 @@ export class AacAudioGraph {
 
     // Requesting 16 kHz lets the browser's own high-quality resampler do the
     // work. Where the platform refuses (Safari historically pins to 44.1/48),
-    // the worklet resamples instead — hence the flag.
+    // the worklet resamples instead - hence the flag.
     let captureContext: AudioContext;
     try {
       captureContext = new AudioContext({
@@ -180,7 +180,7 @@ export class AacAudioGraph {
   }
 
   // -------------------------------------------------------------------------
-  // Microphone — capture context only.
+  // Microphone - capture context only.
   // -------------------------------------------------------------------------
 
   async attachMicrophone(stream: MediaStream): Promise<void> {
@@ -206,7 +206,7 @@ export class AacAudioGraph {
     this.routing.connect('mic-splitter', 'mic-capture');
     this.routing.connect('mic-capture', 'asr');
 
-    // Fail loudly and immediately rather than shipping a quiet violation — but
+    // Fail loudly and immediately rather than shipping a quiet violation - but
     // only against the rules that apply right now. A microphone attached before
     // any call must not be judged against rules describing a peer that does not
     // exist yet.
@@ -249,7 +249,7 @@ export class AacAudioGraph {
   }
 
   // -------------------------------------------------------------------------
-  // Remote peer audio — monitored *and* harvested for context.
+  // Remote peer audio - monitored *and* harvested for context.
   // -------------------------------------------------------------------------
 
   attachRemoteStream(stream: MediaStream): void {
@@ -357,7 +357,7 @@ export class AacAudioGraph {
     });
   }
 
-  /** Cut synthesis instantly — used by Stop and by the emergency override. */
+  /** Cut synthesis instantly - used by Stop and by the emergency override. */
   stopSynthesis(): void {
     for (const source of [...this.#activeSources]) {
       try {
@@ -388,7 +388,7 @@ export class AacAudioGraph {
   }
 
   /**
-   * RAUR Need 11 — the user must be able to communicate in an emergency.
+   * RAUR Need 11 - the user must be able to communicate in an emergency.
    *
    * Everything inbound is severed from the speakers and the synthetic voice is
    * driven to unity ceiling, so nothing can drown out the person trying to

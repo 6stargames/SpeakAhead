@@ -132,7 +132,7 @@ describe('useWebMCPTool', () => {
     unmount();
   });
 
-  it('aborts the registration signal on unmount — no zombie tools', () => {
+  it('aborts the registration signal on unmount - no zombie tools', () => {
     const signals: AbortSignal[] = [];
     Object.defineProperty(document, 'modelContext', {
       value: {
@@ -374,10 +374,11 @@ describe('AAC context tools', () => {
     expect(container.textContent).not.toContain('Accurate transcription');
     expect(container.textContent).not.toContain('Quick replies');
     expect(container.querySelector('.assist-tasks__hero-icon .cell__symbol')?.textContent).toBe('🎨');
-    expect(container.querySelectorAll('.themed-close__edge')).toHaveLength(2);
+    expect(container.querySelectorAll('.themed-close__edge')).toHaveLength(0);
+    expect(container.querySelector('.themed-close__label')?.textContent).toBe('Close - back to chat');
 
     const close = [...container.querySelectorAll('button')].find((button) =>
-      button.textContent?.includes('Close — back to chat'),
+      button.textContent?.includes('Close - back to chat'),
     );
     expect(close).toBeDefined();
     act(() => close?.click());

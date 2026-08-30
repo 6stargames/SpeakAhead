@@ -55,7 +55,7 @@ describe('estimatePitch', () => {
 
 describe('median', () => {
   it('resists an octave-error outlier that would drag a mean', () => {
-    // Sorted: 100, 198, 200, 202, 205 — the octave error sits at the edge.
+    // Sorted: 100, 198, 200, 202, 205 - the octave error sits at the edge.
     expect(median([200, 205, 198, 100, 202])).toBe(200);
   });
 
@@ -67,7 +67,7 @@ describe('median', () => {
 
 describe('SpeakerTracker', () => {
   /** A voice sample: steady pitch, and a brightness typical of that pitch.
-      The default length is a sentence's worth — enough to found a speaker. */
+      The default length is a sentence's worth - enough to found a speaker. */
   const voice = (hz: number, brightness = 0.08, count = 16) => ({
     pitches: Array.from({ length: count }, () => hz),
     crossingRates: Array.from({ length: count }, () => brightness),
@@ -95,7 +95,7 @@ describe('SpeakerTracker', () => {
   it('recognises the same voice again', () => {
     const tracker = new SpeakerTracker();
     const first = tracker.observe(voice(110));
-    // Same person, a little higher — well within one speaker's range.
+    // Same person, a little higher - well within one speaker's range.
     const again = tracker.observe(voice(118));
     expect(again).toBe(first);
     expect(tracker.profiles()).toHaveLength(1);
@@ -130,7 +130,7 @@ describe('SpeakerTracker', () => {
 
   it('does not split one person over ordinary brightness variation', () => {
     // The bug this guards: a 0.045 veto rejected every match, so each utterance
-    // became a new voice — five speakers for one person. Vowels and consonants
+    // became a new voice - five speakers for one person. Vowels and consonants
     // move the crossing rate far more than that within one speaker.
     const tracker = new SpeakerTracker();
     const first = tracker.observe(voice(182, 0.06));
@@ -166,7 +166,7 @@ describe('SpeakerTracker', () => {
   });
 
   it('attributes a short interjection to a nearby known voice', () => {
-    // "Yes", "no", someone's name — the turns a conversation is made of. Two
+    // "Yes", "no", someone's name - the turns a conversation is made of. Two
     // voiced frames is about 130 ms, which is what those actually produce.
     // They lean on the nearest known voice, even past the confident band.
     const tracker = new SpeakerTracker();
@@ -193,7 +193,7 @@ describe('SpeakerTracker', () => {
     const before = tracker.get(id)?.pitchHz;
 
     // 220 Hz is well outside the confident band around 150 Hz but near enough
-    // for a fragment to lean on — and the lean must not move the centroid.
+    // for a fragment to lean on - and the lean must not move the centroid.
     expect(tracker.observe({ pitches: [220, 222], crossingRates: [0.08, 0.08] })).toBe(id);
     expect(tracker.get(id)?.pitchHz).toBe(before);
 
@@ -204,7 +204,7 @@ describe('SpeakerTracker', () => {
   it('does not fork one voice when a short excited burst jumps high', () => {
     // Replay of an observed session: a single video voice centred near 125 Hz
     // whose bursts of emphasis (205–239 Hz, five to nine voiced frames) used
-    // to found a second speaker mid-stream — after which every sentence
+    // to found a second speaker mid-stream - after which every sentence
     // bounced between the two profiles depending on where its median landed.
     // Bursts that short now lean on the voice when plausible, go unidentified
     // when extreme, and never found a profile.
@@ -382,7 +382,7 @@ describe('SpeakerTracker with neural voiceprints', () => {
     tracker.observe(sample(print(0), 120));
     expect(tracker.observe(sample(print(1), 120, 4))).toBeNull();
     expect(tracker.profiles()).toHaveLength(1);
-    // Not discarded — forming in the nursery — but a single fragment is not
+    // Not discarded - forming in the nursery - but a single fragment is not
     // yet advertised to the interface as a voice.
     expect(tracker.pendingCount()).toBe(0);
   });
@@ -470,7 +470,7 @@ describe('SpeakerTracker with timbre', () => {
       .filter((t): t is Float32Array => t !== null),
   });
 
-  /** Sixteen frames spread around a centre — a sentence's worth. */
+  /** Sixteen frames spread around a centre - a sentence's worth. */
   const spread = (centre: number) => Array.from({ length: 16 }, (_, i) => centre - 8 + i);
 
   /** A voice sample without timbre data, for the legacy-profile test. */
@@ -550,8 +550,8 @@ describe('SpeakerTracker with timbre', () => {
 
   it('separates two videos heard through the same room and channel', () => {
     // The field failure this guards: two different videos through one set of
-    // speakers scored 0.93-0.97 raw similarity — the shared channel colouring
-    // dwarfed the voices — and everything merged into speaker-1. Once the
+    // speakers scored 0.93-0.97 raw similarity - the shared channel colouring
+    // dwarfed the voices - and everything merged into speaker-1. Once the
     // room average has been learned, comparison is against what makes a voice
     // deviate from the room, and the second video separates.
     const tracker = new SpeakerTracker();
@@ -599,7 +599,7 @@ describe('SpeakerTracker with timbre', () => {
 
   it('the neural voiceprint outranks the MFCC timbre', () => {
     // The voice sounds different through the cheap fingerprint (different
-    // formant synth) but the network says it is the same person — and the
+    // formant synth) but the network says it is the same person - and the
     // network is the stronger witness.
     const tracker = new SpeakerTracker();
     const printA = new Float32Array(16);

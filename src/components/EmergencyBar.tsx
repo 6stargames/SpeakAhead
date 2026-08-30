@@ -7,7 +7,7 @@ const selectEmergency = (state: AppState): boolean => state.emergencyOverride;
 /**
  * Phrases that qualify for the red emergency surface: immediate physiological
  * threat only. Emotional distress and conversational repair go through the
- * ordinary boards — diluting this bar with them would teach onlookers that
+ * ordinary boards - diluting this bar with them would teach onlookers that
  * red does not always mean an emergency.
  */
 const EMERGENCY_PHRASES: readonly { label: string; text: string }[] = [
@@ -17,7 +17,7 @@ const EMERGENCY_PHRASES: readonly { label: string; text: string }[] = [
 ];
 
 /**
- * RAUR User Need 11 — an AAC user must be able to communicate in an emergency.
+ * RAUR User Need 11 - an AAC user must be able to communicate in an emergency.
  *
  * Lives at the foot of the navigation spine, pinned in every view: a control
  * you have to find is a control you do not have. The phrases speak on the
@@ -38,7 +38,7 @@ export function EmergencyBar(): JSX.Element {
           title="Speaks immediately at full volume and mutes everything else."
           onClick={() => {
             // One press: override on, phrase out at full volume. No staging,
-            // no confirmation — distress does not wait for a second tap.
+            // no confirmation - distress does not wait for a second tap.
             if (!active) session.setEmergencyOverride(true);
             void session.speak(phrase.text);
           }}

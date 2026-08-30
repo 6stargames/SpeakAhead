@@ -8,7 +8,7 @@ const FLOOR_DB = -60;
 /**
  * Live microphone level.
  *
- * Answers the one question dictation always raises — "is it hearing me?" —
+ * Answers the one question dictation always raises - "is it hearing me?" -
  * without waiting for the recogniser to commit a word. That matters most
  * precisely when recognition is struggling, which is when a user would
  * otherwise have no way to tell a muted microphone from a model that cannot

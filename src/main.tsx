@@ -18,7 +18,7 @@ createRoot(container).render(
  * Offline independence.
  *
  * The service worker precaches the shell and runtime-caches model weights, so
- * the device keeps working with the network severed — which is the point.
+ * the device keeps working with the network severed - which is the point.
  *
  * Updates are deliberately quiet. The worker is built with `skipWaiting`, so a
  * new one activates the moment it is found and the next navigation gets the new

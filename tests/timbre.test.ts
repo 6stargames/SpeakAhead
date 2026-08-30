@@ -4,7 +4,7 @@ import { cosineSimilarity, frameTimbre, utteranceEmbedding, TIMBRE_DIMS } from '
 /**
  * Synthetic voices with controlled vocal-tract shapes: harmonics of a chosen
  * fundamental, shaped by formant peaks. Two "people" differ in their formants;
- * one person's utterances differ only in fundamental — exactly the distinction
+ * one person's utterances differ only in fundamental - exactly the distinction
  * the fingerprint exists to make.
  */
 export type Formant = [number, number];
@@ -43,7 +43,7 @@ export const VOICE_B: Formant[] = [
 ];
 
 /**
- * A voice heard through a strongly colouring channel — loudspeakers, a room,
+ * A voice heard through a strongly colouring channel - loudspeakers, a room,
  * a phone mic. The channel is identical for every voice, which is exactly
  * what made raw fingerprints of different videos score 0.9+ in the field:
  * the shared colouring dwarfs the per-voice differences.
@@ -103,7 +103,7 @@ describe('frameTimbre', () => {
     expect(timbre).toHaveLength(TIMBRE_DIMS);
   });
 
-  it('returns null for silence — there is no timbre in nothing', () => {
+  it('returns null for silence - there is no timbre in nothing', () => {
     expect(frameTimbre(new Float32Array(1024), 16000)).toBeNull();
   });
 

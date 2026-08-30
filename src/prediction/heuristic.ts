@@ -5,8 +5,8 @@ import type { PredictionContext, PredictionSource } from './types';
  *
  * This is not a language model and does not pretend to be one. It is a rule
  * system over a small AAC-relevant vocabulary, and it exists because the
- * alternative — a device that offers nothing when no agent is attached and no
- * network is available — is unacceptable. It runs in microseconds, produces the
+ * alternative - a device that offers nothing when no agent is attached and no
+ * network is available - is unacceptable. It runs in microseconds, produces the
  * same output every time, and never leaves the device.
  *
  * The vocabulary leans on core AAC needs (comfort, medical, basic requests),
@@ -247,7 +247,7 @@ export function expandShorthand(shorthand: string): string {
     }
   }
 
-  // "I am <feeling>" — the whole input describes the speaker's own state.
+  // "I am <feeling>" - the whole input describes the speaker's own state.
   const feelings = tokens.filter((token) => FEELING_ADJECTIVES.has(token));
   const nonFeelings = tokens.filter((token) => !FEELING_ADJECTIVES.has(token));
   if (feelings.length > 0 && nonFeelings.length === 0) {

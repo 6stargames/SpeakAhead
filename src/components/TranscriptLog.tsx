@@ -22,7 +22,7 @@ function formatTime(at: number): string {
  * Whose words these are.
  *
  * Anything the device said on the user's behalf is theirs. Dictation is theirs
- * only while it came from the voice identified as the owner's — someone who
+ * only while it came from the voice identified as the owner's - someone who
  * walks into the room and speaks is not the user, and rendering their words as
  * the user's own is what made the transcript misleading.
  */
@@ -53,7 +53,7 @@ function attribute(
 /**
  * The junk-turn policy (Task 03 of the round-two brief).
  *
- * Pitch separation in a noisy room commits fragments — "Ta.", "E budding." —
+ * Pitch separation in a noisy room commits fragments - "Ta.", "E budding." -
  * as permanent conversation. A dictated turn this short is far more often
  * noise than speech, so it renders collapsed: still present, still honest,
  * but visually subordinate so real conversation is what the eye finds.
@@ -119,7 +119,7 @@ function SpeakerMenu({ speaker, onClose }: { speaker: SpeakerProfile; onClose: (
 
 /**
  * The turn's text, with words the recogniser was unsure of marked by a wavy
- * underline — the spell-check squiggle, but for hearing. Only final turns
+ * underline - the spell-check squiggle, but for hearing. Only final turns
  * carry confidences, and if the words cannot be aligned to the displayed
  * text exactly, nothing is marked: a squiggle under the wrong word would be
  * worse than none.
@@ -254,7 +254,7 @@ export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolT
    * which is fragile: the flag is only ever as correct as the events, and a
    * browser that does not fire them leaves the transcript stuck at the top
    * while messages pile up below. Comparing the scroll position against the
-   * previous maximum needs no events at all — if the reader was at the bottom
+   * previous maximum needs no events at all - if the reader was at the bottom
    * before this message arrived, follow; if they had scrolled back to re-read
    * something, leave them where they are.
    */
@@ -381,7 +381,7 @@ export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolT
             ))}
             {pendingVoices > 0 && (
               <p className="voices-panel__forming">
-                {pendingVoices} more voice{pendingVoices === 1 ? '' : 's'} heard — gathering enough
+                {pendingVoices} more voice{pendingVoices === 1 ? '' : 's'} heard - gathering enough
                 speech to name {pendingVoices === 1 ? 'it' : 'them'}.
               </p>
             )}
@@ -412,7 +412,7 @@ export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolT
       </div>
 
       {/* The microphone's state, directly under the title and above the
-          newest words — always present, because an ear that silently is not
+          newest words - always present, because an ear that silently is not
           working looks identical to one that is. Before permission exists it
           says what one tap will do; Chrome's quiet permission UI suppresses
           non-gesture prompts, so the first tap is what actually asks. */}
@@ -478,14 +478,14 @@ export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolT
               <p>
                 <strong>⭐ Favs</strong> and <strong>💬 Phrases</strong> speak with a single tap.
               </p>
-              <p>Just talk — everything the microphone hears appears here in the chat.</p>
+              <p>Just talk - everything the microphone hears appears here in the chat.</p>
               <p>
                 To call someone, press <strong>📞 New call</strong> below and send them the code.
               </p>
             </div>
           ) : (
             <p className="transcript__empty">
-              Nothing said yet. Type below and press <strong>Speak</strong>, or just talk — the
+              Nothing said yet. Type below and press <strong>Speak</strong>, or just talk - the
               microphone is always listening.
             </p>
           )

@@ -28,6 +28,11 @@ export interface ContextAssistResponse {
 export interface ThemeIconRequestItem {
   readonly text: string;
   readonly symbol: string;
+  /**
+   * Communication choices illustrate their meaning. Functional controls keep
+   * the supplied glyph recognisable, while a button background is decorative.
+   */
+  readonly presentation?: 'subject' | 'control-icon' | 'button-background';
 }
 
 export interface ThemeSprite {

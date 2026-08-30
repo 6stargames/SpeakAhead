@@ -35,4 +35,5 @@ export const ASSIST_FEATURE_ORDER: readonly AssistFeature[] = [
 export const ASSIST_FEATURE_THEME_ITEMS = ASSIST_FEATURE_ORDER.map((feature) => ({
   text: ASSIST_FEATURE_PRESENTATION[feature].label,
   symbol: ASSIST_FEATURE_PRESENTATION[feature].icon,
+  presentation: 'control-icon' as const,
 }));

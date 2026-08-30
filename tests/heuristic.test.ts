@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { expandShorthand, predictResponses } from '@/prediction/heuristic';
 
-describe('expandShorthand — the specification’s worked examples', () => {
+describe('expandShorthand - the specification’s worked examples', () => {
   it('expands "water cold please" as specified', () => {
     expect(expandShorthand('water cold please')).toBe('I would like some cold water, please.');
   });
@@ -11,7 +11,7 @@ describe('expandShorthand — the specification’s worked examples', () => {
   });
 });
 
-describe('expandShorthand — determiners', () => {
+describe('expandShorthand - determiners', () => {
   it('uses "some" for mass nouns', () => {
     expect(expandShorthand('water')).toBe('I would like some water, please.');
   });
@@ -37,7 +37,7 @@ describe('expandShorthand — determiners', () => {
   });
 });
 
-describe('expandShorthand — intent', () => {
+describe('expandShorthand - intent', () => {
   it('renders feelings as a statement about the speaker', () => {
     expect(expandShorthand('tired')).toBe('I am tired.');
     expect(expandShorthand('cold hungry')).toBe('I am cold and hungry.');
@@ -77,7 +77,7 @@ describe('expandShorthand — intent', () => {
     }
   });
 
-  it('defaults to politeness — a bare noun from an AAC user is a request', () => {
+  it('defaults to politeness - a bare noun from an AAC user is a request', () => {
     expect(expandShorthand('water')).toContain('please');
   });
 });

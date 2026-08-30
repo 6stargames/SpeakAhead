@@ -43,7 +43,7 @@ export interface AsrProvider {
   createAudioInputPort?(channel: CaptureChannel): MessagePort | null;
   /** Feed a 16 kHz mono analysis frame. Must be non-blocking. */
   acceptFrame(frame: AudioFrame): void;
-  /** Force an endpoint on a channel — the VAD decided speech ended. */
+  /** Force an endpoint on a channel - the VAD decided speech ended. */
   flush(channel: CaptureChannel): void;
   reset(channel: CaptureChannel): void;
   /** Optional second pass restoring punctuation and casing. */

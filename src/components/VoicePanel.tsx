@@ -22,11 +22,11 @@ export function VoicePanel(): JSX.Element {
   const curatedAvailable = tts.implementation === 'sherpa-onnx' && allVoices.length > 100;
 
   // With nothing chosen yet the model speaks with its default voice (sid 0,
-  // Ashley) — the list should say so rather than showing no selection.
+  // Ashley) - the list should say so rather than showing no selection.
   const chosenId = settings.voiceId ?? '0';
 
   // The Voice type setting narrows the shortlist. Neutral is its own
-  // category — voices that don't land strongly male or female on the ear —
+  // category - voices that don't land strongly male or female on the ear -
   // not a "show everything" escape hatch. Whatever the filter, the chosen
   // voice sorts to the top and is never hidden.
   const filtered = CURATED_VOICES.filter((voice) =>
@@ -61,7 +61,7 @@ export function VoicePanel(): JSX.Element {
               >
                 <span className="voice-option__name">
                   {voice.name}
-                  {chosenId === voice.id ? ' — your voice' : ''}
+                  {chosenId === voice.id ? ' - your voice' : ''}
                 </span>
                 <span className="voice-option__meta">{voice.note}</span>
               </button>

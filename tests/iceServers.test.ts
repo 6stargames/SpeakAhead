@@ -69,7 +69,7 @@ describe('normaliseIceServers', () => {
   });
 });
 
-describe('normaliseIceServers — Cloudflare Realtime', () => {
+describe('normaliseIceServers - Cloudflare Realtime', () => {
   // The exact shape returned by
   // POST /v1/turn/keys/<id>/credentials/generate-ice-servers
   const CLOUDFLARE_RESPONSE = {

@@ -11,7 +11,7 @@
  */
 
 export type AudioNodeId =
-  /** Physical microphone. Biometric source — BIPA-sensitive. */
+  /** Physical microphone. Biometric source - BIPA-sensitive. */
   | 'microphone'
   /** ChannelSplitterNode isolating the mic's first channel. */
   | 'mic-splitter'
@@ -25,7 +25,7 @@ export type AudioNodeId =
   | 'tts-bus'
   /** User's own monitoring path. */
   | 'local-monitor'
-  /** AudioContext.destination — the physical speakers. */
+  /** AudioContext.destination - the physical speakers. */
   | 'speakers'
   /** MediaStreamAudioDestinationNode handed to RTCPeerConnection.addTrack. */
   | 'peer'
@@ -196,7 +196,7 @@ export function evaluateCompliance(graph: RoutingGraph): ComplianceResult[] {
  *
  * Applicability matters, and getting it wrong is not a theoretical concern: an
  * earlier version asserted the whole rule set on every microphone attach, which
- * meant `Spec/contextual-harvesting` — a rule about the remote peer's audio —
+ * meant `Spec/contextual-harvesting` - a rule about the remote peer's audio -
  * failed whenever there was no peer. Turning on the microphone threw unless a
  * call was already connected, so dictation, the primary input method, could
  * never be used alone.

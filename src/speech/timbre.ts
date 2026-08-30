@@ -2,7 +2,7 @@
  * Voice timbre fingerprinting, used to tell voices apart by how they sound
  * rather than how high they are.
  *
- * Pitch answers "how high is this voice right now" — which one person varies
+ * Pitch answers "how high is this voice right now" - which one person varies
  * by an octave across a conversation, and two people can share exactly. What
  * actually distinguishes voices is the shape of the vocal tract: the formant
  * structure and spectral tilt that survive every pitch swing. This module
@@ -47,7 +47,7 @@ for (let i = 0; i < FFT_SIZE; i += 1) {
 
 /**
  * In-place iterative radix-2 FFT. FFT_SIZE is a fixed power of two, so the
- * classic Cooley–Tukey with a precomputed bit-reversal table is all we need —
+ * classic Cooley–Tukey with a precomputed bit-reversal table is all we need -
  * no dependency, and fast enough to run on every voiced frame many times over.
  */
 const REVERSED = new Uint32Array(FFT_SIZE);
@@ -152,7 +152,7 @@ const scratchMel = new Float32Array(MEL_BANDS);
 /**
  * The timbre of one analysis frame: MFCCs 1..12.
  *
- * Returns null for a frame with effectively no energy — there is no timbre in
+ * Returns null for a frame with effectively no energy - there is no timbre in
  * silence, and a zero vector would drag an utterance's embedding toward
  * nothing in particular.
  */

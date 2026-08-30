@@ -1,7 +1,7 @@
 /**
  * The Modified Fitzgerald Key, as a contract.
  *
- * Colour states the part of speech everywhere it appears — boards, folders,
+ * Colour states the part of speech everywhere it appears - boards, folders,
  * editing, scanning highlights. New surfaces extend this set; nothing may
  * improvise colours beside it.
  */

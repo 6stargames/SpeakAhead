@@ -12,7 +12,7 @@ export function isSpeechSynthesisAvailable(): boolean {
  * this API renders to the operating system's mixer, not into any Web Audio
  * graph we can reach. There is no buffer to capture and therefore no way to put
  * this voice on a WebRTC track. It works perfectly for in-person, face-to-face
- * AAC use, and not at all for remote calls — where the peer will still receive
+ * AAC use, and not at all for remote calls - where the peer will still receive
  * the text over the data channel, but will hear nothing.
  *
  * On macOS, Windows and most Android builds the voices are on-device, so this
@@ -28,7 +28,7 @@ export class SpeechSynthesisTtsProvider implements TtsProvider {
     status: 'idle',
     implementation: 'web-speech',
     offline: true,
-    detail: 'Platform voice — audible locally, cannot be sent to a remote peer.',
+    detail: 'Platform voice - audible locally, cannot be sent to a remote peer.',
   };
 
   get info(): EngineInfo {
@@ -44,7 +44,7 @@ export class SpeechSynthesisTtsProvider implements TtsProvider {
     await this.#loadVoices();
     this.#setInfo({
       status: 'ready',
-      detail: 'Platform voice — audible locally, cannot be sent to a remote peer.',
+      detail: 'Platform voice - audible locally, cannot be sent to a remote peer.',
       modelName: this.#voices[0]?.name,
     });
   }
@@ -54,7 +54,7 @@ export class SpeechSynthesisTtsProvider implements TtsProvider {
   }
 
   /**
-   * Unsupported by construction — there is no PCM to return. Callers must check
+   * Unsupported by construction - there is no PCM to return. Callers must check
    * `routable` and use `speakDirect` instead.
    */
   synthesize(_request: SynthesisRequest): Promise<SynthesisResult> {

@@ -31,7 +31,7 @@ const SAMPLE_PARTNER_TURN = 'What would you like to drink with your lunch today?
 /**
  * Say plainly why the microphone is off.
  *
- * Diagnosing this by inspection cost far more time than the check is worth —
+ * Diagnosing this by inspection cost far more time than the check is worth -
  * several rounds of guessing at which condition was short-circuiting. A single
  * line naming the reason turns that into a glance.
  */
@@ -43,11 +43,11 @@ function explainNotListening(status: {
   if (status.micActive) return 'It is listening.';
   if (status.micPermission === 'denied') return 'The browser is blocking the microphone for this site.';
   if (status.micError) return status.micError;
-  return 'No reason recorded — it should be listening. Please report this.';
+  return 'No reason recorded - it should be listening. Please report this.';
 }
 
 function formatBytes(bytes: number | undefined): string {
-  if (!bytes) return '—';
+  if (!bytes) return '-';
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
@@ -218,11 +218,11 @@ export function VerificationPanel(): JSX.Element {
         <dd>{platform.secureContext ? 'yes' : 'no'}</dd>
         <dt>Capture rate</dt>
         <dd>
-          {status.audio ? `${status.audio.captureSampleRate} Hz` : '—'}
+          {status.audio ? `${status.audio.captureSampleRate} Hz` : '-'}
           {status.audio?.resamplingCapture ? ' (worklet resampling)' : ''}
         </dd>
         <dt>Playback rate</dt>
-        <dd>{status.audio ? `${status.audio.playbackSampleRate} Hz` : '—'}</dd>
+        <dd>{status.audio ? `${status.audio.playbackSampleRate} Hz` : '-'}</dd>
         <dt>Recogniser heap</dt>
         <dd>{formatBytes(status.asr.heapBytes)}</dd>
         <dt>Synthesiser heap</dt>
@@ -235,7 +235,7 @@ export function VerificationPanel(): JSX.Element {
         <dd style={{ fontWeight: 400 }}>{explainNotListening(status)}</dd>
         <dt>Build</dt>
         <dd>
-          {/* Which code this tab is actually running — the first question when
+          {/* Which code this tab is actually running - the first question when
               a bug that was fixed appears to happen again. */}
           <code>{config.buildTime}</code>
         </dd>
@@ -248,7 +248,7 @@ export function VerificationPanel(): JSX.Element {
           {speakerModel.status === 'ready' && '✓ '}
           {speakerModel.status === 'error' && '✕ '}
           {speakerModel.status}
-          <span style={{ fontWeight: 400 }}> — {speakerModel.detail}</span>
+          <span style={{ fontWeight: 400 }}> - {speakerModel.detail}</span>
         </dd>
         <dt>Voiceprint source</dt>
         <dd>
@@ -261,7 +261,7 @@ export function VerificationPanel(): JSX.Element {
       </h3>
       <p className="field__hint" style={{ marginBottom: '0.75rem' }}>
         What the voice separator measured for each finished utterance. When the voiceprint network
-        is loaded, voices are matched by it — results say <strong>voiceprint</strong>, with 0.55+ a
+        is loaded, voices are matched by it - results say <strong>voiceprint</strong>, with 0.55+ a
         confident match. Results saying <strong>timbre</strong> mean the network had not answered
         yet and the on-device heuristics decided instead; they are far weaker. Pitch is only ever
         the tie-breaker.
@@ -281,7 +281,7 @@ export function VerificationPanel(): JSX.Element {
           <tbody>
             {[...voiceAttempts].reverse().map((attempt) => (
               <tr key={attempt.at}>
-                <td>{attempt.pitchHz === null ? '—' : `${attempt.pitchHz} Hz`}</td>
+                <td>{attempt.pitchHz === null ? '-' : `${attempt.pitchHz} Hz`}</td>
                 <td>{attempt.voicedFrames}</td>
                 <td>
                   {attempt.speakerId ? `${attempt.speakerId} · ` : ''}
@@ -298,7 +298,7 @@ export function VerificationPanel(): JSX.Element {
       </h3>
       <dl className="kv">
         <dt>Agent surface</dt>
-        <dd>{status.webMcp ? 'present' : 'absent — tools are local only'}</dd>
+        <dd>{status.webMcp ? 'present' : 'absent - tools are local only'}</dd>
         <dt>Registered tools</dt>
         <dd>{toolNames.length > 0 ? toolNames.join(', ') : 'none'}</dd>
       </dl>

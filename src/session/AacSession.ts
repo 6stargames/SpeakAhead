@@ -80,8 +80,8 @@ interface AccurateTranscriptionJob {
 /**
  * The application's single controller.
  *
- * Everything stateful lives here — the audio graph, both speech engines, the
- * peer connection — and React only reads the store and calls methods. Keeping
+ * Everything stateful lives here - the audio graph, both speech engines, the
+ * peer connection - and React only reads the store and calls methods. Keeping
  * the machinery out of components means a re-render can never restart an audio
  * context or leak a WebAssembly handle, which is the failure mode that makes
  * this class of application flaky in ways that are miserable to debug.
@@ -99,7 +99,7 @@ export class AacSession {
    *
    * Real-Time Text is a stream of updates to *one* message, not a stream of
    * messages. Minting a fresh id per keystroke made the partner's transcript
-   * grow a new line per burst of typing, each stuck at "still speaking" — the
+   * grow a new line per burst of typing, each stuck at "still speaking" - the
    * exact opposite of what RAUR Need 13 asks for. The id is held until the
    * message is sent or retracted, so the line resolves in place.
    */
@@ -157,7 +157,7 @@ export class AacSession {
    * Whether the partner is sending Real-Time Text.
    *
    * When they are, their own words are authoritative and the local
-   * transcription of their synthesised speech is redundant — running both put
+   * transcription of their synthesised speech is redundant - running both put
    * every remote utterance in the transcript twice, once as typed and once as
    * heard. Contextual harvesting still matters for a partner who is *not*
    * running this app, which is the case it was built for.
@@ -228,7 +228,7 @@ export class AacSession {
 
     // The voiceprint network starts downloading at boot, not at mic-attach:
     // a 29 MB fetch begun when someone starts talking means the first minutes
-    // of every cold session are attributed by the fallback heuristics — which
+    // of every cold session are attributed by the fallback heuristics - which
     // is exactly when first impressions of accuracy are formed.
     speakerEmbedder.onState((status, detail) => actions.setSpeakerModel(status, detail));
     if (config.speakerModelUrl) speakerEmbedder.start(config.speakerModelUrl);
@@ -236,7 +236,7 @@ export class AacSession {
 
     // Start listening and load the models at the same time, rather than one
     // after the other. Waiting meant nothing happened for the twenty or thirty
-    // seconds a cold model download takes — no permission prompt, no listening
+    // seconds a cold model download takes - no permission prompt, no listening
     // indicator, no sign the device was doing anything at all. Frames that
     // arrive before the recogniser is ready are dropped by the provider, so
     // there is nothing to gain by holding the microphone back.
@@ -246,7 +246,7 @@ export class AacSession {
     this.#stopListeningIfRecogniserFailed();
 
     // Chrome's quiet permission UI suppresses microphone prompts that are not
-    // backed by a user gesture on sites with no engagement history — a fresh
+    // backed by a user gesture on sites with no engagement history - a fresh
     // profile or an incognito window silently "denies" without ever asking.
     // A gesture-initiated request is never suppressed, so the first tap or
     // keypress anywhere retries until the microphone is live.
@@ -283,7 +283,7 @@ export class AacSession {
    * has the problem backwards. On a first visit this raises the browser's
    * permission prompt, which is the behaviour to match.
    *
-   * The one case it stays quiet is a permission already refused — retrying then
+   * The one case it stays quiet is a permission already refused - retrying then
    * only produces an error the user cannot act on from here. The interface says
    * so beside the Dictate button instead.
    */
@@ -321,7 +321,7 @@ export class AacSession {
    * Resume audio on the first interaction, if the browser suspended it.
    *
    * Autoplay policy leaves an AudioContext suspended until a page earns enough
-   * engagement, and a suspended context renders nothing — the capture worklet
+   * engagement, and a suspended context renders nothing - the capture worklet
    * would never run and dictation would fail silently, which is the worst way
    * for it to fail. Harmless where the context is already running.
    */
@@ -361,7 +361,7 @@ export class AacSession {
     // Sequential, synthesis first. Both models are large, and downloading them
     // at once on a modest connection means neither arrives for a long time.
     // Being able to *speak* is the more urgent of the two on a device someone
-    // talks with — dictation is one input method among several, but without a
+    // talks with - dictation is one input method among several, but without a
     // voice there is no output at all.
     await this.#initTts().catch(() => {});
     await this.#initAsr().catch(() => {});
@@ -371,7 +371,7 @@ export class AacSession {
    * Mirror a provider's status into the store before `init()` is awaited.
    *
    * Otherwise the first load shows "idle" for as long as it takes to pull a
-   * hundred megabytes of weights, with nothing to say why — which reads as a
+   * hundred megabytes of weights, with nothing to say why - which reads as a
    * broken device rather than a loading one.
    */
   #observe(engine: 'asr' | 'tts', provider: { events: { on: (event: 'info', listener: (info: EngineInfo) => void) => () => void }; info: EngineInfo }): void {
@@ -396,7 +396,7 @@ export class AacSession {
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       // Expected on a fresh clone: weights are not in version control.
-      console.info('[aac] Edge recogniser unavailable —', detail);
+      console.info('[aac] Edge recogniser unavailable -', detail);
     }
 
     // There is no live cloud-provider fallback: instant recognition either
@@ -428,7 +428,7 @@ export class AacSession {
       this.#useTts(sherpa);
       return;
     } catch (error) {
-      console.info('[aac] Edge synthesis unavailable —', error instanceof Error ? error.message : error);
+      console.info('[aac] Edge synthesis unavailable -', error instanceof Error ? error.message : error);
     }
 
     if (isSpeechSynthesisAvailable()) {
@@ -438,7 +438,7 @@ export class AacSession {
         this.#useTts(platform);
         actions.notify(
           'warning',
-          'Using the platform voice. It plays through the speakers but cannot be transmitted on a call — your partner will see your text, not hear it.',
+          'Using the platform voice. It plays through the speakers but cannot be transmitted on a call - your partner will see your text, not hear it.',
         );
         return;
       } catch {
@@ -467,7 +467,7 @@ export class AacSession {
    * Read the browser's microphone permission.
    *
    * Worth knowing before anything fails: a denied permission is the commonest
-   * reason dictation does nothing, and it is invisible unless asked about —
+   * reason dictation does nothing, and it is invisible unless asked about -
    * `getUserMedia` simply rejects without a prompt, and a user who has been
    * clicking a button that does nothing has no way to discover why.
    */
@@ -570,13 +570,13 @@ export class AacSession {
     // that is not actually voiced.
     if (frame.channel === 'local' && frame.rms > 0.004) {
       this.#utteranceFramesConsidered += 1;
-      // Keep the audio itself for the voiceprint network — every gated frame,
+      // Keep the audio itself for the voiceprint network - every gated frame,
       // voiced or not, because unvoiced consonants are part of a voice too.
       this.#utteranceAudio.push(frame.samples.slice());
       this.#utteranceSampleRate = frame.sampleRate;
       if (this.#utteranceAudio.length > 960) this.#utteranceAudio.shift();
 
-      // Watch for the voice changing mid-utterance — by voiceprint, not just
+      // Watch for the voice changing mid-utterance - by voiceprint, not just
       // pitch. Async and best-effort; a check in flight never blocks audio.
       this.#framesSinceChangeCheck += 1;
       if (this.#framesSinceChangeCheck >= CHANGE_CHECK_EVERY) {
@@ -672,7 +672,7 @@ export class AacSession {
    * who started this utterance, and split the turn if not.
    *
    * The pitch detector catches changes between distinct registers; this
-   * catches the podcast case — the next voice picking up seamlessly in the
+   * catches the podcast case - the next voice picking up seamlessly in the
    * same range, which used to ride on the previous speaker's bubble as one
    * run-on sentence. Asynchronous and generation-guarded: by the time an
    * answer arrives the utterance may have ended or split, and a stale answer
@@ -754,8 +754,8 @@ export class AacSession {
    *
    * Asynchronous: when the voiceprint network is ready it is consulted first
    * (tens to a couple of hundred milliseconds), and the turn's speaker label
-   * lands a beat after the words do. When it is not — first launch, model
-   * still downloading, worker failed — attribution falls straight through to
+   * lands a beat after the words do. When it is not - first launch, model
+   * still downloading, worker failed - attribution falls straight through to
    * the pitch-and-timbre heuristics, exactly as before.
    */
   async #attributeCaptured(turnId: string, captured: CapturedUtterance): Promise<void> {
@@ -934,8 +934,8 @@ export class AacSession {
         this.#interimTurns.set('local', id);
       }
       // Attribution needs the whole utterance, so the sample is captured
-      // at the final result — synchronously, before the next utterance
-      // starts filling the buffers — and the speaker label lands on the
+      // at the final result - synchronously, before the next utterance
+      // starts filling the buffers - and the speaker label lands on the
       // turn a moment later, once the voiceprint network has answered.
       const captured = final ? this.#captureUtterance() : null;
       const finalText = final ? restorePunctuation(trimmed) : trimmed;
@@ -1004,7 +1004,7 @@ export class AacSession {
    *
    * The text goes out over the data channel *first*. If synthesis is slow, or
    * the voice cannot be routed to the peer at all, the partner still receives
-   * the words — which is what RAUR Need 13 is protecting.
+   * the words - which is what RAUR Need 13 is protecting.
    */
   async speak(text: string, options: { addTurn?: boolean } = {}): Promise<void> {
     const message = text.trim();
@@ -1063,7 +1063,7 @@ export class AacSession {
    * nothing is sent to a call partner. Choosing a voice is done by ear.
    */
   async previewVoice(voiceId: string): Promise<void> {
-    const text = 'Hello — this is how I sound.';
+    const text = 'Hello - this is how I sound.';
     const rate = store.getState().settings.speechRate;
     try {
       if (this.#tts.routable) {
@@ -1102,7 +1102,7 @@ export class AacSession {
     });
 
     actions.setPredictions(outcome.suggestions.map((text) => ({ text, source: outcome.source })));
-    if (outcome.fallbackReason) console.info('[aac] prediction fell back —', outcome.fallbackReason);
+    if (outcome.fallbackReason) console.info('[aac] prediction fell back -', outcome.fallbackReason);
   }
 
   async expandComposition(): Promise<string> {
@@ -1116,7 +1116,7 @@ export class AacSession {
     });
 
     // Whichever engine expanded it, the result is machine-written text the
-    // user has not read yet — mark it so until they edit or speak it.
+    // user has not read yet - mark it so until they edit or speak it.
     actions.setComposition(outcome.text, 'agent');
     return outcome.text;
   }

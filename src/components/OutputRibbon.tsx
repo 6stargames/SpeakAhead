@@ -10,7 +10,7 @@ const selectLastSpoken = (state: AppState): string | null => state.lastSpokenTex
  * it, persistent across every view.
  *
  * This is the topmost interactive band of the screen because it is the point
- * of the whole device — the boards below exist to fill it, and the transcript
+ * of the whole device - the boards below exist to fill it, and the transcript
  * exists to inform it. Nothing above or beside it competes for the Speak
  * action, and it never moves, whatever view is open underneath.
  */
@@ -23,7 +23,7 @@ export function OutputRibbon({ leading }: { leading?: ReactNode } = {}): JSX.Ele
   const inputId = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // The app's name lives here briefly on load — the old title bar is gone,
+  // The app's name lives here briefly on load - the old title bar is gone,
   // and the message box is the one place every eye starts.
   const [placeholder, setPlaceholder] = useState(
     'Context-Aware Augmentative & Alternative Communication',
@@ -56,7 +56,7 @@ export function OutputRibbon({ leading }: { leading?: ReactNode } = {}): JSX.Ele
       <div className="ribbon__message">
         {agentAuthored && (
           <p className="composer__origin" id={`${inputId}-origin`}>
-            The assistant wrote this — check it says what you mean before speaking.
+            The assistant wrote this - check it says what you mean before speaking.
           </p>
         )}
         <label className="visually-hidden" htmlFor={inputId}>
@@ -109,7 +109,7 @@ export function OutputRibbon({ leading }: { leading?: ReactNode } = {}): JSX.Ele
 
         {/*
           The repair primitive, beside Speak and as prominent as Clear. A
-          tremor's double-tap costs exactly one press per stray word — never
+          tremor's double-tap costs exactly one press per stray word - never
           the whole sentence. (Task 01 of the round-two brief.)
         */}
         <button

@@ -18,8 +18,8 @@ const MAX_BACKOFF_MS = 15_000;
 /**
  * WebSocket signalling client with exponential backoff.
  *
- * Institutional networks — the hospitals and school districts this device is
- * built for — drop idle WebSockets aggressively, so the heartbeat is not
+ * Institutional networks - the hospitals and school districts this device is
+ * built for - drop idle WebSockets aggressively, so the heartbeat is not
  * optional and reconnection has to be automatic and quiet.
  */
 export class SignalingClient {

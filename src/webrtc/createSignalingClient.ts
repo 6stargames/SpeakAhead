@@ -16,7 +16,7 @@ export interface SignalingTransport {
 /**
  * Choose a signalling transport from the configured endpoint.
  *
- * A `ws://` or `wss://` URL means a host that permits WebSocket upgrades — the
+ * A `ws://` or `wss://` URL means a host that permits WebSocket upgrades - the
  * standalone regional deployment. Anything else, including the default empty
  * string, uses same-origin HTTP long-polling, because Firebase App Hosting's
  * edge refuses upgrades outright: it answers a valid handshake with 403 before

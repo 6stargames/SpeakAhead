@@ -41,7 +41,7 @@ function findNamespace(): LanguageModelNamespace | null {
  * Some browsers ship a *stub* Prompt API that reports itself available and then
  * returns the prompt back with a preamble. Trusting `availability()` alone put
  * "On-device model is not available in Chromium, this API is just echoing back
- * the input:" into the composition buffer during testing — which, on a device
+ * the input:" into the composition buffer during testing - which, on a device
  * that speaks for someone, is the worst possible failure. So the tier proves
  * itself before it is trusted.
  */
@@ -170,7 +170,7 @@ export const onDeviceModelPredictionSource: PredictionSource = {
         const capabilities = await namespace.capabilities();
         if (capabilities.available !== 'readily' && capabilities.available !== 'after-download') return false;
       }
-      // Declared availability is not enough — make it answer.
+      // Declared availability is not enough - make it answer.
       return await proveItWorks();
     } catch {
       return false;
