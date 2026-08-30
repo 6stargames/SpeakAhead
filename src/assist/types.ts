@@ -32,8 +32,7 @@ export interface ThemeIconRequestItem {
 }
 
 export interface ThemeSprite {
-  readonly imageDataUrl: string;
+  readonly imageUrl: string;
   readonly columns: number;
   readonly rows: number;
 }
-

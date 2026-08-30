@@ -15,6 +15,7 @@ import { SpeakerTracker } from '@/speech/speakers';
 import { SherpaOnnxTtsProvider } from '@/speech/tts/SherpaOnnxTtsProvider';
 import { isSpeechSynthesisAvailable, SpeechSynthesisTtsProvider } from '@/speech/tts/SpeechSynthesisTtsProvider';
 import type { AsrProvider, EngineInfo, TtsProvider } from '@/speech/types';
+import { noteCommunicationAudio } from '@/assist/communicationPriority';
 import { actions, selectContextWindow, store, type Turn } from '@/state/store';
 import { isWebMcpAvailable } from '@/webmcp/types';
 import { loadIceConfiguration } from '@/webrtc/iceConfig';
@@ -517,6 +518,10 @@ export class AacSession {
   }
 
   #onFrame = (frame: AudioFrame): void => {
+    // Theme generation is cosmetic. Let its scheduler know the room is active
+    // before forwarding this frame so image decoding and cache writes cannot
+    // compete with the microphone-to-recogniser path.
+    if (frame.channel === 'local' && frame.rms > 0.004) noteCommunicationAudio();
     this.#asr.acceptFrame(frame);
 
     // The gate has to admit someone across the room, not just the person

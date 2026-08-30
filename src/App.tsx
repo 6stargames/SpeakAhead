@@ -41,6 +41,8 @@ const SYSTEM_VIEWS: { id: View; label: string; icon: string }[] = [
 
 const selectEmergency = (state: AppState): boolean => state.emergencyOverride;
 const selectEditMode = (state: AppState): boolean => state.editMode;
+const selectSpeechStartupSettled = (state: AppState): boolean =>
+  state.asr.status !== 'idle' && state.asr.status !== 'loading';
 
 /**
  * One glance at the Checks button answers "is everything working?": a green
@@ -92,9 +94,10 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
   const emergency = useStore(selectEmergency);
   const editMode = useStore(selectEditMode);
   const health = useStore(selectHealth);
+  const speechStartupSettled = useStore(selectSpeechStartupSettled);
   const signedIn = Boolean(chatGPTIdentity?.displayName);
   const themedSymbolsEnabled =
-    signedIn && settings.symbolTheme === 'anime';
+    signedIn && settings.symbolTheme === 'anime' && speechStartupSettled;
 
   // Tools must be registered from a component so their lifetime is bound to the
   // React tree — that is what guarantees the AbortController teardown runs.

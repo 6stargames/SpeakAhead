@@ -2,6 +2,13 @@ import { json, openAIHeaders, readSmallJson, requireAssistUser } from '../server
 
 type IconItem = { text: string; symbol: string };
 
+function decodeBase64(value: string): ArrayBuffer {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes.buffer as ArrayBuffer;
+}
+
 function parseInput(value: unknown): { theme: 'anime'; items: IconItem[] } | null {
   if (!value || typeof value !== 'object') return null;
   const body = value as Record<string, unknown>;
@@ -72,6 +79,14 @@ export async function POST(request: Request): Promise<Response> {
     return json({ error: 'image_invalid_response' }, 502);
   }
 
-  return json({ imageDataUrl: `data:image/png;base64,${base64}`, columns: 3, rows: 3 });
+  return new Response(decodeBase64(base64), {
+    status: 200,
+    headers: {
+      'cache-control': 'no-store',
+      'content-type': 'image/png',
+      'x-aac-sprite-columns': '3',
+      'x-aac-sprite-rows': '3',
+      'x-content-type-options': 'nosniff',
+    },
+  });
 }
-
