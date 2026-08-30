@@ -1892,6 +1892,9 @@ body {
   color: var(--text-muted);
   margin: 0;
 }
+.field__heading {
+  margin: 0;
+}
 .field input[type='text'],
 .field select {
   min-height: var(--tap-min);

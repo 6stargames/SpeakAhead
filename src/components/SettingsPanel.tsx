@@ -77,7 +77,10 @@ function OptionRow<T>({
 
   return (
     <div className={`option-group${caution ? ' option-group--caution' : ''}`} role="group" aria-label={label}>
-      <span className="field__label">{label}</span>
+      <p className="field__heading">
+        <span className="field__label">{label}</span>
+        {hint && <span className="field__hint"> {hint}</span>}
+      </p>
       <div className="option-row">
         {options.map((option, index) => (
           <button
@@ -100,7 +103,6 @@ function OptionRow<T>({
           </button>
         ))}
       </div>
-      {hint && <p className="field__hint">{hint}</p>}
     </div>
   );
 }
@@ -120,7 +122,10 @@ function ThemeOptionRow({ value }: { value: SymbolTheme }): JSX.Element {
   ];
   return (
     <div className="option-group" role="group" aria-label="Button pictures">
-      <span className="field__label">Button pictures</span>
+      <p className="field__heading">
+        <span className="field__label">Button pictures</span>
+        <span className="field__hint"> Each button previews its own art style. Pictures are saved and reused.</span>
+      </p>
       <div className="option-row option-row--theme-previews">
         {options.map((option) => (
           <button
@@ -137,9 +142,6 @@ function ThemeOptionRow({ value }: { value: SymbolTheme }): JSX.Element {
           </button>
         ))}
       </div>
-      <p className="field__hint">
-        Each button previews its own art style. Pictures are saved and reused; emoji remain as fallback.
-      </p>
     </div>
   );
 }
@@ -156,8 +158,6 @@ export function SettingsPanel({
 
   return (
     <div className="panel settings-panel">
-      <h2 className="panel__title">Settings</h2>
-
       {signedIn && <ThemeOptionRow value={settings.symbolTheme} />}
 
       <OptionRow
@@ -188,7 +188,7 @@ export function SettingsPanel({
 
       <OptionRow
         label="How noisy is your room?"
-        hint="Pick the closest - it helps the device hear you instead of the room."
+        hint="Pick the closest. it helps the device hear you instead of the room."
         value={settings.vadSensitivity}
         symbolTheme={displayedTheme}
         options={[
@@ -206,7 +206,7 @@ export function SettingsPanel({
 
       <OptionRow
         label="Easier-to-see colours?"
-        hint="Everything turns yellow on black - much easier for some eyes."
+        hint="Everything turns yellow on black. much easier for some eyes."
         value={settings.highContrast}
         symbolTheme={displayedTheme}
         options={[
