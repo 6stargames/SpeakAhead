@@ -4,17 +4,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   resetThemedSymbolMemoryForTests,
   themeTileFor,
+  usePreparedSymbolTheme,
   useThemedSymbols,
 } from '@/assist/themeIcons';
+import type { ThemePreparationGroup } from '@/assist/themeIcons';
 import type { ThemeIconRequestItem } from '@/assist/types';
 import { store } from '@/state/store';
 
 let container: HTMLDivElement;
 let root: Root;
 
-function Harness({ items }: { items: readonly ThemeIconRequestItem[] }) {
-  const tiles = useThemedSymbols(items, 'baby-shark');
+function Harness({
+  items,
+  batchSize,
+}: {
+  items: readonly ThemeIconRequestItem[];
+  batchSize?: number;
+}) {
+  const tiles = useThemedSymbols(items, 'baby-shark', { batchSize });
   return <div data-count={items.filter((item) => themeTileFor(tiles, item)).length} />;
+}
+
+function PreparedThemeHarness({ groups }: { groups: readonly ThemePreparationGroup[] }) {
+  const theme = usePreparedSymbolTheme('baby-shark', groups);
+  return <div data-theme={theme} />;
 }
 
 function pngResponse(index = 0, source: 'saved' | 'generated' = 'generated'): Response {
@@ -61,6 +74,60 @@ afterEach(() => {
 });
 
 describe('themed image reuse', () => {
+  it('keeps the old theme visible until every surface is prepared', async () => {
+    const generationResolvers: ((response: Response) => void)[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (isLookup(init)) return Response.json({ groups: [] });
+      return await new Promise<Response>((resolve) => generationResolvers.push(resolve));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const groups = [
+      { items: [{ text: 'prepared-spine', symbol: '⭐' }] },
+      { items: [{ text: 'prepared-board', symbol: '💬' }] },
+    ];
+
+    act(() => root.render(<PreparedThemeHarness groups={groups} />));
+    await vi.waitFor(() => expect(generationResolvers).toHaveLength(2));
+    expect(container.firstElementChild?.getAttribute('data-theme')).toBe('emoji');
+
+    generationResolvers[0]!(pngResponse());
+    await flush();
+    expect(container.firstElementChild?.getAttribute('data-theme')).toBe('emoji');
+
+    generationResolvers[1]!(pngResponse());
+    await vi.waitFor(() => {
+      expect(container.firstElementChild?.getAttribute('data-theme')).toBe('baby-shark');
+    });
+  });
+
+  it('prepares independent batches concurrently and reveals them together', async () => {
+    const generationResolvers: ((response: Response) => void)[] = [];
+    let generationRequests = 0;
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (isLookup(init)) return Response.json({ groups: [] });
+      generationRequests += 1;
+      return await new Promise<Response>((resolve) => generationResolvers.push(resolve));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const items = Array.from({ length: 10 }, (_, index) => ({
+      text: `parallel-${index}`,
+      symbol: '✨',
+    }));
+
+    act(() => root.render(<Harness items={items} batchSize={9} />));
+    await vi.waitFor(() => expect(generationRequests).toBe(2));
+    expect(container.firstElementChild?.getAttribute('data-count')).toBe('0');
+
+    generationResolvers[0]!(pngResponse());
+    await flush();
+    expect(container.firstElementChild?.getAttribute('data-count')).toBe('0');
+
+    generationResolvers[1]!(pngResponse());
+    await vi.waitFor(() => {
+      expect(container.firstElementChild?.getAttribute('data-count')).toBe('10');
+    });
+  });
+
   it('restores saved pictures silently even when two surfaces ask at once', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       if (isLookup(init)) {

@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX } from 'react';
+import { useEffect, useMemo, useState, type JSX } from 'react';
 import type { ChatGPTIdentity } from '@/auth/chatgpt';
 import { ChatGPTAuthButton } from '@/components/ChatGPTAuthButton';
 import { AssistTasksPanel } from '@/components/AssistTasksPanel';
@@ -20,6 +20,7 @@ import { ASSIST_FEATURE_THEME_ITEMS } from '@/assist/featurePresentation';
 import {
   ThemedSymbol,
   themeTileFor,
+  usePreparedSymbolTheme,
   useThemedSymbols,
   type ThemeTile,
 } from '@/assist/themeIcons';
@@ -128,23 +129,29 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
   const previousContextualPhrases = useStore(selectPreviousContextualPhrases);
   const signedIn = Boolean(chatGPTIdentity?.displayName);
   const contextAssistEnabled = signedIn;
-  const symbolTheme = signedIn ? settings.symbolTheme : 'emoji';
+  const requestedSymbolTheme = signedIn ? settings.symbolTheme : 'emoji';
+  const themePreparationGroups = useMemo(() => [
+    { items: INTERFACE_THEME_ITEMS, batchSize: 9, singleSubject: true },
+    { items: SETTINGS_THEME_ITEMS, batchSize: 9, singleSubject: true },
+    { items: CORE_THEME_ITEMS },
+    { items: PHRASE_THEME_ITEMS },
+    { items: favorites },
+    { items: contextualWords },
+    { items: contextualPhrases },
+    { items: previousContextualWords },
+    { items: previousContextualPhrases },
+  ], [
+    contextualPhrases,
+    contextualWords,
+    favorites,
+    previousContextualPhrases,
+    previousContextualWords,
+  ]);
+  const symbolTheme = usePreparedSymbolTheme(requestedSymbolTheme, themePreparationGroups);
   const interfaceSymbols = useThemedSymbols(INTERFACE_THEME_ITEMS, symbolTheme, {
     batchSize: 9,
     singleSubject: true,
   });
-  useThemedSymbols(SETTINGS_THEME_ITEMS, symbolTheme, { singleSubject: true });
-
-  // Warm every board as soon as a signed-in user selects a picture theme.
-  // Opening Phrases, Words, or Favs should reveal saved artwork immediately,
-  // never start the generation work for the first time.
-  useThemedSymbols(CORE_THEME_ITEMS, symbolTheme);
-  useThemedSymbols(PHRASE_THEME_ITEMS, symbolTheme);
-  useThemedSymbols(favorites, symbolTheme);
-  useThemedSymbols(contextualWords, symbolTheme);
-  useThemedSymbols(contextualPhrases, symbolTheme);
-  useThemedSymbols(previousContextualWords, symbolTheme);
-  useThemedSymbols(previousContextualPhrases, symbolTheme);
 
   // Tools must be registered from a component so their lifetime is bound to the
   // React tree — that is what guarantees the AbortController teardown runs.
@@ -271,7 +278,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
           )}
           {view === 'settings' && (
             <section className="card">
-              <SettingsPanel signedIn={signedIn} />
+              <SettingsPanel signedIn={signedIn} symbolTheme={symbolTheme} />
             </section>
           )}
           {view === 'diagnostics' && (

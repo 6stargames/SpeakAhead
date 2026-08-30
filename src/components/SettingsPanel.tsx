@@ -144,8 +144,15 @@ function ThemeOptionRow({ value }: { value: SymbolTheme }): JSX.Element {
   );
 }
 
-export function SettingsPanel({ signedIn = false }: { signedIn?: boolean }): JSX.Element {
+export function SettingsPanel({
+  signedIn = false,
+  symbolTheme,
+}: {
+  signedIn?: boolean;
+  symbolTheme?: SymbolTheme;
+}): JSX.Element {
   const settings = useStore(selectSettings);
+  const displayedTheme = signedIn ? (symbolTheme ?? settings.symbolTheme) : 'emoji';
 
   return (
     <div className="panel settings-panel">
@@ -157,7 +164,7 @@ export function SettingsPanel({ signedIn = false }: { signedIn?: boolean }): JSX
         label="What kind of voice?"
         hint="Then pick the exact voice on the 🎙️ Voice page."
         value={settings.voiceGender}
-        symbolTheme={settings.symbolTheme}
+        symbolTheme={displayedTheme}
         options={[
           { label: 'Male', value: 'male' as const, symbol: '👨' },
           { label: 'Female', value: 'female' as const, symbol: '👩' },
@@ -169,7 +176,7 @@ export function SettingsPanel({ signedIn = false }: { signedIn?: boolean }): JSX
       <OptionRow
         label="How fast should it talk?"
         value={settings.speechRate}
-        symbolTheme={settings.symbolTheme}
+        symbolTheme={displayedTheme}
         options={[
           { label: 'Slower', value: 0.75, symbol: '🐢' },
           { label: 'Normal', value: 1, symbol: '🚶' },
@@ -183,7 +190,7 @@ export function SettingsPanel({ signedIn = false }: { signedIn?: boolean }): JSX
         label="How noisy is your room?"
         hint="Pick the closest — it helps the device hear you instead of the room."
         value={settings.vadSensitivity}
-        symbolTheme={settings.symbolTheme}
+        symbolTheme={displayedTheme}
         options={[
           { label: 'Quiet', value: 5, symbol: '🤫' },
           { label: 'Normal', value: 9, symbol: '🏠' },
@@ -201,7 +208,7 @@ export function SettingsPanel({ signedIn = false }: { signedIn?: boolean }): JSX
         label="Easier-to-see colours?"
         hint="Everything turns yellow on black — much easier for some eyes."
         value={settings.highContrast}
-        symbolTheme={settings.symbolTheme}
+        symbolTheme={displayedTheme}
         options={[
           { label: 'On', value: true, symbol: '🌕' },
           { label: 'Off', value: false, symbol: '🌑' },

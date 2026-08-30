@@ -32,9 +32,13 @@ type GenerationResult =
   | { readonly kind: 'unavailable' };
 
 const itemMemory = new Map<ThemedKey, Promise<ThemeTile | null>>();
-// Only new model generations are serialized. Cache lookups must run in
-// parallel or one slow missing image can hold every saved picture hostage.
-let generationQueue: Promise<unknown> = Promise.resolve();
+const resolvedMemory = new Map<ThemedKey, ThemeTile>();
+// Saved pictures are always restored in parallel. New image generations use
+// a small shared pool: enough concurrency for a theme to prepare quickly,
+// without turning a theme switch into an unbounded burst of model requests.
+const MAX_CONCURRENT_GENERATIONS = 3;
+let activeGenerations = 0;
+const generationWaiters: (() => void)[] = [];
 const COLUMNS_HEADER = 'x-aac-sprite-columns';
 const ROWS_HEADER = 'x-aac-sprite-rows';
 const INDEX_HEADER = 'x-aac-sprite-index';
@@ -186,13 +190,17 @@ async function requestSavedSprite(
   }
 }
 
-function enqueueGeneration<T>(work: () => Promise<T>): Promise<T> {
-  const task = generationQueue.then(work, work);
-  generationQueue = task.then(
-    () => undefined,
-    () => undefined,
-  );
-  return task;
+async function withGenerationSlot<T>(work: () => Promise<T>): Promise<T> {
+  if (activeGenerations >= MAX_CONCURRENT_GENERATIONS) {
+    await new Promise<void>((resolve) => generationWaiters.push(resolve));
+  }
+  activeGenerations += 1;
+  try {
+    return await work();
+  } finally {
+    activeGenerations -= 1;
+    generationWaiters.shift()?.();
+  }
 }
 
 async function loadMissingTiles(
@@ -234,8 +242,8 @@ async function loadMissingTiles(
     ].filter((partition) => partition.length > 0);
 
     let refreshDelay = 0;
-    for (const partition of partitions) {
-      const generated = await enqueueGeneration(async () => {
+    const generatedPartitions = await Promise.all(partitions.map(async (partition) => {
+      const generated = await withGenerationSlot(async () => {
         const taskId = actions.beginAssistTask('themes', pictureTaskLabel(partition));
         const outcome = await requestGeneratedSprite(partition, theme, singleSubject);
         if (outcome.kind === 'image') {
@@ -247,21 +255,25 @@ async function loadMissingTiles(
         }
         return outcome;
       });
+      return { generated, partition };
+    }));
+
+    generatedPartitions.forEach(({ generated, partition }) => {
       if (generated.kind === 'refresh') {
         refreshDelay = Math.max(refreshDelay, generated.retryAfterMs);
-        continue;
+        return;
       }
-      if (generated.kind !== 'image') continue;
+      if (generated.kind !== 'image') return;
       const sprite = spriteFromBlob(
         generated.payload.blob,
         generated.payload.columns,
         generated.payload.rows,
       );
-      if (!sprite) continue;
+      if (!sprite) return;
       partition.forEach((item, index) => {
         result.set(themedItemKey(theme, item, singleSubject), { ...sprite, index });
       });
-    }
+    });
 
     missing = items.filter((item) => !result.has(themedItemKey(theme, item, singleSubject)));
     if (missing.length === 0 || refreshDelay === 0) break;
@@ -306,7 +318,10 @@ async function loadTiles(
   );
   const result = new Map<string, ThemeTile>();
   resolved.forEach(({ item, tile }) => {
-    if (tile) result.set(itemKey(item), tile);
+    if (tile) {
+      resolvedMemory.set(themedItemKey(theme, item, singleSubject), tile);
+      result.set(itemKey(item), tile);
+    }
   });
   return result;
 }
@@ -323,7 +338,7 @@ function pictureTaskLabel(items: readonly ThemeIconRequestItem[]): string {
   return `Pictures for ${names}${remainder}`;
 }
 
-/** Generate and cache one 3x3 image sheet at a time, keeping model traffic low. */
+/** Restore batches in parallel and publish one complete, coherent tile set. */
 export function useThemedSymbols(
   items: readonly ThemeIconRequestItem[],
   theme: SymbolTheme,
@@ -333,33 +348,101 @@ export function useThemedSymbols(
   const singleSubject = options.singleSubject === true;
   const signature = useMemo(() => items.map(itemKey).join('\u0002'), [items]);
   const stableItems = useMemo(() => items.map((item) => ({ ...item })), [signature]);
-  const [tiles, setTiles] = useState<ReadonlyMap<string, ThemeTile>>(new Map());
+  const [resolved, setResolved] = useState<{
+    readonly theme: SymbolTheme;
+    readonly signature: string;
+    readonly tiles: ReadonlyMap<string, ThemeTile>;
+  }>({ theme, signature, tiles: new Map() });
 
   useEffect(() => {
     if (theme === 'emoji' || stableItems.length === 0) {
-      setTiles(new Map());
+      setResolved({ theme, signature, tiles: new Map() });
       return undefined;
     }
     let cancelled = false;
     void (async () => {
       const next = new Map<string, ThemeTile>();
-      for (const group of chunk(stableItems, batchSize)) {
-        const groupTiles = await loadTiles(group, theme, singleSubject);
-        if (groupTiles.size === 0) {
-          if (cancelled) return;
-          continue;
-        }
+      const groups = await Promise.all(
+        chunk(stableItems, batchSize).map((group) => loadTiles(group, theme, singleSubject)),
+      );
+      groups.forEach((groupTiles) => {
         groupTiles.forEach((tile, key) => next.set(key, tile));
-        if (cancelled) return;
-        setTiles(new Map(next));
-      }
+      });
+      if (cancelled) return;
+      // Keep the previous theme intact until every batch for this surface is
+      // ready. This avoids a board changing one row at a time.
+      setResolved({ theme, signature, tiles: new Map(next) });
     })();
     return () => {
       cancelled = true;
     };
   }, [batchSize, singleSubject, stableItems, theme]);
 
-  return tiles;
+  if (resolved.theme === theme && resolved.signature === signature) return resolved.tiles;
+
+  // The application-level theme preparation has already filled this memory
+  // before it changes the displayed theme. Read it during render so every
+  // surface flips in that same React commit rather than in later effects.
+  const immediate = new Map<string, ThemeTile>();
+  if (theme !== 'emoji') {
+    stableItems.forEach((item) => {
+      const tile = resolvedMemory.get(themedItemKey(theme, item, singleSubject));
+      if (tile) immediate.set(itemKey(item), tile);
+    });
+  }
+  return immediate;
+}
+
+export interface ThemePreparationGroup {
+  readonly items: readonly ThemeIconRequestItem[];
+  readonly batchSize?: number;
+  readonly singleSubject?: boolean;
+}
+
+/**
+ * Keep the currently displayed theme in place while the next theme is being
+ * prepared across every board. Once all groups have restored or generated,
+ * the entire application receives the new theme in the same render.
+ */
+export function usePreparedSymbolTheme(
+  requestedTheme: SymbolTheme,
+  groups: readonly ThemePreparationGroup[],
+): SymbolTheme {
+  const signature = groups.map((group) => [
+    group.singleSubject === true ? 'single' : 'board',
+    Math.max(1, Math.min(9, group.batchSize ?? 9)),
+    group.items.map(itemKey).join('\u0002'),
+  ].join('\u0003')).join('\u0004');
+  const stableGroups = useMemo<readonly ThemePreparationGroup[]>(
+    () => groups.map((group) => ({
+      ...group,
+      items: group.items.map((item) => ({ ...item })),
+    })),
+    [signature],
+  );
+  const [displayedTheme, setDisplayedTheme] = useState<SymbolTheme>('emoji');
+
+  useEffect(() => {
+    if (requestedTheme === 'emoji') {
+      setDisplayedTheme('emoji');
+      return undefined;
+    }
+    let cancelled = false;
+    void (async () => {
+      await Promise.all(stableGroups.flatMap((group) => {
+        const size = Math.max(1, Math.min(9, group.batchSize ?? 9));
+        return chunk(group.items, size).map((items) =>
+          loadTiles(items, requestedTheme, group.singleSubject === true),
+        );
+      }));
+      if (!cancelled) setDisplayedTheme(requestedTheme);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [requestedTheme, stableGroups]);
+
+  return displayedTheme;
 }
 
 export function themeTileFor(
@@ -372,7 +455,9 @@ export function themeTileFor(
 /** Allows a fresh app session to be exercised without reloading the test VM. */
 export function resetThemedSymbolMemoryForTests(): void {
   itemMemory.clear();
-  generationQueue = Promise.resolve();
+  resolvedMemory.clear();
+  activeGenerations = 0;
+  generationWaiters.splice(0);
 }
 
 export function ThemedSymbol({
