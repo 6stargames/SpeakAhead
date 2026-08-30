@@ -93,4 +93,21 @@ describe('Settings voice type', () => {
     expect(container.querySelector('[role="dialog"]')).toBeNull();
     expect(container.textContent).toContain('What kind of voice?');
   });
+
+  it('shows the selected researched theme above View more with its checkmark', () => {
+    act(() => actions.setSettings({ symbolTheme: 'halo-3' }));
+    act(() => root.render(<SettingsPanel signedIn symbolTheme="halo-3" />));
+
+    const stack = container.querySelector('.theme-option-stack');
+    const halo = stack?.querySelector<HTMLButtonElement>('button[aria-label="HALO 3"]');
+    const viewMore = [...(stack?.querySelectorAll<HTMLButtonElement>('button') ?? [])]
+      .find((button) => button.textContent?.trim() === 'View more');
+
+    expect(halo).not.toBeNull();
+    expect(halo?.getAttribute('aria-pressed')).toBe('true');
+    expect(halo?.querySelector('.option__selected-check')?.textContent).toBe('✓');
+    expect(stack?.querySelector('button[aria-label="Emoji"]')).toBeNull();
+    expect(viewMore?.getAttribute('aria-pressed')).toBeNull();
+    expect(viewMore?.querySelector('.option__selected-check')).toBeNull();
+  });
 });

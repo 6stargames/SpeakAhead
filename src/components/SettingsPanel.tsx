@@ -165,6 +165,9 @@ function ThemeOptionRow({ value, onViewMore }: {
   value: SymbolTheme;
   onViewMore: () => void;
 }): JSX.Element {
+  const selectedMoreTheme = MORE_PICTURE_THEMES.find((option) => option.value === value);
+  const stackedTheme = selectedMoreTheme ?? PRIMARY_PICTURE_THEMES[0]!;
+
   return (
     <div className="option-group" role="group" aria-label="Button pictures">
       <p className="field__heading">
@@ -173,18 +176,14 @@ function ThemeOptionRow({ value, onViewMore }: {
       </p>
       <div className="option-row option-row--theme-previews">
         <div className="theme-option-stack">
-          <ThemeOptionButton option={PRIMARY_PICTURE_THEMES[0]!} selected={value === 'emoji'} />
+          <ThemeOptionButton option={stackedTheme} selected={value === stackedTheme.value} />
           <button
             type="button"
             className="option theme-option-stack__more"
             aria-haspopup="dialog"
-            aria-pressed={MORE_PICTURE_THEMES.some((option) => option.value === value)}
             onClick={onViewMore}
           >
             View more
-            {MORE_PICTURE_THEMES.some((option) => option.value === value) && (
-              <span className="option__selected-check" aria-hidden="true">✓</span>
-            )}
           </button>
         </div>
         {PRIMARY_PICTURE_THEMES.slice(1).map((option) => (
