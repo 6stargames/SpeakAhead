@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   contextAssistRequestKey,
   contextChoicesReadyForRefresh,
+  REPLY_BATCH_SETTLE_MS,
   THEMED_CONTEXT_HOLD_MS,
   useContextAssist,
 } from '@/assist/useContextAssist';
@@ -64,8 +65,8 @@ describe('continuous context assistance', () => {
     const route = await readFile(resolve(process.cwd(), 'app/api/assist/context/route.ts'), 'utf8');
     expect(route).toContain("reasoning: { effort: 'minimal' }");
     expect(route).toContain('max_output_tokens: 2_000');
-    expect(route).toContain('minItems: 6');
-    expect(route).toContain('minItems: 4');
+    expect(route).toContain('generateSuggestions');
+    expect(route).toContain('Return empty words and phrases arrays');
   });
 
   it('does not restart the language debounce for unfinished microphone updates', async () => {
@@ -78,7 +79,7 @@ describe('continuous context assistance', () => {
         dictated: true,
       });
     });
-    act(() => vi.advanceTimersByTime(250));
+    act(() => vi.advanceTimersByTime(REPLY_BATCH_SETTLE_MS));
     act(() => {
       actions.upsertTurn({
         id: 'live',
@@ -130,7 +131,7 @@ describe('continuous context assistance', () => {
         id: 'first', source: 'peer', text: 'First turn', final: true, dictated: true,
       });
     });
-    act(() => vi.advanceTimersByTime(500));
+    act(() => vi.advanceTimersByTime(REPLY_BATCH_SETTLE_MS + 50));
     expect(mocks.requestContextAssist).toHaveBeenCalledTimes(1);
 
     act(() => {
@@ -150,7 +151,7 @@ describe('continuous context assistance', () => {
       await Promise.resolve();
       await Promise.resolve();
       await Promise.resolve();
-      await vi.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(REPLY_BATCH_SETTLE_MS + 50);
     });
 
     expect(mocks.requestContextAssist).toHaveBeenCalledTimes(2);
@@ -164,12 +165,90 @@ describe('continuous context assistance', () => {
     expect(secondRequest.excludedPhrases).toContain('I agree.');
   });
 
-  it('changes its work key only for finished conversation or composition changes', () => {
+  it('changes its work key only for finished attributed conversation turns', () => {
     const first = [{ id: 'one', final: true }];
     expect(contextAssistRequestKey(first, '')).toBe('one\u0000');
     expect(contextAssistRequestKey([...first, { id: 'live', final: false }], '')).toBe('one\u0000');
     expect(contextAssistRequestKey([...first, { id: 'two', final: true }], '')).toBe('two\u0000');
-    expect(contextAssistRequestKey(first, 'hello')).toBe('one\u0000hello');
+    expect(contextAssistRequestKey(first, 'hello')).toBe('one\u0000');
+  });
+
+  it('does not generate replies for the AAC user own voice', async () => {
+    act(() => {
+      actions.setSpeakers([{
+        id: 'speaker-owner',
+        label: 'You',
+        pitchHz: 120,
+        brightness: 0.08,
+        utterances: 3,
+        isOwner: true,
+      }]);
+      actions.upsertTurn({
+        id: 'mine',
+        source: 'user',
+        text: 'Hell yeah.',
+        final: true,
+        dictated: true,
+        speakerId: 'speaker-owner',
+        words: [{ text: 'hell', confidence: 0.92 }, { text: 'yeah', confidence: 0.88 }],
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(mocks.requestContextAssist).toHaveBeenCalledTimes(1);
+    expect(mocks.requestContextAssist.mock.calls[0]?.[0]).toMatchObject({
+      generateSuggestions: false,
+    });
+    expect(store.getState().assistFeatures.suggestions.tasks).toHaveLength(0);
+    expect(store.getState().contextualWords).toHaveLength(0);
+    expect(store.getState().contextualPhrases).toHaveLength(0);
+  });
+
+  it('does not revive an old pending reply batch after the user answers', async () => {
+    act(() => {
+      actions.upsertTurn({
+        id: 'partner', source: 'peer', text: 'Would you like coffee?', final: true,
+      });
+      actions.upsertTurn({
+        id: 'answered', source: 'user', text: 'No, thank you.', final: true, spoken: true,
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(REPLY_BATCH_SETTLE_MS + 100);
+    });
+
+    expect(mocks.requestContextAssist).not.toHaveBeenCalled();
+    expect(store.getState().assistFeatures.suggestions.tasks).toHaveLength(0);
+  });
+
+  it('groups nearby turns from other people into one ten-choice reply batch', async () => {
+    act(() => {
+      actions.upsertTurn({
+        id: 'partner-one', source: 'peer', text: 'Do you want to go out?', final: true,
+      });
+      vi.advanceTimersByTime(900);
+      actions.upsertTurn({
+        id: 'partner-two', source: 'peer', text: 'We could get lunch.', final: true,
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(REPLY_BATCH_SETTLE_MS + 50);
+    });
+
+    expect(mocks.requestContextAssist).toHaveBeenCalledTimes(1);
+    expect(mocks.requestContextAssist.mock.calls[0]?.[0]).toMatchObject({
+      generateSuggestions: true,
+    });
+    const task = store.getState().assistFeatures.suggestions.tasks[0];
+    expect(task?.label).toContain('6 words + 4 phrases');
+    expect(task?.label).toContain('Do you want to go out?');
+    expect(task?.label).toContain('We could get lunch.');
+    expect(task?.resultCount).toBe(10);
   });
 
   it('holds themed choices steady while their pictures are being generated', () => {

@@ -11,6 +11,8 @@ export interface AssistTurnInput {
 export interface ContextAssistRequest {
   readonly turns: readonly AssistTurnInput[];
   readonly composition: string;
+  /** False when this pass is only checking uncertain transcript words. */
+  readonly generateSuggestions: boolean;
   /** Device-visible choices that the next generation must not repeat. */
   readonly excludedWords: readonly string[];
   readonly excludedPhrases: readonly string[];

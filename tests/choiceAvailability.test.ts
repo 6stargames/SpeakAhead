@@ -64,6 +64,7 @@ describe('context choice availability', () => {
     const result = await requestContextAssist({
       turns: [{ id: 'turn', source: 'peer', text: 'What do you think?', dictated: true }],
       composition: '',
+      generateSuggestions: true,
       excludedWords: ['later'],
       excludedPhrases: ['Tell me more.'],
     });

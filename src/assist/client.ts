@@ -55,7 +55,9 @@ function parseResponse(value: unknown, request: ContextAssistRequest): ContextAs
     request.excludedPhrases,
     4,
   );
-  if (words.length === 0 && phrases.length === 0 && corrections.length === 0) return null;
+  if (request.generateSuggestions && words.length === 0 && phrases.length === 0 && corrections.length === 0) {
+    return null;
+  }
   return { corrections, words, phrases };
 }
 
