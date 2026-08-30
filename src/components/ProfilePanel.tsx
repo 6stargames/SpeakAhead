@@ -59,7 +59,7 @@ export function ProfilePanel({
 
         <div className="profile-panel__metrics" aria-label="SpeakAhead usage">
           <article>
-            <strong>{number(usage.textRequests + usage.imageRequests)}</strong>
+            <strong>{number(usage.textRequests + usage.imageRequests + usage.transcriptionRequests)}</strong>
             <span>AI requests</span>
           </article>
           <article>
@@ -85,6 +85,7 @@ export function ProfilePanel({
             <div><dt>Input</dt><dd>{number(usage.inputTokens)}</dd></div>
             <div><dt>Output</dt><dd>{number(usage.outputTokens)}</dd></div>
             <div><dt>Text requests</dt><dd>{number(usage.textRequests)}</dd></div>
+            <div><dt>Transcriptions</dt><dd>{number(usage.transcriptionRequests)}</dd></div>
             <div><dt>New picture requests</dt><dd>{number(usage.imageRequests)}</dd></div>
           </dl>
           <p>

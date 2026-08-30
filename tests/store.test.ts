@@ -357,6 +357,70 @@ describe('context corrections', () => {
   });
 });
 
+describe('accurate audio transcription', () => {
+  beforeEach(() => {
+    store.reset();
+  });
+
+  it('upgrades the exact ONNX sentence and keeps it undoable', () => {
+    actions.upsertTurn({
+      id: 'heard',
+      source: 'user',
+      text: 'I need watter.',
+      final: true,
+      dictated: true,
+      transcriptionStatus: 'checking',
+      words: [{ text: 'watter', confidence: 0.21 }],
+    });
+
+    expect(actions.applyAccurateTranscription('heard', 'I need watter.', 'I need water.')).toBe(true);
+    expect(store.getState().turns[0]).toMatchObject({
+      text: 'I need water.',
+      originalText: 'I need watter.',
+      correctionSource: 'transcribe',
+      transcriptionStatus: 'accurate',
+    });
+    expect(store.getState().turns[0]?.words).toBeUndefined();
+
+    expect(actions.revertContextCorrection('heard')).toBe(true);
+    expect(store.getState().turns[0]).toMatchObject({
+      text: 'I need watter.',
+      transcriptionStatus: 'local',
+    });
+  });
+
+  it('marks a matching GPT transcript accurate without showing a correction', () => {
+    actions.upsertTurn({
+      id: 'confirmed', source: 'user', text: 'I am ready.', final: true, dictated: true,
+      transcriptionStatus: 'checking',
+    });
+    expect(actions.applyAccurateTranscription('confirmed', 'I am ready.', 'I am ready.')).toBe(true);
+    expect(store.getState().turns[0]).toMatchObject({ transcriptionStatus: 'accurate' });
+    expect(store.getState().turns[0]?.originalText).toBeUndefined();
+  });
+
+  it('refuses a stale GPT result and preserves the newer sentence', () => {
+    actions.upsertTurn({
+      id: 'stale', source: 'user', text: 'The newer sentence.', final: true, dictated: true,
+      transcriptionStatus: 'checking',
+    });
+    expect(actions.applyAccurateTranscription('stale', 'The old sentence.', 'Old correction.')).toBe(false);
+    expect(store.getState().turns[0]?.text).toBe('The newer sentence.');
+  });
+
+  it('falls back to local status without changing words when GPT is unavailable', () => {
+    actions.upsertTurn({
+      id: 'offline', source: 'user', text: 'Keep ONNX.', final: true, dictated: true,
+      transcriptionStatus: 'checking',
+    });
+    expect(actions.finishAccurateTranscription('offline', 'Keep ONNX.')).toBe(true);
+    expect(store.getState().turns[0]).toMatchObject({
+      text: 'Keep ONNX.',
+      transcriptionStatus: 'local',
+    });
+  });
+});
+
 describe('turn retraction', () => {
   beforeEach(() => {
     store.reset();

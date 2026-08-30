@@ -197,6 +197,11 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
   }, []);
 
   useEffect(() => {
+    session.setAccurateTranscriptionEnabled(signedIn);
+    return () => session.setAccurateTranscriptionEnabled(false);
+  }, [signedIn]);
+
+  useEffect(() => {
     const root = document.documentElement;
     if (settings.highContrast) root.setAttribute('data-contrast', 'high');
     else root.removeAttribute('data-contrast');

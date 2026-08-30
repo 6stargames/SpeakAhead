@@ -166,6 +166,11 @@ function TurnRow({
   // outline, not a filled bubble: present, legible, and visually subordinate
   // to everything that was actually heard.
   const unspoken = mine && turn.dictated && turn.final;
+  const correctionLabel = turn.correctionSource === 'transcribe'
+    ? 'GPT transcript'
+    : turn.correctionSource === 'chatgpt'
+      ? 'ChatGPT fix'
+      : 'Context fix';
   const classes = [
     'turn',
     mine ? 'turn--mine' : 'turn--other',
@@ -205,13 +210,19 @@ function TurnRow({
             type="button"
             className="turn__badge turn__correction"
             title={`${turn.correctionReason ?? 'An uncertain word was corrected from context.'} Original: ${turn.originalText}`}
-            aria-label={`${turn.correctionSource === 'chatgpt' ? 'ChatGPT' : 'Context'} corrected this message. Undo correction. ${turn.correctionReason ?? ''}`}
+            aria-label={`${correctionLabel} corrected this message. Undo correction. ${turn.correctionReason ?? ''}`}
             onClick={() => actions.revertContextCorrection(turn.id)}
           >
             <span className="turn__correction-spark" aria-hidden="true">✦</span>
-            <span>{turn.correctionSource === 'chatgpt' ? 'ChatGPT fix' : 'Context fix'}</span>
+            <span>{correctionLabel}</span>
             <span className="turn__correction-undo">Undo ↶</span>
           </button>
+        )}
+        {turn.transcriptionStatus === 'checking' && (
+          <span className="turn__badge" role="status">GPT checking…</span>
+        )}
+        {turn.transcriptionStatus === 'accurate' && !turn.originalText && (
+          <span className="turn__badge">GPT transcript</span>
         )}
         {!turn.final && <span className="turn__badge">still speaking</span>}
       </header>
@@ -242,6 +253,7 @@ const selectListening = (state: AppState) => ({
   asrDetail: state.asr.detail,
   ttsStatus: state.tts.status,
   ttsDetail: state.tts.detail,
+  accurateTranscriptionEnabled: state.accurateTranscriptionEnabled,
 });
 
 export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolTheme }): JSX.Element {
@@ -428,9 +440,9 @@ export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolT
           <span className="listening-bar__label">
             {!listening.asrReady
               ? 'Getting ready'
-              : liveSpeaker
-                ? `Listening · ${liveSpeaker.label}`
-                : 'Listening'}
+              : `${liveSpeaker ? `Listening · ${liveSpeaker.label}` : 'Listening'}${
+                listening.accurateTranscriptionEnabled ? ' · ONNX + GPT' : ''
+              }`}
           </span>
           {!listening.asrReady ? (
             <LoadProgress percent={formatLoadPercent(listening.asrDetail)} />

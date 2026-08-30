@@ -40,7 +40,9 @@ export interface Turn {
   /** Why the contextual checker changed this turn, shown beside the undo. */
   readonly correctionReason?: string;
   /** Which assistant supplied the correction. */
-  readonly correctionSource?: 'chatgpt' | 'on-device';
+  readonly correctionSource?: 'transcribe' | 'chatgpt' | 'on-device';
+  /** Whether the visible final text is local, being checked, or GPT-confirmed. */
+  readonly transcriptionStatus?: 'checking' | 'accurate' | 'local';
 }
 
 export type PredictionSourceId = 'webmcp-agent' | 'on-device-model' | 'heuristic' | 'none';
@@ -53,8 +55,8 @@ export interface Prediction {
 /**
  * Deliberately small. This device always listens, always dictates into the
  * chat, always speaks phrases on tap, always sends text as it is typed,
- * always shows symbols beside words at the larger size, never sends audio
- * to the cloud, and an agent's speech always waits for a confirming tap —
+ * always shows symbols beside words at the larger size, never sends a live
+ * microphone stream to the cloud, and an agent's speech always waits for a confirming tap —
  * none of that is configurable, so none of it is here.
  */
 export interface Settings {
@@ -114,6 +116,7 @@ export interface AssistUsage {
   readonly startedAt: number;
   readonly textRequests: number;
   readonly imageRequests: number;
+  readonly transcriptionRequests: number;
   readonly inputTokens: number;
   readonly outputTokens: number;
   readonly totalTokens: number;
@@ -188,6 +191,8 @@ export interface AppState {
   readonly assistFeatures: Record<AssistFeature, AssistFeatureActivity>;
   /** Real API usage returned to this page; never account-wide ChatGPT usage. */
   readonly assistUsage: AssistUsage;
+  /** Signed-in users get a bounded GPT pass after immediate ONNX recognition. */
+  readonly accurateTranscriptionEnabled: boolean;
 
   readonly asr: EngineInfo;
   readonly tts: EngineInfo;
@@ -272,10 +277,12 @@ const initialState: AppState = {
     startedAt: Date.now(),
     textRequests: 0,
     imageRequests: 0,
+    transcriptionRequests: 0,
     inputTokens: 0,
     outputTokens: 0,
     totalTokens: 0,
   },
+  accurateTranscriptionEnabled: false,
 
   asr: idleEngine,
   tts: idleEngine,
@@ -529,7 +536,7 @@ export const actions = {
   },
 
   recordAssistUsage(
-    kind: 'text' | 'image',
+    kind: 'text' | 'image' | 'transcription',
     usage: { inputTokens?: number; outputTokens?: number; totalTokens?: number } = {},
   ): void {
     const whole = (value: number | undefined) => Number.isFinite(value)
@@ -540,6 +547,8 @@ export const actions = {
         ...state.assistUsage,
         textRequests: state.assistUsage.textRequests + (kind === 'text' ? 1 : 0),
         imageRequests: state.assistUsage.imageRequests + (kind === 'image' ? 1 : 0),
+        transcriptionRequests:
+          state.assistUsage.transcriptionRequests + (kind === 'transcription' ? 1 : 0),
         inputTokens: state.assistUsage.inputTokens + whole(usage.inputTokens),
         outputTokens: state.assistUsage.outputTokens + whole(usage.outputTokens),
         totalTokens: state.assistUsage.totalTokens + whole(usage.totalTokens),
@@ -651,6 +660,47 @@ export const actions = {
     return true;
   },
 
+  setAccurateTranscriptionEnabled(accurateTranscriptionEnabled: boolean): void {
+    store.set({ accurateTranscriptionEnabled });
+  },
+
+  /**
+   * Apply a finished audio transcription only if the exact ONNX sentence it
+   * checked is still present. This guard prevents a slow answer overwriting a
+   * newer recogniser update, a context correction, or a user action.
+   */
+  applyAccurateTranscription(
+    turnId: string,
+    expectedText: string,
+    transcript: string,
+  ): boolean {
+    const turn = store.getState().turns.find((candidate) => candidate.id === turnId);
+    const corrected = transcript.replace(/\s+/g, ' ').trim().slice(0, 500);
+    if (!turn || !turn.final || !turn.dictated || turn.text !== expectedText || !corrected) return false;
+    actions.upsertTurn({
+      ...turn,
+      text: corrected,
+      transcriptionStatus: 'accurate',
+      ...(corrected !== turn.text
+        ? {
+          originalText: turn.originalText ?? turn.text,
+          correctionReason: 'GPT checked the completed audio after the instant ONNX transcript.',
+          correctionSource: 'transcribe' as const,
+        }
+        : {}),
+      // Decoder confidences refer to ONNX tokens, not the GPT-confirmed text.
+      words: undefined,
+    });
+    return true;
+  },
+
+  finishAccurateTranscription(turnId: string, expectedText: string): boolean {
+    const turn = store.getState().turns.find((candidate) => candidate.id === turnId);
+    if (!turn || turn.text !== expectedText || turn.transcriptionStatus !== 'checking') return false;
+    actions.upsertTurn({ ...turn, transcriptionStatus: 'local' });
+    return true;
+  },
+
   revertContextCorrection(turnId: string): boolean {
     const turn = store.getState().turns.find((candidate) => candidate.id === turnId);
     if (!turn?.originalText) return false;
@@ -660,6 +710,7 @@ export const actions = {
       originalText: undefined,
       correctionReason: undefined,
       correctionSource: undefined,
+      ...(turn.correctionSource === 'transcribe' ? { transcriptionStatus: 'local' as const } : {}),
     });
     return true;
   },

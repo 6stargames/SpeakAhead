@@ -20,12 +20,16 @@ const selectAssistInput = (state: AppState) => ({
 export function contextAssistRequestKey(
   turns: readonly (Pick<Turn, 'id' | 'final'> & Partial<Pick<
     Turn,
-    'source' | 'dictated' | 'speakerId' | 'voice'
+    'source' | 'dictated' | 'speakerId' | 'voice' | 'transcriptionStatus'
   >>)[],
   _composition = '',
 ): string | null {
   const latestFinal = turns.findLast((turn) => turn.final);
   if (!latestFinal) return null;
+  // Let the completed-audio pass settle first. Otherwise the context checker
+  // races the ONNX text and may correct or generate replies from the version
+  // that is about to be replaced by the more accurate transcript.
+  if (latestFinal.transcriptionStatus === 'checking') return null;
   // Deliberately spoken/tapped AAC output is the user's reply, never a reason
   // to propose another reply. Locally dictated speech waits for attribution so
   // we do not mistake the owner's voice for somebody else in the room.
@@ -326,7 +330,9 @@ export function useContextAssist(signedIn: boolean): void {
     }
     if (observedKey.current === requestKey) return;
     observedKey.current = requestKey;
-    const finalTurns = input.turns.filter((turn) => turn.final).slice(-10);
+    const finalTurns = input.turns
+      .filter((turn) => turn.final && turn.transcriptionStatus !== 'checking')
+      .slice(-10);
     const lastOwnerIndex = finalTurns.findLastIndex((turn) => isOwnerTurn(turn, input.speakers));
     const replyTurns = finalTurns.slice(lastOwnerIndex + 1).filter(
       (turn) => isOtherSpeakerTurn(turn, input.speakers) && !handledReplyTurns.current.has(turn.id),

@@ -16,15 +16,20 @@ transcription API would make every utterance a collection event.
 software does. Whether a particular deployment satisfies BIPA is a question for
 counsel, and depends on facts beyond this repository.
 
-## The architectural answer
+## The local-first architecture
 
-Do not collect. Recognition runs in WebAssembly inside the user's browser. The
-only audio that crosses the network is the *synthesised* voice, which is
-generated from text by a model and is not a recording of anyone.
+Recognition always begins in WebAssembly inside the user's browser. A signed-out
+session sends no captured utterance to the server. A user signed in with ChatGPT
+enables a second accuracy pass: after ONNX finishes a turn, that bounded WAV is
+sent through the authenticated same-origin route to OpenAI `gpt-transcribe`.
+There is no continuous cloud microphone stream, and failure leaves the local
+text intact. This opt-in path requires appropriate notice and consent; this
+document is not a substitute for legal review.
 
 | Signal | Where it goes | Biometric? |
 | --- | --- | --- |
-| Microphone PCM | AudioWorklet → WASM recogniser, same tab | Yes — never transmitted |
+| Microphone PCM | AudioWorklet → WASM recogniser, same tab | Yes — local-first |
+| Completed utterance WAV | OpenAI transcription, signed-in sessions only | Yes — consent and retention rules apply |
 | Recognised text | Application state; optionally the data channel | No |
 | Synthesised voice | Speakers and the peer connection | No — machine-generated |
 | Remote peer audio | Speakers and the local recogniser | Theirs; likewise never re-transmitted |
@@ -55,7 +60,14 @@ call at all) and scans every network-sending call site for audio-shaped
 arguments. Anything it flags must be added to an allowlist with a stated reason,
 which puts the justification in the diff where a reviewer will see it.
 
-## The consented exception
+## Cloud recognition paths
+
+The supported accuracy path is the signed-in `gpt-transcribe` second pass. It
+uploads only the captured audio for a completed turn, never blocks the ONNX
+result, does not send audio to the call peer, and is disabled immediately on
+sign-out. The server does not persist the uploaded file in application storage.
+
+The older platform recognition provider is a separate exception:
 
 `WebSpeechAsrProvider` uses the platform `SpeechRecognition` API, which in
 Chrome streams microphone audio to a Google service. **That configuration is not
@@ -76,11 +88,12 @@ provider entirely if they would rather it not be reachable.
 
 ## What is stored
 
-Nothing leaves the device by default and nothing is stored server-side.
+Nothing leaves the device in a signed-out session and nothing is stored by the
+SpeakAhead application server.
 
 | Data | Where | Lifetime |
 | --- | --- | --- |
-| Audio buffers | WASM linear memory | Freed per utterance; never written to disk |
+| Audio buffers | Browser memory; signed-in completed turns may be sent to OpenAI | Freed per utterance; never written to SpeakAhead storage |
 | Transcript | React state | Cleared on reload; capped at 250 turns |
 | Settings | `localStorage` | Until the user clears site data |
 | Room codes | Signalling server memory | Discarded when the room empties |

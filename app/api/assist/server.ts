@@ -1,7 +1,7 @@
 import { getChatGPTUser } from '../../chatgpt-auth';
 
 type RateEntry = { startedAt: number; count: number };
-export type AssistRateBucket = 'context' | 'theme-icons';
+export type AssistRateBucket = 'context' | 'theme-icons' | 'transcription';
 
 const rateWindows = new Map<string, RateEntry>();
 const RETRYABLE_OPENAI_STATUSES = new Set([408, 409, 429, 500, 502, 503, 504]);
@@ -107,6 +107,36 @@ export async function postOpenAIJson(
         method: 'POST',
         headers: openAIHeaders(apiKey),
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (response.ok || !RETRYABLE_OPENAI_STATUSES.has(response.status) || attempt === 1) {
+        return response;
+      }
+      await response.body?.cancel();
+      await new Promise((resolve) => setTimeout(resolve, retryDelay(response, attempt)));
+    } catch (error) {
+      lastError = error;
+      if (attempt === 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('openai_request_failed');
+}
+
+/** Multipart counterpart used for bounded audio uploads; creates a fresh body for a retry. */
+export async function postOpenAIMultipart(
+  url: string,
+  apiKey: string,
+  createBody: () => FormData,
+  timeoutMs: number,
+): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${apiKey}` },
+        body: createBody(),
         signal: AbortSignal.timeout(timeoutMs),
       });
       if (response.ok || !RETRYABLE_OPENAI_STATUSES.has(response.status) || attempt === 1) {

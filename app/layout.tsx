@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase,
     title: 'SpeakAhead',
-    description: 'Context-aware communication with on-device speech recognition and synthesis.',
+    description: 'Context-aware communication with local-first speech recognition and synthesis.',
     applicationName: 'SpeakAhead',
     manifest: '/manifest.webmanifest',
     icons: {
@@ -25,14 +25,14 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     openGraph: {
       title: 'SpeakAhead',
-      description: 'Context-aware communication with on-device speech recognition and synthesis.',
+      description: 'Context-aware communication with local-first speech recognition and synthesis.',
       type: 'website',
       images: [{ url: '/og.png', width: 1731, height: 909, alt: 'SpeakAhead communication interface' }],
     },
     twitter: {
       card: 'summary_large_image',
       title: 'SpeakAhead',
-      description: 'Context-aware communication with on-device speech recognition and synthesis.',
+      description: 'Context-aware communication with local-first speech recognition and synthesis.',
       images: ['/og.png'],
     },
   };

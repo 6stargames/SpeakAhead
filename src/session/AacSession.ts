@@ -10,6 +10,7 @@ import type { WordConfidence } from '@/speech/confidence';
 import { speakerEmbedder } from '@/speech/embed/SpeakerEmbedder';
 import { cosineSimilarity, frameTimbre } from '@/speech/timbre';
 import { restorePunctuation } from '@/speech/punctuate';
+import { requestAccurateTranscription } from '@/speech/gptTranscription';
 import { SpeakerChangeDetector } from '@/speech/speakerChange';
 import { SpeakerTracker } from '@/speech/speakers';
 import { SherpaOnnxTtsProvider } from '@/speech/tts/SherpaOnnxTtsProvider';
@@ -68,6 +69,14 @@ interface CapturedUtterance {
   considered: number;
 }
 
+interface AccurateTranscriptionJob {
+  readonly turnId: string;
+  readonly expectedText: string;
+  readonly captured: CapturedUtterance;
+  readonly taskId: string;
+  readonly generation: number;
+}
+
 /**
  * The application's single controller.
  *
@@ -102,7 +111,7 @@ export class AacSession {
   #utterancePitches: number[] = [];
   #utteranceCrossings: number[] = [];
   #utteranceTimbres: Float32Array[] = [];
-  /** Gated audio for the utterance, for the neural voiceprint. ~10s cap. */
+  /** Gated audio for voiceprint and the optional finished-turn GPT pass. ~60s cap. */
   #utteranceAudio: Float32Array[] = [];
   #utteranceSampleRate = 16000;
   /**
@@ -157,6 +166,16 @@ export class AacSession {
   #predictionTimer: ReturnType<typeof setTimeout> | null = null;
   #started = false;
 
+  /** ONNX remains live; signed-in users may opt into this bounded second pass. */
+  #accurateTranscriptionEnabled = false;
+  #transcriptionGeneration = 0;
+  #transcriptionQueue: AccurateTranscriptionJob[] = [];
+  #activeTranscriptions = 0;
+  #transcriptionControllers = new Set<AbortController>();
+  static readonly #TRANSCRIPTION_CONCURRENCY = 2;
+  static readonly #MAX_TRANSCRIPTION_QUEUE = 8;
+  static readonly #MIN_TRANSCRIPTION_SAMPLES = 4_000;
+
   get asr(): AsrProvider {
     return this.#asr;
   }
@@ -165,6 +184,22 @@ export class AacSession {
   }
   get peer(): PeerSession | null {
     return this.#peer;
+  }
+
+  /** Enable the post-ONNX pass only while a ChatGPT identity is present. */
+  setAccurateTranscriptionEnabled(enabled: boolean): void {
+    if (this.#accurateTranscriptionEnabled === enabled) return;
+    this.#accurateTranscriptionEnabled = enabled;
+    actions.setAccurateTranscriptionEnabled(enabled);
+    this.#transcriptionGeneration += 1;
+    if (enabled) return;
+
+    for (const job of this.#transcriptionQueue) {
+      actions.finishAccurateTranscription(job.turnId, job.expectedText);
+      actions.finishAssistTask('corrections', 'idle', 0, job.taskId);
+    }
+    this.#transcriptionQueue = [];
+    for (const controller of this.#transcriptionControllers) controller.abort();
   }
 
   // -------------------------------------------------------------------------
@@ -309,6 +344,7 @@ export class AacSession {
     window.removeEventListener('pointerdown', this.#retryMicOnGesture, true);
     window.removeEventListener('keydown', this.#retryMicOnGesture, true);
     if (this.#predictionTimer) clearTimeout(this.#predictionTimer);
+    this.setAccurateTranscriptionEnabled(false);
 
     this.#peer?.hangUp();
     this.#peer = null;
@@ -363,8 +399,9 @@ export class AacSession {
       console.info('[aac] Edge recogniser unavailable —', detail);
     }
 
-    // No cloud fallback, ever: recognition is on-device or not at all. Audio
-    // leaving the device is a BIPA violation, not a degraded mode.
+    // There is no live cloud-provider fallback: instant recognition either
+    // runs on-device or reports unavailable. A separate signed-in, bounded
+    // second pass may check a completed utterance after ONNX has committed it.
     const nullProvider = new NullAsrProvider();
     await nullProvider.init();
     this.#useAsr(nullProvider);
@@ -537,7 +574,7 @@ export class AacSession {
       // voiced or not, because unvoiced consonants are part of a voice too.
       this.#utteranceAudio.push(frame.samples.slice());
       this.#utteranceSampleRate = frame.sampleRate;
-      if (this.#utteranceAudio.length > 160) this.#utteranceAudio.shift();
+      if (this.#utteranceAudio.length > 960) this.#utteranceAudio.shift();
 
       // Watch for the voice changing mid-utterance — by voiceprint, not just
       // pitch. Async and best-effort; a check in flight never blocks audio.
@@ -765,6 +802,94 @@ export class AacSession {
     });
   }
 
+  #queueAccurateTranscription(
+    turnId: string,
+    expectedText: string,
+    captured: CapturedUtterance,
+  ): void {
+    const totalSamples = captured.audio.reduce((total, frame) => total + frame.length, 0);
+    if (!this.#accurateTranscriptionEnabled || totalSamples < AacSession.#MIN_TRANSCRIPTION_SAMPLES) {
+      actions.finishAccurateTranscription(turnId, expectedText);
+      return;
+    }
+
+    const taskId = actions.beginAssistTask(
+      'corrections',
+      `GPT transcription for “${expectedText.replace(/\s+/g, ' ').slice(0, 100)}”`,
+    );
+    this.#transcriptionQueue.push({
+      turnId,
+      expectedText,
+      captured,
+      taskId,
+      generation: this.#transcriptionGeneration,
+    });
+    while (this.#transcriptionQueue.length > AacSession.#MAX_TRANSCRIPTION_QUEUE) {
+      const skipped = this.#transcriptionQueue.shift();
+      if (!skipped) break;
+      actions.finishAccurateTranscription(skipped.turnId, skipped.expectedText);
+      actions.finishAssistTask('corrections', 'local', 0, skipped.taskId);
+    }
+    this.#drainAccurateTranscriptions();
+  }
+
+  #drainAccurateTranscriptions(): void {
+    while (
+      this.#activeTranscriptions < AacSession.#TRANSCRIPTION_CONCURRENCY &&
+      this.#transcriptionQueue.length > 0
+    ) {
+      const job = this.#transcriptionQueue.shift();
+      if (!job) return;
+      this.#activeTranscriptions += 1;
+      void this.#runAccurateTranscription(job).finally(() => {
+        this.#activeTranscriptions -= 1;
+        this.#drainAccurateTranscriptions();
+      });
+    }
+  }
+
+  async #runAccurateTranscription(job: AccurateTranscriptionJob): Promise<void> {
+    const controller = new AbortController();
+    this.#transcriptionControllers.add(controller);
+    let outcome: 'ready' | 'local' | 'idle' = 'local';
+    let resultCount = 0;
+    try {
+      const context = store.getState().turns
+        .filter((turn) => turn.final && turn.id !== job.turnId && turn.transcriptionStatus !== 'checking')
+        .slice(-6)
+        .map((turn) => turn.text)
+        .join(' ')
+        .slice(0, 800);
+      const result = await requestAccurateTranscription(
+        job.captured.audio,
+        job.captured.sampleRate,
+        context,
+        controller.signal,
+      );
+      if (
+        !this.#accurateTranscriptionEnabled ||
+        job.generation !== this.#transcriptionGeneration ||
+        controller.signal.aborted
+      ) {
+        outcome = 'idle';
+        return;
+      }
+      if (result) {
+        actions.recordAssistUsage('transcription', result.usage);
+        if (actions.applyAccurateTranscription(job.turnId, job.expectedText, result.text)) {
+          outcome = 'ready';
+          resultCount = 1;
+          return;
+        }
+      }
+      actions.finishAccurateTranscription(job.turnId, job.expectedText);
+    } finally {
+      this.#transcriptionControllers.delete(controller);
+      if (outcome === 'idle') actions.finishAccurateTranscription(job.turnId, job.expectedText);
+      actions.finishAssistTask('corrections', outcome, resultCount, job.taskId);
+    }
+  }
+
   /** Discard a profile that has merged two people, so they can separate again. */
   forgetSpeaker(id: string): void {
     this.speakers.forget(id);
@@ -813,16 +938,28 @@ export class AacSession {
       // starts filling the buffers — and the speaker label lands on the
       // turn a moment later, once the voiceprint network has answered.
       const captured = final ? this.#captureUtterance() : null;
+      const finalText = final ? restorePunctuation(trimmed) : trimmed;
+      const capturedSamples = captured?.audio.reduce((total, frame) => total + frame.length, 0) ?? 0;
+      const willCheck = Boolean(
+        final &&
+        captured &&
+        this.#accurateTranscriptionEnabled &&
+        capturedSamples >= AacSession.#MIN_TRANSCRIPTION_SAMPLES,
+      );
       actions.upsertTurn({
         id,
         source: 'user',
-        text: final ? restorePunctuation(trimmed) : trimmed,
+        text: finalText,
         final,
         dictated: true,
         spoken: false,
         ...(final && words ? { words } : {}),
+        ...(final ? { transcriptionStatus: willCheck ? 'checking' as const : 'local' as const } : {}),
       });
-      if (captured) void this.#attributeCaptured(id, captured);
+      if (captured) {
+        void this.#attributeCaptured(id, captured);
+        if (willCheck) this.#queueAccurateTranscription(id, finalText, captured);
+      }
       if (final) this.#interimTurns.delete('local');
       return;
     }

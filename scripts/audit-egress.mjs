@@ -2,11 +2,11 @@
 /**
  * BIPA egress audit.
  *
- * The architecture's central claim is that raw voice never leaves the device.
- * That claim is one careless line away from being false, and the failure is
- * silent — the application would work perfectly while quietly becoming an
- * unlawful collection of biometric identifiers under the Illinois Biometric
- * Information Privacy Act.
+ * The architecture's central claim is that captured audio has no unreviewed
+ * network path. Signed-in users explicitly enable one narrow exception: a
+ * bounded, completed utterance may be posted to the same-origin GPT
+ * transcription route. Continuous microphone streaming and microphone-to-peer
+ * routing remain forbidden.
  *
  * So it is checked mechanically, on every build. Two kinds of check:
  *
@@ -47,6 +47,12 @@ const AUDIO_TOKENS =
   /\b(samples?|waveform|pcm|float32array|audiobuffer|micstream|microphone|getusermedia|rawaudio|frame\.samples|channeldata|mediastreamtrack)\b/i;
 
 const ALLOWLIST = [
+  {
+    file: 'src/speech/gptTranscription.ts',
+    match: "fetch('/api/assist/transcription'",
+    reason:
+      'Signed-in accuracy pass: uploads one bounded completed-utterance WAV to the authenticated same-origin route after ONNX has already produced visible text. It is never a live stream and falls back to the local transcript.',
+  },
   {
     file: 'src/webrtc/PeerSession.ts',
     match: 'addTrack',

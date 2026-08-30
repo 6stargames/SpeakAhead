@@ -1,7 +1,7 @@
 # Context-Aware AAC
 
 An augmentative and alternative communication device that runs in a browser.
-Speech recognition and synthesis happen on the device; WebRTC carries the
+Speech recognition and synthesis start on the device; WebRTC carries the
 synthesised voice and real-time text to a conversation partner; and an AI agent
 can propose what to say next through [WebMCP](https://developer.chrome.com/docs/ai/webmcp/imperative-api).
 
@@ -16,13 +16,14 @@ mandate in that document to a deliverable is in
 
 ## Why it is built this way
 
-**Voice never leaves the device.** Under the Illinois Biometric Information
-Privacy Act a voiceprint is a protected biometric identifier, and users of this
-device may have dysarthric speech that makes their recordings unusually
-identifying. So recognition runs in WebAssembly on the client, and the only
-audio that reaches the network is the *synthesised* voice — which is not a
-biometric identifier. This is enforced by a graph invariant and a CI audit, not
-by convention. See [docs/BIPA.md](docs/BIPA.md).
+**Recognition is local-first.** Sherpa-ONNX produces immediate text without a
+network dependency. When a user signs in with ChatGPT, each completed, bounded
+utterance is also sent to OpenAI for an optional `gpt-transcribe` accuracy pass;
+it is never a continuous microphone stream, and a failure leaves the ONNX text
+intact. The microphone is still structurally unable to reach a WebRTC peer.
+Deployers must provide the notice, consent, and retention policy appropriate to
+their jurisdiction before enabling cloud transcription. See
+[docs/BIPA.md](docs/BIPA.md).
 
 **The audio topology is a first-class object.** A conventional WebRTC app wires
 the microphone straight to the peer connection. For an AAC user that is actively
@@ -79,8 +80,9 @@ matrix and the environment. What still needs hands and two rooms is listed in
 ```
 microphone ──▶ ChannelSplitter ──▶ AudioWorklet ──▶ ASR worker (WASM)
                                      16 kHz, VAD-gated        │
+                                     signed-in, finished turn ├──▶ GPT transcription
                                                               ▼
-                                                        transcript
+                                                        instant transcript
                                                               │
 composition ◀── WebMCP tools ◀── prediction ladder ◀──────────┘
      │              ▲
@@ -126,7 +128,7 @@ Deeper detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | `npm run fetch:models` | Download the Sherpa-ONNX bundles |
 | `npm run upload:models` | Upload them to a Cloud Storage bucket (alternative host) |
 | `npm run setup:gcp` | Service-account and Secret Manager wiring (idempotent) |
-| `npm run audit:egress` | Prove no audio path reaches the network |
+| `npm run audit:egress` | Flag every unreviewed audio path to the network |
 
 ## Known limits
 

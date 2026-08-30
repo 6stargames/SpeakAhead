@@ -172,6 +172,43 @@ describe('continuous context assistance', () => {
     expect(contextAssistRequestKey(first, 'hello')).toBe('one\u0000');
   });
 
+  it('waits for the GPT audio pass before checking context or preparing replies', async () => {
+    act(() => {
+      actions.upsertTurn({
+        id: 'pending-audio',
+        source: 'peer',
+        text: 'Would you like watter?',
+        final: true,
+        dictated: true,
+        transcriptionStatus: 'checking',
+      });
+    });
+    expect(contextAssistRequestKey(store.getState().turns)).toBeNull();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(REPLY_BATCH_SETTLE_MS + 100);
+    });
+    expect(mocks.requestContextAssist).not.toHaveBeenCalled();
+
+    act(() => {
+      actions.upsertTurn({
+        id: 'pending-audio',
+        source: 'peer',
+        text: 'Would you like water?',
+        final: true,
+        dictated: true,
+        transcriptionStatus: 'accurate',
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(REPLY_BATCH_SETTLE_MS + 100);
+    });
+    expect(mocks.requestContextAssist).toHaveBeenCalledTimes(1);
+    expect(mocks.requestContextAssist.mock.calls[0]?.[0]).toMatchObject({
+      turns: [expect.objectContaining({ text: 'Would you like water?' })],
+    });
+  });
+
   it('does not generate replies for the AAC user own voice', async () => {
     act(() => {
       actions.setSpeakers([{

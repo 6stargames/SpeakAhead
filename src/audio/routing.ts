@@ -148,7 +148,7 @@ export const COMPLIANCE_RULES: readonly ComplianceRule[] = [
   {
     id: 'BIPA/mic-never-leaves-device',
     requirement:
-      'The physical microphone must never reach the peer connection. Raw voiceprints are protected biometric identifiers under the Illinois Biometric Information Privacy Act.',
+      'The physical microphone must never reach the peer connection. Voiceprints are protected by the Biometric Information Privacy Act; signed-in GPT transcription is a separate, bounded completed-utterance request.',
     evaluate: (graph) => !graph.pathExists('microphone', 'peer'),
   },
   {
@@ -160,7 +160,7 @@ export const COMPLIANCE_RULES: readonly ComplianceRule[] = [
   {
     id: 'RAUR-5/microphone-feeds-local-inference',
     requirement:
-      'The microphone must reach the on-device recogniser so the user can dictate without any network egress.',
+      'The microphone must reach the on-device recogniser so instant dictation never depends on the network.',
     evaluate: (graph) => graph.pathExists('microphone', 'asr'),
   },
   {
