@@ -128,6 +128,25 @@ const structuralChecks = [
     },
   },
   {
+    id: 'direct-worklet-to-asr-bridge',
+    description: 'Microphone frames have a page-independent MessagePort path to the on-device recogniser.',
+    async run(files) {
+      const graph = files.get('src/audio/AudioGraph.ts') ?? '';
+      const worklet = files.get('public/worklets/aac-capture-worklet.js') ?? '';
+      const worker = files.get('public/workers/sherpa-asr-worker.js') ?? '';
+      const session = files.get('src/session/AacSession.ts') ?? '';
+      const complete =
+        graph.includes("type: 'bind-recognizer-port'") &&
+        worklet.includes('this.recognizerPort.postMessage') &&
+        worker.includes("case 'bind-audio-port'") &&
+        worker.includes('handleDirectFrame') &&
+        session.includes('directRecognizerAttached(frame.channel)');
+      return complete
+        ? { ok: true }
+        : { ok: false, detail: 'The direct capture-to-recogniser bridge is incomplete.' };
+    },
+  },
+  {
     id: 'assertion-runs-on-microphone-attach',
     description: 'Attaching the microphone asserts the compliance invariants rather than trusting them.',
     async run(files) {

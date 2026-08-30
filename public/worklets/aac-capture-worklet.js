@@ -32,14 +32,23 @@ class AacCaptureProcessor extends AudioWorkletProcessor {
     this.filled = 0;
     this.active = true;
     this.framesEmitted = 0;
+    this.recognizerPort = null;
 
     this.port.onmessage = (event) => {
       const data = event.data;
       if (data?.type === 'stop') {
+        this.#unbindRecognizer();
         this.active = false;
       } else if (data?.type === 'reset') {
         this.resampler.reset();
         this.filled = 0;
+      } else if (data?.type === 'bind-recognizer-port' && data.port) {
+        this.#unbindRecognizer();
+        this.recognizerPort = data.port;
+        this.recognizerPort.start?.();
+        this.port.postMessage({ type: 'direct-recognizer-ready', channel: this.channel });
+      } else if (data?.type === 'unbind-recognizer-port') {
+        this.#unbindRecognizer();
       }
     };
 
@@ -73,26 +82,58 @@ class AacCaptureProcessor extends AudioWorkletProcessor {
       offset += take;
 
       if (this.filled === this.frameSize) {
-        // Transfer ownership rather than copying: no GC pressure on this thread.
-        const frame = this.buffer.slice();
+        const rms = computeRms(this.buffer);
+        const peak = computePeak(this.buffer);
         this.framesEmitted += 1;
+
+        // The dedicated MessagePort is the real-time path: worklet → ASR
+        // worker, never page thread. The page receives an independent copy for
+        // waveform and speaker attribution, so slow UI/image work can delay
+        // those decorations without dropping transcription audio.
+        if (this.recognizerPort) {
+          const recognizerFrame = this.buffer.slice();
+          this.recognizerPort.postMessage(
+            {
+              type: 'frame',
+              samples: recognizerFrame,
+              sampleRate: this.targetSampleRate,
+              rms,
+              peak,
+              sequence: this.framesEmitted,
+            },
+            [recognizerFrame.buffer],
+          );
+        }
+
+        const pageFrame = this.buffer.slice();
         this.port.postMessage(
           {
             type: 'frame',
             channel: this.channel,
-            samples: frame,
+            samples: pageFrame,
             sampleRate: this.targetSampleRate,
-            rms: computeRms(frame),
-            peak: computePeak(frame),
+            rms,
+            peak,
             sequence: this.framesEmitted,
           },
-          [frame.buffer],
+          [pageFrame.buffer],
         );
         this.filled = 0;
       }
     }
 
     return true;
+  }
+
+  #unbindRecognizer() {
+    if (!this.recognizerPort) return;
+    try {
+      this.recognizerPort.postMessage({ type: 'close' });
+      this.recognizerPort.close();
+    } catch {
+      /* The recognition worker may already have stopped. */
+    }
+    this.recognizerPort = null;
   }
 }
 

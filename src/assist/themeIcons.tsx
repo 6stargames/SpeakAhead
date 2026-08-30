@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties, type JSX } from 'react';
 import { actions } from '@/state/store';
 import type { ThemeIconRequestItem, ThemeSprite } from './types';
-import { waitForCommunicationIdle } from './communicationPriority';
 
 export interface ThemeTile extends ThemeSprite {
   readonly index: number;
@@ -99,9 +98,6 @@ async function requestSprite(items: readonly ThemeIconRequestItem[]): Promise<Sp
     const rows = dimension(response, ROWS_HEADER);
     if (!columns || !rows || !response.headers.get('content-type')?.startsWith('image/png')) return null;
 
-    // Fetch resolves once headers arrive. Wait for a quiet spell before the
-    // large response body is materialised in the browser process.
-    await waitForCommunicationIdle();
     const blob = await response.blob();
     return blob.size > 100 ? { blob, columns, rows } : null;
   } catch {
@@ -124,12 +120,10 @@ function loadSprite(items: readonly ThemeIconRequestItem[]): Promise<ThemeSprite
   if (existing) return existing;
 
   const promise = enqueue(async () => {
-    await waitForCommunicationIdle();
     const cached = await readCached(cacheKey);
     if (cached) return cached;
     const payload = await requestSprite(items);
     if (!payload) return null;
-    await waitForCommunicationIdle();
     const sprite = spriteFromBlob(payload.blob, payload.columns, payload.rows);
     if (!sprite) return null;
     await writeCached(cacheKey, payload.blob, payload.columns, payload.rows);

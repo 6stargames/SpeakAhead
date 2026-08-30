@@ -15,7 +15,6 @@ import { SpeakerTracker } from '@/speech/speakers';
 import { SherpaOnnxTtsProvider } from '@/speech/tts/SherpaOnnxTtsProvider';
 import { isSpeechSynthesisAvailable, SpeechSynthesisTtsProvider } from '@/speech/tts/SpeechSynthesisTtsProvider';
 import type { AsrProvider, EngineInfo, TtsProvider } from '@/speech/types';
-import { noteCommunicationAudio } from '@/assist/communicationPriority';
 import { actions, selectContextWindow, store, type Turn } from '@/state/store';
 import { isWebMcpAvailable } from '@/webmcp/types';
 import { loadIceConfiguration } from '@/webrtc/iceConfig';
@@ -373,6 +372,9 @@ export class AacSession {
 
   #useAsr(provider: AsrProvider): void {
     this.#asr = provider;
+    this.graph.setDirectRecognizerPortFactory(
+      provider.createAudioInputPort ? (channel) => provider.createAudioInputPort?.(channel) ?? null : null,
+    );
     this.#observe('asr', provider);
     provider.events.on('error', (error) => actions.notify('error', error.message));
     provider.events.on('result', (result) => {
@@ -518,11 +520,10 @@ export class AacSession {
   }
 
   #onFrame = (frame: AudioFrame): void => {
-    // Theme generation is cosmetic. Let its scheduler know the room is active
-    // before forwarding this frame so image decoding and cache writes cannot
-    // compete with the microphone-to-recogniser path.
-    if (frame.channel === 'local' && frame.rms > 0.004) noteCommunicationAudio();
-    this.#asr.acceptFrame(frame);
+    // Once the worklet has acknowledged its direct MessagePort, transcription
+    // no longer depends on this page callback. Until then, preserve the proven
+    // main-thread path so setup or an unsupported browser cannot drop audio.
+    if (!this.graph.directRecognizerAttached(frame.channel)) this.#asr.acceptFrame(frame);
 
     // The gate has to admit someone across the room, not just the person
     // holding the device. At -40 dBFS it excluded every distant speaker, so no

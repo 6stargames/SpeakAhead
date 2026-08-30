@@ -36,6 +36,11 @@ export interface AsrProvider {
   readonly events: Emitter<AsrEvents>;
   readonly info: EngineInfo;
   init(): Promise<void>;
+  /**
+   * Create a dedicated worklet-to-worker input. When present, captured audio
+   * can reach the recogniser without crossing the page thread.
+   */
+  createAudioInputPort?(channel: CaptureChannel): MessagePort | null;
   /** Feed a 16 kHz mono analysis frame. Must be non-blocking. */
   acceptFrame(frame: AudioFrame): void;
   /** Force an endpoint on a channel — the VAD decided speech ended. */

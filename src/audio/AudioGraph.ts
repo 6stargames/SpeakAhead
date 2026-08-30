@@ -42,6 +42,8 @@ interface AudioGraphEvents extends Record<string, unknown> {
   error: Error;
 }
 
+type DirectRecognizerPortFactory = (channel: CaptureChannel) => MessagePort | null;
+
 /**
  * The RAUR-compliant audio topology.
  *
@@ -91,6 +93,8 @@ export class AacAudioGraph {
   #emergencyOverride = false;
   #resamplingCapture = false;
   #disposed = false;
+  #directRecognizerPortFactory: DirectRecognizerPortFactory | null = null;
+  #directRecognizerChannels = new Set<CaptureChannel>();
 
   get running(): boolean {
     return this.#playbackContext !== null;
@@ -193,6 +197,7 @@ export class AacAudioGraph {
       Math.max(1, stream.getAudioTracks()[0]?.getSettings().channelCount ?? 1),
     );
     this.#micCapture = this.#createCaptureNode(context, 'local');
+    this.#bindDirectRecognizer(this.#micCapture, 'local');
 
     this.#micSource.connect(this.#micSplitter);
     this.#micSplitter.connect(this.#micCapture, 0, 0);
@@ -233,6 +238,7 @@ export class AacAudioGraph {
     this.#micSplitter = null;
     this.#micSource = null;
     this.#micStream = null;
+    this.#directRecognizerChannels.delete('local');
 
     this.routing.disconnect('microphone');
     this.routing.disconnect('mic-splitter');
@@ -274,6 +280,7 @@ export class AacAudioGraph {
     // Contextual harvesting path.
     this.#remoteCaptureSource = captureContext.createMediaStreamSource(stream);
     this.#remoteCapture = this.#createCaptureNode(captureContext, 'remote');
+    this.#bindDirectRecognizer(this.#remoteCapture, 'remote');
     this.#remoteCaptureSource.connect(this.#remoteCapture);
 
     this.routing.connect('remote', 'remote-monitor');
@@ -302,6 +309,7 @@ export class AacAudioGraph {
     this.#remoteMonitorGain = null;
     this.#remoteMonitorSource = null;
     this.#remoteStream = null;
+    this.#directRecognizerChannels.delete('remote');
 
     this.routing.disconnect('remote');
     this.routing.disconnect('remote-capture');
@@ -422,6 +430,29 @@ export class AacAudioGraph {
   // Introspection.
   // -------------------------------------------------------------------------
 
+  /**
+   * Bind capture worklets straight to the recognition worker. The page keeps
+   * receiving a second copy for waveform and speaker attribution, but it is no
+   * longer on the transcription path.
+   */
+  setDirectRecognizerPortFactory(factory: DirectRecognizerPortFactory | null): void {
+    this.#directRecognizerPortFactory = factory;
+    this.#directRecognizerChannels.clear();
+
+    for (const [node, channel] of [
+      [this.#micCapture, 'local'],
+      [this.#remoteCapture, 'remote'],
+    ] as const) {
+      if (!node) continue;
+      node.port.postMessage({ type: 'unbind-recognizer-port' });
+      if (factory) this.#bindDirectRecognizer(node, channel);
+    }
+  }
+
+  directRecognizerAttached(channel: CaptureChannel): boolean {
+    return this.#directRecognizerChannels.has(channel);
+  }
+
   compliance(): ComplianceResult[] {
     return evaluateApplicableCompliance(this.routing, {
       callActive: this.#peerDestination !== null && this.#remoteStream !== null,
@@ -507,6 +538,8 @@ export class AacAudioGraph {
       } else if (data.type === 'ready') {
         this.#resamplingCapture = Boolean((data as { resampling?: boolean }).resampling);
         this.#publishState();
+      } else if (data.type === 'direct-recognizer-ready') {
+        this.#directRecognizerChannels.add(channel);
       }
     };
 
@@ -518,6 +551,12 @@ export class AacAudioGraph {
     };
 
     return node;
+  }
+
+  #bindDirectRecognizer(node: AudioWorkletNode, channel: CaptureChannel): void {
+    const port = this.#directRecognizerPortFactory?.(channel);
+    if (!port) return;
+    node.port.postMessage({ type: 'bind-recognizer-port', port }, [port]);
   }
 
   #requireCaptureContext(): AudioContext {

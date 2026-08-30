@@ -122,6 +122,7 @@ export class SherpaOnnxAsrProvider implements AsrProvider {
       entries,
       moduleBundle,
       config: this.#options.config,
+      vad: this.#options.vad,
     });
 
     try {
@@ -168,6 +169,18 @@ export class SherpaOnnxAsrProvider implements AsrProvider {
     }
   }
 
+  createAudioInputPort(channel: CaptureChannel): MessagePort | null {
+    if (this.#info.status !== 'ready' || !this.#worker || typeof MessageChannel === 'undefined') {
+      return null;
+    }
+    const link = new MessageChannel();
+    this.#worker.postMessage(
+      { type: 'bind-audio-port', channel, port: link.port1 },
+      [link.port1],
+    );
+    return link.port2;
+  }
+
   flush(channel: CaptureChannel): void {
     this.#worker?.postMessage({ type: 'flush', channel });
   }
@@ -180,6 +193,7 @@ export class SherpaOnnxAsrProvider implements AsrProvider {
   configureVad(options: Partial<VadOptions>): void {
     this.#options = { ...this.#options, vad: { ...this.#options.vad, ...options } };
     for (const state of this.#channels.values()) state.vad.configure(options);
+    this.#worker?.postMessage({ type: 'configure-vad', options });
   }
 
   async dispose(): Promise<void> {

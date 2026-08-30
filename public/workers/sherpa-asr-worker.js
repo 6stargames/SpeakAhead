@@ -33,12 +33,89 @@ const DEFAULT_ENTRIES = {
 
 /** Streams are per-channel: the user and the remote peer decode independently. */
 const channels = new Map();
+const audioPorts = new Set();
 
 let wasmModule = null;
 let recognizer = null;
 let mode = 'streaming';
 let sampleRate = 16000;
 let ready = false;
+let vadOptions = {};
+
+const DEFAULT_VAD_OPTIONS = {
+  activationDb: 9,
+  releaseDb: 5,
+  minSpeechFrames: 2,
+  hangoverFrames: 12,
+  noiseFloorFloorDb: -75,
+};
+const PREROLL_FRAMES = 3;
+
+function amplitudeToDb(amplitude) {
+  if (amplitude <= 1e-10) return -100;
+  return 20 * Math.log10(amplitude);
+}
+
+/** Same adaptive gate as the page fallback, now living beside inference. */
+class EnergyVad {
+  constructor(options = {}) {
+    this.options = { ...DEFAULT_VAD_OPTIONS, ...options };
+    this.reset();
+  }
+
+  configure(options) {
+    this.options = { ...this.options, ...options };
+  }
+
+  process(rms) {
+    const levelDb = amplitudeToDb(rms);
+    if (this.calibrationFrames < 8) {
+      this.calibrationFrames += 1;
+      this.noiseFloorDb = Math.max(
+        this.options.noiseFloorFloorDb,
+        this.calibrationFrames === 1 ? levelDb : Math.min(this.noiseFloorDb, levelDb),
+      );
+      return null;
+    }
+
+    const threshold = this.noiseFloorDb + (this.active ? this.options.releaseDb : this.options.activationDb);
+    const isSpeech = levelDb > threshold;
+    if (!isSpeech) {
+      this.noiseFloorDb =
+        levelDb < this.noiseFloorDb
+          ? Math.max(this.options.noiseFloorFloorDb, this.noiseFloorDb * 0.9 + levelDb * 0.1)
+          : Math.max(this.options.noiseFloorFloorDb, this.noiseFloorDb * 0.995 + levelDb * 0.005);
+    }
+
+    if (isSpeech) {
+      this.silenceFrames = 0;
+      this.speechFrames += 1;
+      if (!this.active && this.speechFrames >= this.options.minSpeechFrames) {
+        this.active = true;
+        return 'speech-start';
+      }
+      return null;
+    }
+
+    this.speechFrames = 0;
+    if (!this.active) return null;
+    this.silenceFrames += 1;
+    if (this.silenceFrames >= this.options.hangoverFrames) {
+      this.active = false;
+      this.silenceFrames = 0;
+      return 'speech-end';
+    }
+    return null;
+  }
+
+  reset() {
+    this.noiseFloorDb = this.options.noiseFloorFloorDb;
+    this.speechFrames = 0;
+    this.silenceFrames = 0;
+    this.active = false;
+    this.calibrationFrames = 0;
+  }
+}
 
 function post(message, transfer) {
   self.postMessage(message, transfer ?? []);
@@ -197,7 +274,15 @@ function buildRecognizer(scope, mode, entries, userConfig) {
 function channelState(channel) {
   let state = channels.get(channel);
   if (!state) {
-    state = { stream: null, lastText: '', pending: [], pendingLength: 0 };
+    state = {
+      stream: null,
+      lastText: '',
+      pending: [],
+      pendingLength: 0,
+      vad: new EnergyVad(vadOptions),
+      preroll: [],
+      speaking: false,
+    };
     channels.set(channel, state);
   }
   return state;
@@ -339,10 +424,75 @@ function flushOffline(channel) {
 
 // ---------------------------------------------------------------------------
 
+function handleRecogniserFrame(channel, samples) {
+  if (mode === 'streaming') handleStreamingFrame(channel, samples);
+  else handleOfflineFrame(channel, samples);
+}
+
+function flushRecogniser(channel) {
+  if (mode === 'streaming') flushStreaming(channel);
+  else flushOffline(channel);
+}
+
+/** VAD and inference both stay in this worker for the direct audio path. */
+function handleDirectFrame(channel, samples, rms) {
+  if (!ready || !(samples instanceof Float32Array) || !Number.isFinite(rms)) return;
+  const state = channelState(channel);
+  const transition = state.vad.process(rms);
+
+  if (transition === 'speech-start') {
+    state.speaking = true;
+    for (const buffered of state.preroll) handleRecogniserFrame(channel, buffered);
+    state.preroll = [];
+  }
+
+  if (state.speaking) {
+    handleRecogniserFrame(channel, samples);
+  } else {
+    state.preroll.push(samples);
+    if (state.preroll.length > PREROLL_FRAMES) state.preroll.shift();
+  }
+
+  if (transition === 'speech-end') {
+    state.speaking = false;
+    state.preroll = [];
+    flushRecogniser(channel);
+  }
+}
+
+function bindAudioPort(channel, port) {
+  if (!port) return;
+  audioPorts.add(port);
+  port.onmessage = (event) => {
+    const message = event.data;
+    if (message?.type === 'frame') {
+      handleDirectFrame(channel, message.samples, Number(message.rms));
+    } else if (message?.type === 'close') {
+      audioPorts.delete(port);
+      port.close();
+    }
+  };
+  port.start?.();
+}
+
+function resetChannel(channel) {
+  const state = channelState(channel);
+  if (mode === 'streaming' && state.stream) recognizer.reset(state.stream);
+  state.pending = [];
+  state.pendingLength = 0;
+  state.lastText = '';
+  state.preroll = [];
+  state.speaking = false;
+  state.vad.reset();
+}
+
+// ---------------------------------------------------------------------------
+
 async function init(payload) {
   const base = String(payload.base ?? '').replace(/\/+$/, '');
   mode = payload.mode === 'offline' ? 'offline' : 'streaming';
   const entries = { ...DEFAULT_ENTRIES[mode], ...(payload.entries ?? {}) };
+  vadOptions = { ...(payload.vad ?? {}) };
 
   reportStatus('loading', `Loading ${mode} recogniser from ${base}`);
 
@@ -376,24 +526,27 @@ self.onmessage = async (event) => {
       case 'frame': {
         if (!ready) return;
         const samples = message.samples;
-        if (mode === 'streaming') handleStreamingFrame(message.channel, samples);
-        else handleOfflineFrame(message.channel, samples);
+        handleRecogniserFrame(message.channel, samples);
         break;
       }
 
+      case 'bind-audio-port':
+        bindAudioPort(message.channel, message.port);
+        break;
+
+      case 'configure-vad':
+        vadOptions = { ...vadOptions, ...(message.options ?? {}) };
+        for (const state of channels.values()) state.vad.configure(message.options ?? {});
+        break;
+
       case 'flush':
         if (!ready) return;
-        if (mode === 'streaming') flushStreaming(message.channel);
-        else flushOffline(message.channel);
+        flushRecogniser(message.channel);
         break;
 
       case 'reset': {
         if (!ready) return;
-        const state = channelState(message.channel);
-        if (mode === 'streaming' && state.stream) recognizer.reset(state.stream);
-        state.pending = [];
-        state.pendingLength = 0;
-        state.lastText = '';
+        resetChannel(message.channel);
         break;
       }
 
@@ -402,6 +555,8 @@ self.onmessage = async (event) => {
         break;
 
       case 'dispose': {
+        for (const port of audioPorts) port.close();
+        audioPorts.clear();
         for (const state of channels.values()) freeStream(state);
         channels.clear();
         if (recognizer && typeof recognizer.free === 'function') recognizer.free();
