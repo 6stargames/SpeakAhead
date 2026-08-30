@@ -18,6 +18,11 @@ export const ASSIST_FEATURE_PRESENTATION: Record<AssistFeature, AssistFeaturePre
     label: 'Quick replies',
     task: 'Preparing one-word choices and reply phrases from the conversation.',
   },
+  speech: {
+    icon: '🗣️',
+    label: 'ChatGPT voices',
+    task: 'Creating and reusing natural speech for the words you choose.',
+  },
   themes: {
     icon: '🎨',
     label: 'Themed pictures',
@@ -28,6 +33,7 @@ export const ASSIST_FEATURE_PRESENTATION: Record<AssistFeature, AssistFeaturePre
 export const ASSIST_FEATURE_ORDER: readonly AssistFeature[] = [
   'corrections',
   'suggestions',
+  'speech',
   'themes',
 ];
 
@@ -44,7 +50,9 @@ export const ASSIST_FEATURE_PANEL_THEME_ITEMS = ASSIST_FEATURE_ORDER.map((featur
     ? 'Accurate transcription abstract audio rhythm panel'
     : feature === 'suggestions'
       ? 'Quick replies abstract conversational flow panel'
-      : 'Themed pictures abstract creative colour panel',
+      : feature === 'speech'
+        ? 'ChatGPT voices abstract vocal sound wave panel'
+        : 'Themed pictures abstract creative colour panel',
   symbol: '▬',
   presentation: 'wallpaper-background' as const,
 }));

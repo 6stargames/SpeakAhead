@@ -1,7 +1,7 @@
 import { getChatGPTUser } from '../../chatgpt-auth';
 
 type RateEntry = { startedAt: number; count: number };
-export type AssistRateBucket = 'context' | 'theme-icons' | 'transcription';
+export type AssistRateBucket = 'context' | 'theme-icons' | 'transcription' | 'speech';
 
 const rateWindows = new Map<string, RateEntry>();
 const RETRYABLE_OPENAI_STATUSES = new Set([408, 409, 429, 500, 502, 503, 504]);

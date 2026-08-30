@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import type { ChatGPTIdentity } from '@/auth/chatgpt';
 import {
+  ASSIST_FEATURE_ORDER,
   ASSIST_FEATURE_PRESENTATION,
   ASSIST_FEATURE_THEME_ITEMS,
 } from '@/assist/featurePresentation';
@@ -127,32 +128,19 @@ export function ChatGPTAuthButton({
         <span className="chatgpt-auth-overlay__name">{identity.displayName}</span>
       </button>
       <div className="assist-features" aria-label="WebMCP features">
-        <FeatureIndicator
-          icon={ASSIST_FEATURE_PRESENTATION.corrections.icon}
-          tile={themeTileFor(featureTiles, ASSIST_FEATURE_THEME_ITEMS[0]!)}
-          label={ASSIST_FEATURE_PRESENTATION.corrections.label}
-          activity={assist.features.corrections}
-          selected={selectedFeature === 'corrections'}
-          onSelect={() => onFeatureSelect('corrections')}
-        />
-        <FeatureIndicator
-          icon={ASSIST_FEATURE_PRESENTATION.suggestions.icon}
-          tile={themeTileFor(featureTiles, ASSIST_FEATURE_THEME_ITEMS[1]!)}
-          label={ASSIST_FEATURE_PRESENTATION.suggestions.label}
-          activity={assist.features.suggestions}
-          selected={selectedFeature === 'suggestions'}
-          onSelect={() => onFeatureSelect('suggestions')}
-        />
-        <FeatureIndicator
-          icon={ASSIST_FEATURE_PRESENTATION.themes.icon}
-          tile={themeTileFor(featureTiles, ASSIST_FEATURE_THEME_ITEMS[2]!)}
-          label={ASSIST_FEATURE_PRESENTATION.themes.label}
-          activity={assist.features.themes}
-          overrideStatus={themeOverride}
-          overrideDetail={themeDetail}
-          selected={selectedFeature === 'themes'}
-          onSelect={() => onFeatureSelect('themes')}
-        />
+        {ASSIST_FEATURE_ORDER.map((feature, index) => (
+          <FeatureIndicator
+            key={feature}
+            icon={ASSIST_FEATURE_PRESENTATION[feature].icon}
+            tile={themeTileFor(featureTiles, ASSIST_FEATURE_THEME_ITEMS[index]!)}
+            label={ASSIST_FEATURE_PRESENTATION[feature].label}
+            activity={assist.features[feature]}
+            overrideStatus={feature === 'themes' ? themeOverride : undefined}
+            overrideDetail={feature === 'themes' ? themeDetail : undefined}
+            selected={selectedFeature === feature}
+            onSelect={() => onFeatureSelect(feature)}
+          />
+        ))}
       </div>
     </div>
   );

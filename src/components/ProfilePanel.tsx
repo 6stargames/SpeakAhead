@@ -3,7 +3,7 @@ import type { SignedInChatGPTIdentity } from '@/auth/chatgpt';
 import { ThemedCloseButton } from '@/components/ThemedCloseButton';
 import { useStore, type AppState, type AssistFeature, type SymbolTheme } from '@/state/store';
 
-const FEATURES: AssistFeature[] = ['corrections', 'suggestions', 'themes'];
+const FEATURES: AssistFeature[] = ['corrections', 'suggestions', 'speech', 'themes'];
 
 const selectProfileUsage = (state: AppState) => ({
   usage: state.assistUsage,
@@ -59,7 +59,7 @@ export function ProfilePanel({
 
         <div className="profile-panel__metrics" aria-label="SpeakAhead usage">
           <article>
-            <strong>{number(usage.textRequests + usage.imageRequests + usage.transcriptionRequests)}</strong>
+            <strong>{number(usage.textRequests + usage.imageRequests + usage.transcriptionRequests + usage.speechRequests)}</strong>
             <span>AI requests</span>
           </article>
           <article>
@@ -86,6 +86,7 @@ export function ProfilePanel({
             <div><dt>Output</dt><dd>{number(usage.outputTokens)}</dd></div>
             <div><dt>Text requests</dt><dd>{number(usage.textRequests)}</dd></div>
             <div><dt>Transcriptions</dt><dd>{number(usage.transcriptionRequests)}</dd></div>
+            <div><dt>Voice requests</dt><dd>{number(usage.speechRequests)}</dd></div>
             <div><dt>New picture requests</dt><dd>{number(usage.imageRequests)}</dd></div>
           </dl>
           <p>

@@ -75,7 +75,7 @@ export interface ContextSuggestion {
   readonly symbol: string;
 }
 
-export type AssistFeature = 'corrections' | 'suggestions' | 'themes';
+export type AssistFeature = 'corrections' | 'suggestions' | 'speech' | 'themes';
 export type AssistFeatureStatus =
   | 'idle'
   | 'working'
@@ -111,6 +111,7 @@ export interface AssistUsage {
   readonly textRequests: number;
   readonly imageRequests: number;
   readonly transcriptionRequests: number;
+  readonly speechRequests: number;
   readonly inputTokens: number;
   readonly outputTokens: number;
   readonly totalTokens: number;
@@ -262,6 +263,7 @@ const initialState: AppState = {
   assistFeatures: {
     corrections: { activeTasks: 0, status: 'idle', resultCount: 0, tasks: [] },
     suggestions: { activeTasks: 0, status: 'idle', resultCount: 0, tasks: [] },
+    speech: { activeTasks: 0, status: 'idle', resultCount: 0, tasks: [] },
     themes: { activeTasks: 0, status: 'idle', resultCount: 0, tasks: [] },
   },
   assistUsage: {
@@ -269,6 +271,7 @@ const initialState: AppState = {
     textRequests: 0,
     imageRequests: 0,
     transcriptionRequests: 0,
+    speechRequests: 0,
     inputTokens: 0,
     outputTokens: 0,
     totalTokens: 0,
@@ -523,7 +526,7 @@ export const actions = {
   },
 
   recordAssistUsage(
-    kind: 'text' | 'image' | 'transcription',
+    kind: 'text' | 'image' | 'transcription' | 'speech',
     usage: { inputTokens?: number; outputTokens?: number; totalTokens?: number } = {},
   ): void {
     const whole = (value: number | undefined) => Number.isFinite(value)
@@ -536,6 +539,8 @@ export const actions = {
         imageRequests: state.assistUsage.imageRequests + (kind === 'image' ? 1 : 0),
         transcriptionRequests:
           state.assistUsage.transcriptionRequests + (kind === 'transcription' ? 1 : 0),
+        speechRequests:
+          state.assistUsage.speechRequests + (kind === 'speech' ? 1 : 0),
         inputTokens: state.assistUsage.inputTokens + whole(usage.inputTokens),
         outputTokens: state.assistUsage.outputTokens + whole(usage.outputTokens),
         totalTokens: state.assistUsage.totalTokens + whole(usage.totalTokens),

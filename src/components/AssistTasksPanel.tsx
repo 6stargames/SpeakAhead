@@ -18,7 +18,8 @@ import {
 const FEATURE_INDEX: Record<AssistFeature, number> = {
   corrections: 0,
   suggestions: 1,
-  themes: 2,
+  speech: 2,
+  themes: 3,
 };
 
 const selectAssistActivity = (state: AppState) => ({

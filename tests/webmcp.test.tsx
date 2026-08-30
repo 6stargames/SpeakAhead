@@ -295,7 +295,7 @@ describe('AAC context tools', () => {
     unmount();
   });
 
-  it('shows all three feature icons and a live working-task count beside the user', () => {
+  it('shows all four feature icons and a live working-task count beside the user', () => {
     store.reset();
     const onFeatureSelect = vi.fn();
     render(
@@ -305,7 +305,10 @@ describe('AAC context tools', () => {
       />,
     );
 
-    expect(container.querySelectorAll('.assist-feature')).toHaveLength(3);
+    expect(container.querySelectorAll('.assist-feature')).toHaveLength(4);
+    expect([...container.querySelectorAll<HTMLElement>('.assist-feature')].some((element) =>
+      element.getAttribute('aria-label')?.startsWith('ChatGPT voices:'),
+    )).toBe(true);
     const replies = [...container.querySelectorAll<HTMLElement>('.assist-feature')].find((element) =>
       element.getAttribute('aria-label')?.startsWith('Quick replies:'),
     );
@@ -349,6 +352,7 @@ describe('AAC context tools', () => {
     store.reset();
     actions.recordAssistUsage('text', { inputTokens: 80, outputTokens: 20, totalTokens: 100 });
     actions.recordAssistUsage('image', { inputTokens: 10, outputTokens: 30, totalTokens: 40 });
+    actions.recordAssistUsage('speech');
     render(
       <ProfilePanel
         identity={{ displayName: 'Danny', email: 'danny@example.com', signOutPath: '/signout' }}
@@ -359,6 +363,7 @@ describe('AAC context tools', () => {
     expect(container.textContent).toContain('140');
     expect(container.textContent).toContain('SpeakAhead usage returned to this page');
     expect(container.textContent).toContain('AI requests');
+    expect(container.textContent).toContain('Voice requests');
     expect(container.textContent).not.toContain('Activity');
     expect(container.querySelector('.profile-panel__tabs')).toBeNull();
     expect(container.querySelector('.profile-panel__header .profile-panel__signout')).not.toBeNull();

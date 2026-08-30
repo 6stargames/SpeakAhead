@@ -1,86 +1,105 @@
-import type { JSX } from 'react';
+import type { CSSProperties, JSX } from 'react';
+import { ThemedSymbol, themeTileFor, useThemedSymbols, type ThemeTile } from '@/assist/themeIcons';
 import { session } from '@/session/AacSession';
-import { CURATED_VOICES } from '@/speech/tts/curatedVoices';
+import {
+  VOICE_BADGE_THEME_ITEMS,
+  VOICE_CHOICES,
+  VOICE_PORTRAIT_THEME_ITEMS,
+  isChatGptVoiceId,
+} from '@/speech/tts/voiceChoices';
 import { actions, selectSettings, useStore, type AppState } from '@/state/store';
 
 const selectSpeakers = (state: AppState) => state.speakers;
 const selectTts = (state: AppState) => ({
   implementation: state.tts.implementation,
-  status: state.tts.status,
+  signedIn: state.accurateTranscriptionEnabled,
 });
 
-/**
- * Everything about voices, in plain words: the voice this device speaks
- * with, and the voices it hears in the room. The measurement table lives on
- * the Checks page with the rest of the diagnostics.
- */
+function backgroundStyle(tile: ThemeTile | undefined): CSSProperties | undefined {
+  if (!tile) return undefined;
+  const column = tile.index % tile.columns;
+  const row = Math.floor(tile.index / tile.columns);
+  const x = tile.columns <= 1 ? 0 : (column / (tile.columns - 1)) * 100;
+  const y = tile.rows <= 1 ? 0 : (row / (tile.rows - 1)) * 100;
+  return {
+    backgroundImage: [
+      'linear-gradient(90deg, color-mix(in srgb, var(--surface) 68%, transparent), color-mix(in srgb, var(--surface) 42%, transparent))',
+      `url(${JSON.stringify(tile.imageUrl)})`,
+    ].join(', '),
+    backgroundPosition: `center, ${x}% ${y}%`,
+    backgroundRepeat: 'no-repeat',
+    backgroundSize: `cover, ${tile.columns * 100}% ${tile.rows * 100}%`,
+  };
+}
+
+/** The selected speaking voice, plus the voices learned from the room. */
 export function VoicePanel(): JSX.Element {
   const settings = useStore(selectSettings);
   const speakers = useStore(selectSpeakers);
   const tts = useStore(selectTts);
   const allVoices = session.tts.voices();
   const curatedAvailable = tts.implementation === 'sherpa-onnx' && allVoices.length > 100;
-
-  // With nothing chosen yet the model speaks with its default voice (sid 0,
-  // Ashley) - the list should say so rather than showing no selection.
-  const chosenId = settings.voiceId ?? '0';
-
-  // The Voice type setting narrows the shortlist. Neutral is its own
-  // category - voices that don't land strongly male or female on the ear -
-  // not a "show everything" escape hatch. Whatever the filter, the chosen
-  // voice sorts to the top and is never hidden.
-  const filtered = CURATED_VOICES.filter((voice) =>
-    settings.voiceGender === 'neutral'
-      ? voice.neutralSounding
-      : voice.gender === settings.voiceGender,
-  );
-  const chosen = CURATED_VOICES.find((voice) => voice.id === chosenId);
-  const shortlist = [
-    ...(chosen ? [chosen] : []),
-    ...filtered.filter((voice) => voice.id !== chosenId),
-  ];
+  const choices = tts.signedIn
+    ? VOICE_CHOICES
+    : VOICE_CHOICES.filter((voice) => voice.source === 'device');
+  const chosenId = !tts.signedIn && isChatGptVoiceId(settings.voiceId)
+    ? '0'
+    : settings.voiceId ?? '0';
+  const portraits = useThemedSymbols(VOICE_PORTRAIT_THEME_ITEMS, settings.symbolTheme, {
+    batchSize: 3,
+    singleSubject: true,
+  });
+  const backgrounds = useThemedSymbols(VOICE_BADGE_THEME_ITEMS, settings.symbolTheme, {
+    batchSize: 1,
+    singleSubject: true,
+  });
 
   return (
     <div className="panel voice-panel">
       <h2 className="panel__title">Your voice</h2>
-      <p className="field__hint" style={{ marginBottom: '0.75rem' }}>
-        {tts.implementation === 'sherpa-onnx'
-          ? 'Press ▶ to hear a voice. Tap a name to make it your voice.'
-          : 'These voices come from this device. On a call, your partner sees your words as text.'}
+      <p className="field__hint voice-panel__hint">
+        Tap a voice to hear it and make it your voice.
+        {!tts.signedIn && ' Sign in with ChatGPT to add three natural ChatGPT voices.'}
       </p>
 
       {curatedAvailable ? (
         <div className="voice-list" data-scan="">
-          {shortlist.map((voice) => (
-            <div className="voice-option" key={voice.id}>
+          {choices.map((voice) => {
+            const index = VOICE_CHOICES.indexOf(voice);
+            const portraitItem = VOICE_PORTRAIT_THEME_ITEMS[index]!;
+            const backgroundItem = VOICE_BADGE_THEME_ITEMS[index]!;
+            const portrait = themeTileFor(portraits, portraitItem);
+            const background = themeTileFor(backgrounds, backgroundItem);
+            return (
               <button
                 type="button"
-                className="option voice-option__pick"
+                className={`voice-option voice-option--${voice.source}${background ? ' voice-option--pictured' : ''}`}
+                style={backgroundStyle(background)}
+                key={voice.id}
                 aria-pressed={chosenId === voice.id}
-                onClick={() => actions.setSettings({ voiceId: voice.id })}
+                aria-label={`${voice.name}, ${voice.source === 'chatgpt' ? 'ChatGPT voice' : 'device voice'}. ${chosenId === voice.id ? 'Your current voice.' : ''}`}
+                onClick={() => {
+                  actions.setSettings({ voiceId: voice.id });
+                  void session.previewVoice(voice.id);
+                }}
               >
-                <span className="voice-option__name">
-                  {voice.name}
-                  {chosenId === voice.id ? ' - your voice' : ''}
+                <span className="voice-option__portrait" aria-hidden="true">
+                  <ThemedSymbol symbol={voice.symbol} tile={portrait} />
                 </span>
-                <span className="voice-option__meta">{voice.note}</span>
+                <span className="voice-option__copy">
+                  <span className="voice-option__source">
+                    {voice.source === 'chatgpt' ? 'ChatGPT' : 'Device'}
+                  </span>
+                  <span className="voice-option__name">{voice.name}</span>
+                </span>
+                {chosenId === voice.id && <span className="voice-option__selected">Your voice</span>}
               </button>
-              <button
-                type="button"
-                className="button voice-option__preview"
-                title={`Hear ${voice.name}`}
-                onClick={() => void session.previewVoice(voice.id)}
-              >
-                ▶
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="field">
-          <label className="field__label" htmlFor="voice">
-            Voice
-          </label>
+          <label className="field__label" htmlFor="voice">Voice</label>
           <select
             id="voice"
             value={settings.voiceId ?? ''}
@@ -97,12 +116,10 @@ export function VoicePanel(): JSX.Element {
         </div>
       )}
 
-      <hr style={{ margin: '1.5rem 0', border: 0, borderTop: '1px solid var(--border)' }} />
+      <hr className="voice-panel__divider" />
       <h3 className="panel__title">Voices heard in the room</h3>
-      <p className="field__hint" style={{ marginBottom: '0.75rem' }}>
-        The device listens and learns each voice it hears. If a name is wrong, tap it and type a
-        better one. If a voice is yours, press <strong>This is me</strong>.{' '}
-        <strong>Forget</strong> makes the device forget that voice and learn it fresh.
+      <p className="field__hint voice-panel__hint">
+        The device listens and learns each voice it hears. Tap a name to correct it, or mark your own voice.
       </p>
 
       {speakers.length === 0 ? (
@@ -111,9 +128,7 @@ export function VoicePanel(): JSX.Element {
         <ul className="speakers">
           {speakers.map((speaker) => (
             <li className="speaker" key={speaker.id}>
-              <label className="visually-hidden" htmlFor={`speaker-${speaker.id}`}>
-                Name for this voice
-              </label>
+              <label className="visually-hidden" htmlFor={`speaker-${speaker.id}`}>Name for this voice</label>
               <input
                 id={`speaker-${speaker.id}`}
                 type="text"

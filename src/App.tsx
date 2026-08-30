@@ -20,6 +20,10 @@ import { TranscriptLog } from '@/components/TranscriptLog';
 import { VerificationPanel } from '@/components/VerificationPanel';
 import { VoicePanel } from '@/components/VoicePanel';
 import {
+  VOICE_BADGE_THEME_ITEMS,
+  VOICE_PORTRAIT_THEME_ITEMS,
+} from '@/speech/tts/voiceChoices';
+import {
   CONTEXT_BANNER_THEME_ITEMS,
   CONTEXT_DIVIDER_THEME_ITEMS,
   CONTEXT_READY_THEME_ITEM,
@@ -167,6 +171,8 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
       batchSize: 1,
       singleSubject: true,
     },
+    { items: VOICE_PORTRAIT_THEME_ITEMS, batchSize: 3, singleSubject: true },
+    { items: VOICE_BADGE_THEME_ITEMS, batchSize: 1, singleSubject: true },
     { items: SETTINGS_THEME_ITEMS, batchSize: 9, singleSubject: true },
     { items: CORE_THEME_ITEMS },
     { items: PHRASE_THEME_ITEMS },

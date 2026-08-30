@@ -15,6 +15,8 @@ import { SpeakerChangeDetector } from '@/speech/speakerChange';
 import { SpeakerTracker } from '@/speech/speakers';
 import { SherpaOnnxTtsProvider } from '@/speech/tts/SherpaOnnxTtsProvider';
 import { isSpeechSynthesisAvailable, SpeechSynthesisTtsProvider } from '@/speech/tts/SpeechSynthesisTtsProvider';
+import { requestChatGptSpeech } from '@/speech/gptSpeech';
+import { chatGptVoiceName, isChatGptVoiceId, voiceChoice } from '@/speech/tts/voiceChoices';
 import type { AsrProvider, EngineInfo, TtsProvider } from '@/speech/types';
 import { actions, selectContextWindow, store, type Turn } from '@/state/store';
 import { isWebMcpAvailable } from '@/webmcp/types';
@@ -164,6 +166,7 @@ export class AacSession {
    */
   #peerSendsRtt = false;
   #predictionTimer: ReturnType<typeof setTimeout> | null = null;
+  #speechController: AbortController | null = null;
   #started = false;
 
   /** ONNX remains live; signed-in users may opt into this bounded second pass. */
@@ -188,11 +191,17 @@ export class AacSession {
 
   /** Enable the post-ONNX pass only while a ChatGPT identity is present. */
   setAccurateTranscriptionEnabled(enabled: boolean): void {
+    if (!enabled && isChatGptVoiceId(store.getState().settings.voiceId)) {
+      actions.setSettings({ voiceId: '0' });
+    }
     if (this.#accurateTranscriptionEnabled === enabled) return;
     this.#accurateTranscriptionEnabled = enabled;
     actions.setAccurateTranscriptionEnabled(enabled);
     this.#transcriptionGeneration += 1;
     if (enabled) return;
+
+    this.#speechController?.abort();
+    this.#speechController = null;
 
     for (const job of this.#transcriptionQueue) {
       actions.finishAccurateTranscription(job.turnId, job.expectedText);
@@ -999,6 +1008,63 @@ export class AacSession {
   // Speaking
   // -------------------------------------------------------------------------
 
+  async #playDeviceVoice(text: string, voiceId: string | undefined, rate: number): Promise<void> {
+    if (this.#tts.routable) {
+      const audio = await this.#tts.synthesize({ text, voiceId, rate });
+      await this.graph.playSynthesis(audio.samples, audio.sampleRate);
+    } else if (this.#tts.speakDirect) {
+      await this.#tts.speakDirect({ text, voiceId, rate });
+    } else {
+      throw new Error('No usable synthesis engine.');
+    }
+  }
+
+  async #playSelectedVoice(text: string, voiceId: string | null, rate: number): Promise<void> {
+    if (!voiceId || !isChatGptVoiceId(voiceId)) {
+      await this.#playDeviceVoice(text, voiceId ?? undefined, rate);
+      return;
+    }
+
+    const voice = chatGptVoiceName(voiceId);
+    const choice = voiceChoice(voiceId);
+    if (!voice || !choice?.instructions) {
+      await this.#playDeviceVoice(text, '0', rate);
+      return;
+    }
+
+    const shortText = text.length > 82 ? `${text.slice(0, 79).trimEnd()}...` : text;
+    const taskId = actions.beginAssistTask('speech', `Voice for “${shortText}” with ${choice.name}`);
+    this.#speechController?.abort();
+    const controller = new AbortController();
+    this.#speechController = controller;
+    const result = await requestChatGptSpeech(
+      text,
+      voice,
+      choice.instructions,
+      rate,
+      controller.signal,
+    );
+    if (this.#speechController === controller) this.#speechController = null;
+    if (controller.signal.aborted) {
+      actions.finishAssistTask('speech', 'idle', 0, taskId);
+      return;
+    }
+    if (!result) {
+      actions.finishAssistTask('speech', 'local', 1, taskId);
+      actions.notify('warning', 'ChatGPT voice was unavailable, so SpeakAhead used the device voice.');
+      await this.#playDeviceVoice(text, '0', rate);
+      return;
+    }
+    if (result.source === 'generated') actions.recordAssistUsage('speech');
+    try {
+      await this.graph.playSynthesis(result.samples, result.sampleRate);
+      actions.finishAssistTask('speech', 'ready', 1, taskId);
+    } catch (error) {
+      actions.finishAssistTask('speech', 'error', 0, taskId);
+      throw error;
+    }
+  }
+
   /**
    * Synthesise and broadcast a message.
    *
@@ -1022,22 +1088,7 @@ export class AacSession {
 
     store.set({ speaking: true });
     try {
-      if (this.#tts.routable) {
-        const audio = await this.#tts.synthesize({
-          text: message,
-          voiceId: settings.voiceId ?? undefined,
-          rate: settings.speechRate,
-        });
-        await this.graph.playSynthesis(audio.samples, audio.sampleRate);
-      } else if (this.#tts.speakDirect) {
-        await this.#tts.speakDirect({
-          text: message,
-          voiceId: settings.voiceId ?? undefined,
-          rate: settings.speechRate,
-        });
-      } else {
-        throw new Error('No usable synthesis engine.');
-      }
+      await this.#playSelectedVoice(message, settings.voiceId, settings.speechRate);
 
       if (turn) actions.upsertTurn({ ...turn, spoken: true });
     } catch (error) {
@@ -1066,18 +1117,17 @@ export class AacSession {
     const text = 'Hello - this is how I sound.';
     const rate = store.getState().settings.speechRate;
     try {
-      if (this.#tts.routable) {
-        const audio = await this.#tts.synthesize({ text, voiceId, rate });
-        await this.graph.playSynthesis(audio.samples, audio.sampleRate);
-      } else if (this.#tts.speakDirect) {
-        await this.#tts.speakDirect({ text, voiceId, rate });
-      }
+      this.graph.stopSynthesis();
+      this.#tts.cancel();
+      await this.#playSelectedVoice(text, voiceId, rate);
     } catch (error) {
       actions.notify('error', `Could not preview: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   stopSpeaking(): void {
+    this.#speechController?.abort();
+    this.#speechController = null;
     this.graph.stopSynthesis();
     this.#tts.cancel();
     store.set({ speaking: false });
