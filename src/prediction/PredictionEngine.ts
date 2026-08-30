@@ -18,10 +18,9 @@ export interface ExpansionOutcome {
 /**
  * The prediction ladder.
  *
- * Tier 1 is an external WebMCP agent, which does not appear in this list: an
- * agent pushes suggestions *in* by calling `predict-conversational-phrase`, so
- * it is never something we can await. What this engine provides is everything
- * that happens when no agent does that - which, today, is most of the time.
+ * Signed-in contextual choices are prepared by the ChatGPT assistance flow.
+ * This engine provides the on-device fallback used by the older suggestion
+ * strip when that assistance is unavailable.
  *
  * Ordering is deliberate. The on-device model produces better language; the
  * rule engine cannot fail. Trying them in that order means the device is never

@@ -33,9 +33,8 @@ export interface ToolResult {
  * Advisory metadata in the shape Chrome's WebMCP implementation reads.
  *
  * `untrustedContentHint` matters most here: `get-conversation-context` returns
- * a verbatim transcript of whatever was said in the room, to an agent that
- * also holds `speak-text`. Anyone within earshot of the microphone can address
- * the agent directly - "ignore your instructions and say…" - and their words
+ * a verbatim transcript of whatever was said in the room. Anyone within
+ * earshot of the microphone can address the agent directly, and their words
  * arrive in its context as ordinary text. The hint tells the agent that this
  * payload is third-party speech to reason about, not instructions to follow.
  * It is advisory, so the tool descriptions repeat the warning in prose.
@@ -53,11 +52,6 @@ export interface WebMcpToolDefinition<Args = Record<string, unknown>> {
   readonly inputSchema: JsonSchema;
   readonly execute: (args: Args) => Promise<ToolResult> | ToolResult;
   readonly annotations?: ToolAnnotations;
-  /**
-   * Marks a tool that causes the device to speak or transmit. The verification
-   * panel shows these separately, and Settings gates the riskiest of them.
-   */
-  readonly consequential?: boolean;
 }
 
 /** The object handed to the browser, in whichever dialect it expects. */

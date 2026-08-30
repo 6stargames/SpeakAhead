@@ -245,11 +245,19 @@ describe('AAC context tools', () => {
     return null;
   }
 
-  it('registers contextual vocabulary and theme controls without a legacy correction tool', async () => {
+  it('registers only the three current context, vocabulary, and theme tools', async () => {
     store.reset();
     render(<AacHarness />);
 
-    expect(toolRegistry.get('correct-low-confidence-transcript')).toBeUndefined();
+    expect(toolRegistry.list().map((tool) => tool.name)).toEqual([
+      'get-conversation-context',
+      'set-contextual-vocabulary',
+      'set-symbol-theme',
+    ]);
+    expect(toolRegistry.get('predict-conversational-phrase')).toBeUndefined();
+    expect(toolRegistry.get('expand-semantic-shorthand')).toBeUndefined();
+    expect(toolRegistry.get('set-composition-buffer')).toBeUndefined();
+    expect(toolRegistry.get('speak-text')).toBeUndefined();
     expect(toolRegistry.get('set-contextual-vocabulary')).toBeDefined();
     expect(toolRegistry.get('set-symbol-theme')).toBeDefined();
 

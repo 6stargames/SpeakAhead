@@ -39,7 +39,7 @@ export interface Turn {
   readonly transcriptionStatus?: 'checking' | 'accurate' | 'local';
 }
 
-export type PredictionSourceId = 'webmcp-agent' | 'on-device-model' | 'heuristic' | 'none';
+export type PredictionSourceId = 'on-device-model' | 'heuristic' | 'none';
 
 export interface Prediction {
   readonly text: string;
@@ -152,8 +152,6 @@ export interface AppState {
    * heard at all, and the natural response is to stop and start again.
    */
   readonly dictationPreview: string;
-  /** Agent-authored text awaiting the user's confirmation. */
-  readonly stagedSpeech: string | null;
   /**
    * The last utterance spoken from the buffer, kept so an accidental Speak is
    * recoverable: the words cannot be unsaid, but the sentence can be restored
@@ -249,7 +247,6 @@ const initialState: AppState = {
   composition: '',
   compositionAuthor: 'user',
   dictationPreview: '',
-  stagedSpeech: null,
   lastSpokenText: null,
   editMode: false,
   favorites: [],
@@ -391,7 +388,7 @@ export const actions = {
   },
 
   clearComposition(): void {
-    store.set({ composition: '', compositionAuthor: 'user', stagedSpeech: null, dictationPreview: '' });
+    store.set({ composition: '', compositionAuthor: 'user', dictationPreview: '' });
   },
 
   /**
@@ -458,10 +455,6 @@ export const actions = {
     } catch {
       /* Corrupt or unavailable storage: fall back to defaults silently. */
     }
-  },
-
-  stageSpeech(text: string | null): void {
-    store.set({ stagedSpeech: text });
   },
 
   setPredictions(predictions: Prediction[]): void {

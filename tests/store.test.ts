@@ -147,14 +147,6 @@ describe('composition', () => {
     expect(store.getState().compositionAuthor).toBe('user');
   });
 
-  it('clearing also discards anything an agent staged', () => {
-    actions.setComposition('draft');
-    actions.stageSpeech('agent wrote this');
-    actions.clearComposition();
-
-    expect(store.getState().composition).toBe('');
-    expect(store.getState().stagedSpeech).toBeNull();
-  });
 });
 
 describe('predictions and notices', () => {

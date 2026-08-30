@@ -106,19 +106,11 @@ export function VerificationPanel(): JSX.Element {
   }, []);
 
   const runAgentSimulation = useCallback(async () => {
-    // Reproduces the specification's WebMCP protocol end to end: inject a
-    // partner turn, let the ladder read the context tool, then push suggestions
-    // back through the same tool an external agent would call.
+    // Inject a partner turn and confirm the remaining read-only WebMCP context
+    // surface returns it without needing a browser agent implementation.
     actions.addTurn('peer', SAMPLE_PARTNER_TURN, { viaRtt: true });
     const context = await toolRegistry.invoke('get-conversation-context', {});
-    await session.predictNow();
     setLastToolResult(context.content?.[0]?.text ?? '(no context returned)');
-  }, []);
-
-  const runExpansionCheck = useCallback(async () => {
-    actions.setComposition('apple juice');
-    const expanded = await session.expandComposition();
-    setLastToolResult(`expand-semantic-shorthand("apple juice") → "${expanded}"`);
   }, []);
 
   return (
@@ -304,15 +296,11 @@ export function VerificationPanel(): JSX.Element {
       </dl>
 
       <p className="field__hint" style={{ marginBottom: '0.75rem' }}>
-        These buttons drive the registered tools directly, so the specification's agent protocol can be
-        confirmed on browsers that do not implement WebMCP.
+        This check reads the registered conversation context directly, even when the browser does not implement WebMCP.
       </p>
       <div className="composer__actions">
         <button type="button" className="button" onClick={() => void runAgentSimulation()}>
-          Simulate a partner turn
-        </button>
-        <button type="button" className="button" onClick={() => void runExpansionCheck()}>
-          Test shorthand expansion
+          Test conversation context
         </button>
       </div>
 

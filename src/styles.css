@@ -675,9 +675,8 @@ body {
 }
 
 /*
-  Agent-written text in the buffer. The dashed accent border is deliberately
-  the same visual language as .staged: one look means "a machine wrote this"
-  everywhere it can appear. Reverts to normal the moment the user edits.
+  Agent-written text in the buffer uses a dashed accent border so its origin
+  remains visible. It reverts to normal the moment the user edits.
 */
 .composer__input--agent {
   border-style: dashed;
@@ -746,29 +745,6 @@ body {
   margin: var(--space-1) 0 0;
   font-size: 0.85em;
   color: var(--text);
-}
-
-.staged {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius);
-  background: var(--accent-soft);
-}
-.staged__text {
-  flex: 1 1 14rem;
-  margin: 0;
-  font-size: 1.05em;
-}
-.staged__label {
-  font-size: 0.75em;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--accent);
-  width: 100%;
 }
 
 /* --- Model loading -------------------------------------------------------- */

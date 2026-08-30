@@ -48,8 +48,8 @@ function normalise(tool: WebMcpToolDefinition): NormalisedTool {
  * one thing guaranteed to run on unmount.
  *
  * Degrades to a no-op - never a throw - when the browser has no WebMCP surface.
- * The tool is still recorded in the local registry, so the on-device prediction
- * ladder and the verification simulator can reach it.
+ * The tool is still recorded in the local registry so the verification
+ * simulator can reach it.
  */
 export function useWebMCPTool(
   tool: WebMcpToolDefinition,
@@ -74,7 +74,6 @@ export function useWebMCPTool(
       description: tool.description,
       inputSchema: tool.inputSchema,
       annotations: tool.annotations,
-      consequential: tool.consequential,
       execute: (args) => toolRef.current.execute(args as never),
     };
 
