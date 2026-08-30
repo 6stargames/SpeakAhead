@@ -868,13 +868,19 @@ body {
   margin-bottom: var(--space-2);
 }
 
-/* Context choices are a true first row of the selected board. They never
-   float over fixed vocabulary or cover the user's motor-plan coordinates. */
+/* Context choices keep two stable generations above the selected board: the
+   newest row first and the row it displaced directly underneath. */
+.context-stack {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gutter);
+  margin-bottom: var(--gutter);
+}
 .context-row {
   flex: 0 0 auto;
   display: grid;
   gap: var(--gutter);
-  margin-bottom: var(--gutter);
   min-height: var(--cell-min);
 }
 .context-row--words {
@@ -882,6 +888,24 @@ body {
 }
 .context-row--phrases {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.context-row--previous {
+  opacity: 0.78;
+  animation: context-bump 220ms ease-out;
+}
+.context-row--reserved {
+  visibility: hidden;
+  pointer-events: none;
+}
+@keyframes context-bump {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--space-2) * -1));
+  }
+  to {
+    opacity: 0.78;
+    transform: translateY(0);
+  }
 }
 .context-row__empty {
   grid-column: 1 / -1;

@@ -59,5 +59,35 @@ describe('AI context board row', () => {
     act(() => root.render(<ContextSuggestionRow mode="phrases" enabled />));
     expect(container.querySelectorAll('.context-cell')).toHaveLength(4);
     expect(container.querySelector('.context-row--phrases')).not.toBeNull();
+    expect(container.querySelector('.context-row--previous.context-row--reserved')).not.toBeNull();
+  });
+
+  it('bumps the last generation into the second row when new choices arrive', () => {
+    act(() => root.render(<ContextSuggestionRow mode="words" enabled />));
+    act(() => {
+      actions.setContextSuggestions(
+        [
+          { text: 'yes', symbol: '✅' },
+          { text: 'no', symbol: '🚫' },
+          { text: 'wait', symbol: '⏳' },
+          { text: 'again', symbol: '🔁' },
+          { text: 'there', symbol: '📍' },
+          { text: 'why', symbol: '❓' },
+        ],
+        [
+          { text: 'Yes, please.', symbol: '✅' },
+          { text: 'No, thank you.', symbol: '🚫' },
+          { text: 'Please wait.', symbol: '⏳' },
+          { text: 'Say that again.', symbol: '🔁' },
+        ],
+      );
+    });
+
+    const latest = container.querySelectorAll('.context-row--latest .context-cell');
+    const previous = container.querySelectorAll('.context-row--previous .context-cell');
+    expect(latest).toHaveLength(6);
+    expect(previous).toHaveLength(6);
+    expect(latest[0]?.textContent).toContain('yes');
+    expect(previous[0]?.textContent).toContain('water');
   });
 });

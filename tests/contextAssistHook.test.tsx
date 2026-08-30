@@ -3,7 +3,12 @@ import { createRoot, type Root } from 'react-dom/client';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { contextAssistRequestKey, useContextAssist } from '@/assist/useContextAssist';
+import {
+  contextAssistRequestKey,
+  contextChoicesReadyForRefresh,
+  THEMED_CONTEXT_HOLD_MS,
+  useContextAssist,
+} from '@/assist/useContextAssist';
 import { actions, store } from '@/state/store';
 
 const mocks = vi.hoisted(() => ({ requestContextAssist: vi.fn() }));
@@ -161,5 +166,22 @@ describe('continuous context assistance', () => {
     expect(contextAssistRequestKey([...first, { id: 'live', final: false }], '')).toBe('one\u0000');
     expect(contextAssistRequestKey([...first, { id: 'two', final: true }], '')).toBe('two\u0000');
     expect(contextAssistRequestKey(first, 'hello')).toBe('one\u0000hello');
+  });
+
+  it('holds themed choices steady while their pictures are being generated', () => {
+    actions.setSettings({ symbolTheme: 'hello-kitty' });
+    actions.setContextSuggestions(
+      [{ text: 'water', symbol: '💧' }],
+      [{ text: 'Water, please.', symbol: '💧' }],
+    );
+    const state = store.getState();
+
+    expect(contextChoicesReadyForRefresh(state, state.contextSuggestionsUpdatedAt + 1_000)).toBe(false);
+    expect(
+      contextChoicesReadyForRefresh(state, state.contextSuggestionsUpdatedAt + THEMED_CONTEXT_HOLD_MS),
+    ).toBe(true);
+
+    actions.setSettings({ symbolTheme: 'emoji' });
+    expect(contextChoicesReadyForRefresh(store.getState(), state.contextSuggestionsUpdatedAt + 1_000)).toBe(true);
   });
 });

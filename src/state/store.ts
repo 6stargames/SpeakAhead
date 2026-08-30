@@ -158,6 +158,11 @@ export interface AppState {
   readonly predicting: boolean;
   readonly contextualWords: ContextSuggestion[];
   readonly contextualPhrases: ContextSuggestion[];
+  /** The displaced generation remains visible in the second AI row. */
+  readonly previousContextualWords: ContextSuggestion[];
+  readonly previousContextualPhrases: ContextSuggestion[];
+  /** Used to keep themed choices still long enough for their pictures to finish. */
+  readonly contextSuggestionsUpdatedAt: number;
   readonly assistStatus: 'idle' | 'thinking' | 'ready' | 'local' | 'unavailable' | 'error';
   readonly assistFeatures: Record<AssistFeature, AssistFeatureActivity>;
 
@@ -229,6 +234,9 @@ const initialState: AppState = {
   predicting: false,
   contextualWords: [],
   contextualPhrases: [],
+  previousContextualWords: [],
+  previousContextualPhrases: [],
+  contextSuggestionsUpdatedAt: 0,
   assistStatus: 'idle',
   assistFeatures: {
     corrections: { activeTasks: 0, status: 'idle', resultCount: 0 },
@@ -429,9 +437,33 @@ export const actions = {
   },
 
   setContextSuggestions(words: ContextSuggestion[], phrases: ContextSuggestion[]): void {
+    const nextWords = words.slice(0, 6);
+    const nextPhrases = phrases.slice(0, 4);
+    if (nextWords.length === 0 && nextPhrases.length === 0) {
+      store.set({
+        contextualWords: [],
+        contextualPhrases: [],
+        previousContextualWords: [],
+        previousContextualPhrases: [],
+        contextSuggestionsUpdatedAt: 0,
+      });
+      return;
+    }
+
+    const state = store.getState();
+    const signature = (items: readonly ContextSuggestion[]) =>
+      items.map((item) => `${item.text}\u0000${item.symbol}`).join('\u0001');
+    if (
+      signature(nextWords) === signature(state.contextualWords) &&
+      signature(nextPhrases) === signature(state.contextualPhrases)
+    ) return;
+
     store.set({
-      contextualWords: words.slice(0, 6),
-      contextualPhrases: phrases.slice(0, 4),
+      contextualWords: nextWords,
+      contextualPhrases: nextPhrases,
+      previousContextualWords: state.contextualWords,
+      previousContextualPhrases: state.contextualPhrases,
+      contextSuggestionsUpdatedAt: Date.now(),
     });
   },
 
@@ -652,6 +684,8 @@ export const selectCompositionAuthor = (state: AppState): CompositionAuthor => s
 export const selectPredictions = (state: AppState): Prediction[] => state.predictions;
 export const selectContextualWords = (state: AppState): ContextSuggestion[] => state.contextualWords;
 export const selectContextualPhrases = (state: AppState): ContextSuggestion[] => state.contextualPhrases;
+export const selectPreviousContextualWords = (state: AppState): ContextSuggestion[] => state.previousContextualWords;
+export const selectPreviousContextualPhrases = (state: AppState): ContextSuggestion[] => state.previousContextualPhrases;
 export const selectSettings = (state: AppState): Settings => state.settings;
 export const selectCompliance = (state: AppState): ComplianceResult[] => state.compliance;
 export const selectNotices = (state: AppState): AppState['notices'] => state.notices;

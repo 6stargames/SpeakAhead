@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { predictionEngine } from '@/prediction/PredictionEngine';
-import { actions, useStore, type AppState, type Turn } from '@/state/store';
+import { actions, store, useStore, type AppState, type Turn } from '@/state/store';
 import { requestContextAssist } from './client';
 import { localContextCorrection, localWordSuggestions, symbolForText } from './fallback';
 
@@ -54,6 +54,21 @@ const SAFE_PHRASE_FALLBACKS = [
 const CONTEXT_SETTLE_MS = 250;
 const CONTEXT_MIN_START_INTERVAL_MS = 5_000;
 const CONTEXT_QUEUE_POLL_MS = 250;
+export const THEMED_CONTEXT_HOLD_MS = 30_000;
+
+/**
+ * Emoji is instant, but generated pictures need a stable target. The current
+ * themed generation stays put for a short window while correction checks keep
+ * running normally in the background.
+ */
+export function contextChoicesReadyForRefresh(
+  state: Pick<AppState, 'contextualWords' | 'contextualPhrases' | 'contextSuggestionsUpdatedAt' | 'settings'>,
+  now = Date.now(),
+): boolean {
+  if (state.contextualWords.length === 0 && state.contextualPhrases.length === 0) return true;
+  if (state.settings.symbolTheme === 'emoji') return true;
+  return now - state.contextSuggestionsUpdatedAt >= THEMED_CONTEXT_HOLD_MS;
+}
 
 async function runContextJob(job: ContextAssistJob, signal: AbortSignal): Promise<void> {
   let tasksOpen = false;
@@ -104,9 +119,13 @@ async function runContextJob(job: ContextAssistJob, signal: AbortSignal): Promis
       }
       const words = completeChoices(response.words, localWordSuggestions(job.finalTurns), 6);
       const phrases = completeChoices(response.phrases, SAFE_PHRASE_FALLBACKS, 4);
-      actions.setContextSuggestions(words, phrases);
+      const refreshChoices = contextChoicesReadyForRefresh(store.getState());
+      if (refreshChoices) actions.setContextSuggestions(words, phrases);
+      const visibleSuggestionCount = refreshChoices
+        ? words.length + phrases.length
+        : store.getState().contextualWords.length + store.getState().contextualPhrases.length;
       actions.setAssistStatus('ready');
-      finishTasks('ready', applied, words.length + phrases.length);
+      finishTasks('ready', applied, visibleSuggestionCount);
       return;
     }
 
@@ -157,9 +176,13 @@ async function runContextJob(job: ContextAssistJob, signal: AbortSignal): Promis
       SAFE_PHRASE_FALLBACKS,
       4,
     );
-    actions.setContextSuggestions(words, phrases);
+    const refreshChoices = contextChoicesReadyForRefresh(store.getState());
+    if (refreshChoices) actions.setContextSuggestions(words, phrases);
+    const visibleSuggestionCount = refreshChoices
+      ? words.length + phrases.length
+      : store.getState().contextualWords.length + store.getState().contextualPhrases.length;
     actions.setAssistStatus('local');
-    finishTasks('local', applied, words.length + phrases.length);
+    finishTasks('local', applied, visibleSuggestionCount);
   } catch {
     if (!signal.aborted) {
       actions.setAssistStatus('error');

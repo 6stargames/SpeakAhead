@@ -206,6 +206,24 @@ describe('assistant activity', () => {
       resultCount: 18,
     });
   });
+
+  it('keeps the latest and immediately previous context generations', () => {
+    const firstWords = [{ text: 'water', symbol: '💧' }];
+    const firstPhrases = [{ text: 'Water, please.', symbol: '💧' }];
+    actions.setContextSuggestions(firstWords, firstPhrases);
+    actions.setContextSuggestions(
+      [{ text: 'cold', symbol: '🥶' }],
+      [{ text: 'I am cold.', symbol: '🥶' }],
+    );
+
+    expect(store.getState().contextualWords[0]?.text).toBe('cold');
+    expect(store.getState().previousContextualWords[0]?.text).toBe('water');
+    expect(store.getState().previousContextualPhrases[0]?.text).toBe('Water, please.');
+
+    actions.setContextSuggestions([], []);
+    expect(store.getState().contextualWords).toEqual([]);
+    expect(store.getState().previousContextualWords).toEqual([]);
+  });
 });
 
 describe('settings persistence', () => {
