@@ -369,10 +369,12 @@ describe('AAC context tools', () => {
       />,
     );
 
-    const tokens = [...container.querySelectorAll('button')].find((button) => button.textContent === 'Tokens');
-    act(() => tokens?.click());
     expect(container.textContent).toContain('140');
     expect(container.textContent).toContain('SpeakAhead usage returned to this page');
+    expect(container.textContent).toContain('AI requests');
+    expect(container.textContent).not.toContain('Activity');
+    expect(container.querySelector('.profile-panel__tabs')).toBeNull();
+    expect(container.querySelector('.profile-panel__header .profile-panel__signout')).not.toBeNull();
     expect(container.querySelector<HTMLAnchorElement>('.profile-panel__signout')?.href).toContain('/signout');
     unmount();
   });

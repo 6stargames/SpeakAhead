@@ -1335,6 +1335,13 @@ body {
    so the large return control stays pinned while profile content scrolls. */
 .profile-panel__header {
   display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.profile-panel__identity {
+  display: flex;
+  min-width: 0;
   align-items: center;
   gap: var(--space-3);
 }
@@ -1347,25 +1354,14 @@ body {
 .profile-panel__header p {
   margin: 0;
 }
-.profile-panel__header > div > p:last-child {
+.profile-panel__identity-copy {
+  min-width: 0;
+}
+.profile-panel__identity-copy > p:last-child {
   margin-top: var(--space-1);
   color: var(--text-muted);
   font-size: 0.8em;
   overflow-wrap: anywhere;
-}
-.profile-panel__tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2);
-}
-.profile-panel__tab {
-  min-width: 0;
-  padding: var(--space-2);
-}
-.profile-panel__tab[aria-pressed='true'] {
-  color: var(--text-inverse);
-  background: var(--accent);
-  border-color: var(--accent);
 }
 .profile-panel__metrics {
   display: grid;
@@ -1373,8 +1369,7 @@ body {
   gap: var(--space-2);
 }
 .profile-panel__metrics article,
-.profile-panel__token-card,
-.profile-panel__activity article {
+.profile-panel__token-card {
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -1394,7 +1389,7 @@ body {
   font-size: 1.65em;
 }
 .profile-panel__metrics span,
-.profile-panel__activity small {
+.profile-panel__token-card p {
   color: var(--text-muted);
 }
 .profile-panel__token-card {
@@ -1435,31 +1430,18 @@ body {
   font-size: 0.76em;
   line-height: 1.4;
 }
-.profile-panel__activity {
-  display: grid;
-  gap: var(--space-2);
-}
-.profile-panel__activity article {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3);
-}
-.profile-panel__activity article > span {
-  font-size: 1.6em;
-}
-.profile-panel__activity article > div {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
 .profile-panel__signout {
   display: flex;
+  flex: 0 0 auto;
   min-height: var(--tap-min);
   align-items: center;
   justify-content: center;
-  margin-top: auto;
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.72em;
+  line-height: 1.15;
+  text-align: center;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {
