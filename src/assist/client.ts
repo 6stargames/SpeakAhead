@@ -1,4 +1,5 @@
 import type { ContextAssistRequest, ContextAssistResponse } from './types';
+import { filterNovelChoices } from './choiceAvailability';
 import { suggestionText, type SuggestionMode } from './suggestionText';
 
 function suggestion(value: unknown, mode: SuggestionMode): { text: string; symbol: string } | null {
@@ -21,7 +22,7 @@ function suggestions(value: unknown, mode: SuggestionMode, max: number): { text:
     .slice(0, max);
 }
 
-function parseResponse(value: unknown): ContextAssistResponse | null {
+function parseResponse(value: unknown, request: ContextAssistRequest): ContextAssistResponse | null {
   if (!value || typeof value !== 'object') return null;
   const record = value as Record<string, unknown>;
   const corrections = Array.isArray(record.corrections)
@@ -42,8 +43,18 @@ function parseResponse(value: unknown): ContextAssistResponse | null {
         }))
         .slice(0, 4)
     : [];
-  const words = suggestions(record.words, 'words', 6);
-  const phrases = suggestions(record.phrases, 'phrases', 4);
+  const words = filterNovelChoices(
+    suggestions(record.words, 'words', 6),
+    'words',
+    request.excludedWords,
+    6,
+  );
+  const phrases = filterNovelChoices(
+    suggestions(record.phrases, 'phrases', 4),
+    'phrases',
+    request.excludedPhrases,
+    4,
+  );
   if (words.length === 0 && phrases.length === 0 && corrections.length === 0) return null;
   return { corrections, words, phrases };
 }
@@ -66,7 +77,7 @@ export async function requestContextAssist(
       signal,
     });
     if (!response.ok) return null;
-    return parseResponse(await response.json());
+    return parseResponse(await response.json(), request);
   } catch {
     return null;
   }

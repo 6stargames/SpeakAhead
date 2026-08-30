@@ -36,15 +36,15 @@ beforeEach(() => {
       { text: 'yes', symbol: '✅' },
       { text: 'no', symbol: '❌' },
       { text: 'wait', symbol: '⏳' },
-      { text: 'help', symbol: '🆘' },
-      { text: 'more', symbol: '➕' },
       { text: 'please', symbol: '🙏' },
+      { text: 'again', symbol: '🔁' },
+      { text: 'later', symbol: '⏳' },
     ],
     phrases: [
-      { text: 'Yes, please.', symbol: '✅' },
-      { text: 'No, thank you.', symbol: '❌' },
-      { text: 'Please wait.', symbol: '⏳' },
-      { text: 'Could you repeat that?', symbol: '🔁' },
+      { text: 'I agree.', symbol: '✅' },
+      { text: 'Not now, please.', symbol: '❌' },
+      { text: 'Tell me more.', symbol: '💬' },
+      { text: 'What happens next?', symbol: '❓' },
     ],
   });
   container = document.createElement('div');
@@ -110,15 +110,15 @@ describe('continuous context assistance', () => {
         { text: 'yes', symbol: '✅' },
         { text: 'no', symbol: '❌' },
         { text: 'wait', symbol: '⏳' },
-        { text: 'help', symbol: '🆘' },
-        { text: 'more', symbol: '➕' },
         { text: 'please', symbol: '🙏' },
+        { text: 'again', symbol: '🔁' },
+        { text: 'later', symbol: '⏳' },
       ],
       phrases: [
-        { text: 'Yes, please.', symbol: '✅' },
-        { text: 'No, thank you.', symbol: '❌' },
-        { text: 'Please wait.', symbol: '⏳' },
-        { text: 'Could you repeat that?', symbol: '🔁' },
+        { text: 'I agree.', symbol: '✅' },
+        { text: 'Not now, please.', symbol: '❌' },
+        { text: 'Tell me more.', symbol: '💬' },
+        { text: 'What happens next?', symbol: '❓' },
       ],
     };
     mocks.requestContextAssist
@@ -156,8 +156,12 @@ describe('continuous context assistance', () => {
     expect(mocks.requestContextAssist).toHaveBeenCalledTimes(2);
     const secondRequest = mocks.requestContextAssist.mock.calls[1]?.[0] as {
       turns: { id: string }[];
+      excludedWords: string[];
+      excludedPhrases: string[];
     };
     expect(secondRequest.turns.at(-1)?.id).toBe('third');
+    expect(secondRequest.excludedWords).toContain('yes');
+    expect(secondRequest.excludedPhrases).toContain('I agree.');
   });
 
   it('changes its work key only for finished conversation or composition changes', () => {

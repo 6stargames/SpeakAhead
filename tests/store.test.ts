@@ -224,6 +224,26 @@ describe('assistant activity', () => {
     expect(store.getState().contextualWords).toEqual([]);
     expect(store.getState().previousContextualWords).toEqual([]);
   });
+
+  it('never accepts fixed-board or already-visible context choices', () => {
+    actions.setContextSuggestions(
+      [{ text: 'water', symbol: '💧' }],
+      [{ text: 'I agree.', symbol: '✅' }],
+    );
+    actions.setContextSuggestions(
+      [
+        { text: 'help', symbol: '🆘' },
+        { text: 'water', symbol: '💧' },
+      ],
+      [
+        { text: 'Please stop', symbol: '✋' },
+        { text: 'I agree.', symbol: '✅' },
+      ],
+    );
+
+    expect(store.getState().contextualWords.map((choice) => choice.text)).toEqual(['water']);
+    expect(store.getState().contextualPhrases.map((choice) => choice.text)).toEqual(['I agree.']);
+  });
 });
 
 describe('settings persistence', () => {

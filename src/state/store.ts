@@ -7,6 +7,7 @@ import type { AudioGraphState } from '@/audio/AudioGraph';
 import { createId } from '@/lib/id';
 import type { FitzgeraldClass } from '@/lib/fitzgerald';
 import type { AttributionAttempt, SpeakerProfile } from '@/speech/speakers';
+import { filterNovelChoices } from '@/assist/choiceAvailability';
 
 export type TurnSource = 'user' | 'peer';
 
@@ -437,9 +438,8 @@ export const actions = {
   },
 
   setContextSuggestions(words: ContextSuggestion[], phrases: ContextSuggestion[]): void {
-    const nextWords = words.slice(0, 6);
-    const nextPhrases = phrases.slice(0, 4);
-    if (nextWords.length === 0 && nextPhrases.length === 0) {
+    const state = store.getState();
+    if (words.length === 0 && phrases.length === 0) {
       store.set({
         contextualWords: [],
         contextualPhrases: [],
@@ -449,8 +449,31 @@ export const actions = {
       });
       return;
     }
+    const favorites = state.favorites.map((favorite) => favorite.text);
+    const nextWords = filterNovelChoices(
+      words,
+      'words',
+      [
+        ...favorites,
+        ...state.contextualWords.map((choice) => choice.text),
+        ...state.previousContextualWords.map((choice) => choice.text),
+      ],
+      6,
+    );
+    const nextPhrases = filterNovelChoices(
+      phrases,
+      'phrases',
+      [
+        ...favorites,
+        ...state.contextualPhrases.map((choice) => choice.text),
+        ...state.previousContextualPhrases.map((choice) => choice.text),
+      ],
+      4,
+    );
+    // A fully repeated generation is ignored; it must never erase the useful
+    // choices already on screen merely because nothing new was returned.
+    if (nextWords.length === 0 && nextPhrases.length === 0) return;
 
-    const state = store.getState();
     const signature = (items: readonly ContextSuggestion[]) =>
       items.map((item) => `${item.text}\u0000${item.symbol}`).join('\u0001');
     if (

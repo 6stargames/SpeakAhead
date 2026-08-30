@@ -257,15 +257,15 @@ describe('AAC context tools', () => {
         { text: 'water', symbol: '💧' },
         { text: 'yes', symbol: '✅' },
         { text: 'wait', symbol: '⏳' },
-        { text: 'help', symbol: '🆘' },
-        { text: 'more', symbol: '➕' },
         { text: 'please', symbol: '🙏' },
+        { text: 'again', symbol: '🔁' },
+        { text: 'later', symbol: '⏳' },
       ],
       phrases: [
-        { text: 'Yes, please.', symbol: '✅' },
-        { text: 'No, thank you.', symbol: '🚫' },
-        { text: 'Please wait.', symbol: '⏳' },
-        { text: 'Could you repeat that?', symbol: '🔁' },
+        { text: 'I agree.', symbol: '✅' },
+        { text: 'Not now, please.', symbol: '🚫' },
+        { text: 'Tell me more.', symbol: '💬' },
+        { text: 'What happens next?', symbol: '❓' },
       ],
     });
     expect(store.getState().contextualWords).toHaveLength(6);

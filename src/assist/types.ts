@@ -11,6 +11,9 @@ export interface AssistTurnInput {
 export interface ContextAssistRequest {
   readonly turns: readonly AssistTurnInput[];
   readonly composition: string;
+  /** Device-visible choices that the next generation must not repeat. */
+  readonly excludedWords: readonly string[];
+  readonly excludedPhrases: readonly string[];
 }
 
 export interface ContextCorrection {

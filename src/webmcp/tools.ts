@@ -2,6 +2,11 @@ import { useMemo } from 'react';
 import { actions, selectContextWindow, store } from '@/state/store';
 import { useWebMCPTool, type WebMcpRegistrationState } from './useWebMCPTool';
 import { errorResult, textResult, type JsonSchema, type WebMcpToolDefinition } from './types';
+import {
+  CORE_WORD_TEXTS,
+  FIXED_PHRASE_TEXTS,
+  filterNovelChoices,
+} from '@/assist/choiceAvailability';
 import { suggestionText } from '@/assist/suggestionText';
 
 function readStringArray(value: unknown, max: number): string[] {
@@ -220,6 +225,18 @@ export function useAacWebMcpTools(): WebMcpToolStates {
                 correctedFrom: turn.originalText,
               })),
               composition: state.composition,
+              unavailableWords: [
+                ...CORE_WORD_TEXTS,
+                ...state.favorites.map((favorite) => favorite.text),
+                ...state.contextualWords.map((choice) => choice.text),
+                ...state.previousContextualWords.map((choice) => choice.text),
+              ],
+              unavailablePhrases: [
+                ...FIXED_PHRASE_TEXTS,
+                ...state.favorites.map((favorite) => favorite.text),
+                ...state.contextualPhrases.map((choice) => choice.text),
+                ...state.previousContextualPhrases.map((choice) => choice.text),
+              ],
               callActive: state.call === 'connected',
               partnerName: state.peerName,
               emergencyOverride: state.emergencyOverride,
@@ -324,7 +341,8 @@ export function useAacWebMcpTools(): WebMcpToolStates {
       name: 'set-contextual-vocabulary',
       description:
         'Prepare exactly six useful one-word choices and four short first-person phrase replies for the current conversation. ' +
-        'Read get-conversation-context first. The choices appear only on their matching Words or Phrases board and never speak automatically.',
+        'Read get-conversation-context first and never repeat anything in its unavailableWords or unavailablePhrases lists. ' +
+        'The choices appear only on their matching Words or Phrases board and never speak automatically.',
       inputSchema: contextualVocabularySchema,
       execute: (args) => {
         const input = args as Record<string, unknown>;
@@ -333,10 +351,37 @@ export function useAacWebMcpTools(): WebMcpToolStates {
         if (words.length !== 6 || phrases.length !== 4) {
           return errorResult('Provide exactly six single words and four phrases, each with text and an emoji symbol.');
         }
+        const state = store.getState();
+        const favorites = state.favorites.map((favorite) => favorite.text);
+        const novelWords = filterNovelChoices(
+          words,
+          'words',
+          [
+            ...favorites,
+            ...state.contextualWords.map((choice) => choice.text),
+            ...state.previousContextualWords.map((choice) => choice.text),
+          ],
+          6,
+        );
+        const novelPhrases = filterNovelChoices(
+          phrases,
+          'phrases',
+          [
+            ...favorites,
+            ...state.contextualPhrases.map((choice) => choice.text),
+            ...state.previousContextualPhrases.map((choice) => choice.text),
+          ],
+          4,
+        );
+        if (novelWords.length !== 6 || novelPhrases.length !== 4) {
+          return errorResult(
+            'Every choice must be new. Read get-conversation-context again and replace anything listed as unavailable.',
+          );
+        }
         actions.beginAssistTask('suggestions');
-        actions.setContextSuggestions(words, phrases);
+        actions.setContextSuggestions(novelWords, novelPhrases);
         actions.setAssistStatus('ready');
-        actions.finishAssistTask('suggestions', 'ready', words.length + phrases.length);
+        actions.finishAssistTask('suggestions', 'ready', novelWords.length + novelPhrases.length);
         return textResult('Context words and phrases are ready for the user.');
       },
     }),

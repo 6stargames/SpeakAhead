@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { predictionEngine } from '@/prediction/PredictionEngine';
 import { actions, store, useStore, type AppState, type Turn } from '@/state/store';
 import { requestContextAssist } from './client';
+import { filterNovelChoices } from './choiceAvailability';
 import { localContextCorrection, localWordSuggestions, symbolForText } from './fallback';
 
 const selectAssistInput = (state: AppState) => ({
@@ -34,22 +35,41 @@ function completeChoices<T extends { text: string }>(
   primary: readonly T[],
   fallback: readonly T[],
   count: number,
+  mode: 'words' | 'phrases',
+  unavailable: readonly string[],
 ): T[] {
-  const result: T[] = [];
-  for (const choice of [...primary, ...fallback]) {
-    if (result.some((existing) => existing.text.toLocaleLowerCase() === choice.text.toLocaleLowerCase())) continue;
-    result.push(choice);
-    if (result.length === count) break;
-  }
-  return result;
+  return filterNovelChoices([...primary, ...fallback], mode, unavailable, count);
 }
 
 const SAFE_PHRASE_FALLBACKS = [
-  { text: 'Yes, please.', symbol: '✅' },
-  { text: 'No, thank you.', symbol: '🚫' },
-  { text: 'Please wait.', symbol: '⏳' },
-  { text: 'Could you repeat that?', symbol: '🔁' },
+  { text: 'I agree.', symbol: '✅' },
+  { text: 'Not now, please.', symbol: '🚫' },
+  { text: 'Tell me more.', symbol: '💬' },
+  { text: 'What happens next?', symbol: '❓' },
 ] as const;
+
+function contextChoiceExclusions(state: Pick<
+  AppState,
+  | 'favorites'
+  | 'contextualWords'
+  | 'contextualPhrases'
+  | 'previousContextualWords'
+  | 'previousContextualPhrases'
+>): { words: string[]; phrases: string[] } {
+  const favorites = state.favorites.map((favorite) => favorite.text);
+  return {
+    words: [
+      ...favorites,
+      ...state.contextualWords.map((choice) => choice.text),
+      ...state.previousContextualWords.map((choice) => choice.text),
+    ],
+    phrases: [
+      ...favorites,
+      ...state.contextualPhrases.map((choice) => choice.text),
+      ...state.previousContextualPhrases.map((choice) => choice.text),
+    ],
+  };
+}
 
 const CONTEXT_SETTLE_MS = 250;
 const CONTEXT_MIN_START_INTERVAL_MS = 5_000;
@@ -89,6 +109,7 @@ async function runContextJob(job: ContextAssistJob, signal: AbortSignal): Promis
   tasksOpen = true;
 
   try {
+    const requestExclusions = contextChoiceExclusions(store.getState());
     const response = await requestContextAssist(
       {
         turns: job.finalTurns.map((turn) => ({
@@ -99,6 +120,8 @@ async function runContextJob(job: ContextAssistJob, signal: AbortSignal): Promis
           ...(turn.words ? { words: turn.words } : {}),
         })),
         composition: job.composition,
+        excludedWords: requestExclusions.words,
+        excludedPhrases: requestExclusions.phrases,
       },
       signal,
     );
@@ -117,13 +140,26 @@ async function runContextJob(job: ContextAssistJob, signal: AbortSignal): Promis
           )
         ) applied += 1;
       }
-      const words = completeChoices(response.words, localWordSuggestions(job.finalTurns), 6);
-      const phrases = completeChoices(response.phrases, SAFE_PHRASE_FALLBACKS, 4);
+      const currentExclusions = contextChoiceExclusions(store.getState());
+      const words = completeChoices(
+        response.words,
+        localWordSuggestions(job.finalTurns),
+        6,
+        'words',
+        currentExclusions.words,
+      );
+      const phrases = completeChoices(
+        response.phrases,
+        SAFE_PHRASE_FALLBACKS,
+        4,
+        'phrases',
+        currentExclusions.phrases,
+      );
       const refreshChoices = contextChoicesReadyForRefresh(store.getState());
       if (refreshChoices) actions.setContextSuggestions(words, phrases);
-      const visibleSuggestionCount = refreshChoices
-        ? words.length + phrases.length
-        : store.getState().contextualWords.length + store.getState().contextualPhrases.length;
+      const visibleState = store.getState();
+      const visibleSuggestionCount =
+        visibleState.contextualWords.length + visibleState.contextualPhrases.length;
       actions.setAssistStatus('ready');
       finishTasks('ready', applied, visibleSuggestionCount);
       return;
@@ -170,17 +206,26 @@ async function runContextJob(job: ContextAssistJob, signal: AbortSignal): Promis
         )
       ) applied += 1;
     }
-    const words = localWordSuggestions(job.finalTurns);
+    const currentExclusions = contextChoiceExclusions(store.getState());
+    const words = completeChoices(
+      localWordSuggestions(job.finalTurns),
+      [],
+      6,
+      'words',
+      currentExclusions.words,
+    );
     const phrases = completeChoices(
       outcome.suggestions.map((text) => ({ text, symbol: symbolForText(text) })),
       SAFE_PHRASE_FALLBACKS,
       4,
+      'phrases',
+      currentExclusions.phrases,
     );
     const refreshChoices = contextChoicesReadyForRefresh(store.getState());
     if (refreshChoices) actions.setContextSuggestions(words, phrases);
-    const visibleSuggestionCount = refreshChoices
-      ? words.length + phrases.length
-      : store.getState().contextualWords.length + store.getState().contextualPhrases.length;
+    const visibleState = store.getState();
+    const visibleSuggestionCount =
+      visibleState.contextualWords.length + visibleState.contextualPhrases.length;
     actions.setAssistStatus('local');
     finishTasks('local', applied, visibleSuggestionCount);
   } catch {

@@ -36,7 +36,7 @@ export function localWordSuggestions(turns: readonly Pick<Turn, 'text'>[]): Cont
     .filter((word, index, list) => list.indexOf(word) === index)
     .slice(-6)
     .reverse();
-  for (const fallback of ['yes', 'no', 'wait', 'help', 'more', 'please']) {
+  for (const fallback of ['yes', 'no', 'wait', 'please', 'again', 'later']) {
     if (candidates.length >= 6) break;
     if (!candidates.includes(fallback)) candidates.push(fallback);
   }
