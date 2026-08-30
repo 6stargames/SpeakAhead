@@ -1,4 +1,4 @@
-import type { JSX } from 'react';
+import type { CSSProperties, JSX } from 'react';
 import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
 import { session } from '@/session/AacSession';
 import { withoutSpokenEmoji } from '@/assist/suggestionText';
@@ -20,6 +20,19 @@ export const CONTEXT_READY_THEME_ITEM = {
   text: 'AI suggestions ready',
   symbol: '✨',
   presentation: 'control-icon',
+} as const;
+
+export const CONTEXT_BANNER_THEME_ITEMS = {
+  words: {
+    text: 'AI words banner',
+    symbol: '🔤',
+    presentation: 'button-background',
+  },
+  phrases: {
+    text: 'AI phrases banner',
+    symbol: '💬',
+    presentation: 'button-background',
+  },
 } as const;
 
 /**
@@ -48,6 +61,20 @@ export function ContextSuggestionRow({
     batchSize: 1,
     singleSubject: true,
   });
+  const bannerItem = CONTEXT_BANNER_THEME_ITEMS[mode];
+  const bannerTiles = useThemedSymbols([bannerItem], symbolTheme, {
+    batchSize: 1,
+    singleSubject: true,
+  });
+  const bannerTile = themeTileFor(bannerTiles, bannerItem);
+  const bannerStyle: CSSProperties | undefined = bannerTile
+    ? {
+      backgroundImage: `url(${JSON.stringify(bannerTile.imageUrl)})`,
+      backgroundPosition: 'center 52%',
+      backgroundRepeat: 'no-repeat',
+      backgroundSize: 'cover',
+    }
+    : undefined;
   const limit = mode === 'words' ? 6 : 4;
 
   if (!enabled) return null;
@@ -74,14 +101,17 @@ export function ContextSuggestionRow({
           key={`${generation}:${items.map((item) => item.text).join('\u0001')}`}
         >
           {generation === 'latest' && items.length === 0 ? (
-            <div className="context-row__empty">
+            <div
+              className={`context-row__empty${bannerTile ? ' context-row__empty--themed' : ''}`}
+              style={bannerStyle}
+            >
               <span className="context-row__spark" aria-hidden="true">
                 <ThemedSymbol
                   symbol={CONTEXT_READY_THEME_ITEM.symbol}
                   tile={themeTileFor(readyTiles, CONTEXT_READY_THEME_ITEM)}
                 />
               </span>
-              <span>
+              <span className="context-row__message">
                 {assistStatus === 'thinking'
                   ? `Preparing AI ${mode}…`
                   : `AI ${mode} will appear here after the next spoken turn.`}

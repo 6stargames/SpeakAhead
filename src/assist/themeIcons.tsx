@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState, type CSSProperties, type JSX } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+  type JSX,
+} from 'react';
 import { actions } from '@/state/store';
 import type { SymbolTheme } from '@/state/store';
 import { normalizedChoice } from './choiceAvailability';
@@ -34,6 +41,8 @@ type GenerationResult =
 
 const itemMemory = new Map<ThemedKey, Promise<ThemeTile | null>>();
 const resolvedMemory = new Map<ThemedKey, ThemeTile>();
+const resolvedMemoryListeners = new Set<() => void>();
+let resolvedMemoryRevision = 0;
 // Saved pictures are always restored in parallel. New image generations use
 // a small shared pool: enough concurrency for a theme to prepare quickly,
 // without turning a theme switch into an unbounded burst of model requests.
@@ -47,6 +56,30 @@ const SOURCE_HEADER = 'x-aac-image-source';
 const INPUT_TOKENS_HEADER = 'x-aac-input-tokens';
 const OUTPUT_TOKENS_HEADER = 'x-aac-output-tokens';
 const TOTAL_TOKENS_HEADER = 'x-aac-total-tokens';
+
+function subscribeResolvedMemory(listener: () => void): () => void {
+  resolvedMemoryListeners.add(listener);
+  return () => resolvedMemoryListeners.delete(listener);
+}
+
+function resolvedMemorySnapshot(): number {
+  return resolvedMemoryRevision;
+}
+
+function announceResolvedMemory(): void {
+  resolvedMemoryRevision += 1;
+  resolvedMemoryListeners.forEach((listener) => listener());
+}
+
+function publishResolvedTiles(tiles: ReadonlyMap<ThemedKey, ThemeTile>): void {
+  let changed = false;
+  tiles.forEach((tile, key) => {
+    if (resolvedMemory.get(key) === tile) return;
+    resolvedMemory.set(key, tile);
+    changed = true;
+  });
+  if (changed) announceResolvedMemory();
+}
 
 function itemKey(item: ThemeIconRequestItem): string {
   // The word's meaning owns the picture. A changing health/fallback emoji must
@@ -252,6 +285,7 @@ async function loadMissingTiles(
         if (!item || !Number.isInteger(index) || index < 0) return;
         result.set(themedItemKey(theme, item, singleSubject), { ...sprite, index });
       });
+      publishResolvedTiles(result);
     }));
 
     missing = items.filter((item) => !result.has(themedItemKey(theme, item, singleSubject)));
@@ -266,36 +300,43 @@ async function loadMissingTiles(
 
     let refreshDelay = 0;
     const generatedPartitions = await Promise.all(partitions.map(async (partition) => {
-      const generated = await withGenerationSlot(async () => {
-        const taskId = actions.beginAssistTask('themes', pictureTaskLabel(partition));
-        const outcome = await requestGeneratedSprite(partition, theme, singleSubject);
-        if (outcome.kind === 'image') {
-          actions.finishAssistTask('themes', 'ready', partition.length, taskId);
-        } else if (outcome.kind === 'refresh') {
-          actions.finishAssistTask('themes', 'idle', 0, taskId);
-        } else {
-          actions.finishAssistTask('themes', 'unavailable', 0, taskId);
-        }
-        return outcome;
-      });
-      return { generated, partition };
+      const taskId = actions.beginAssistTask('themes', pictureTaskLabel(partition));
+      const generated = await withGenerationSlot(
+        () => requestGeneratedSprite(partition, theme, singleSubject),
+      );
+      return { generated, partition, taskId };
     }));
 
-    generatedPartitions.forEach(({ generated, partition }) => {
+    generatedPartitions.forEach(({ generated, partition, taskId }) => {
       if (generated.kind === 'refresh') {
         refreshDelay = Math.max(refreshDelay, generated.retryAfterMs);
+        actions.finishAssistTask('themes', 'idle', 0, taskId);
         return;
       }
-      if (generated.kind !== 'image') return;
+      if (generated.kind !== 'image') {
+        actions.finishAssistTask('themes', 'unavailable', 0, taskId);
+        return;
+      }
       const sprite = spriteFromBlob(
         generated.payload.blob,
         generated.payload.columns,
         generated.payload.rows,
       );
-      if (!sprite) return;
+      if (!sprite) {
+        actions.finishAssistTask('themes', 'unavailable', 0, taskId);
+        return;
+      }
+      const published = new Map<ThemedKey, ThemeTile>();
       partition.forEach((item, index) => {
-        result.set(themedItemKey(theme, item, singleSubject), { ...sprite, index });
+        const key = themedItemKey(theme, item, singleSubject);
+        const tile = { ...sprite, index };
+        result.set(key, tile);
+        published.set(key, tile);
       });
+      // Publish the artwork before marking its task complete. Every mounted
+      // surface can now paint it in the same update that removes "Active".
+      publishResolvedTiles(published);
+      actions.finishAssistTask('themes', 'ready', partition.length, taskId);
     });
 
     missing = items.filter((item) => !result.has(themedItemKey(theme, item, singleSubject)));
@@ -340,12 +381,15 @@ async function loadTiles(
     })),
   );
   const result = new Map<string, ThemeTile>();
+  const published = new Map<ThemedKey, ThemeTile>();
   resolved.forEach(({ item, tile }) => {
     if (tile) {
-      resolvedMemory.set(themedItemKey(theme, item, singleSubject), tile);
+      const memoryKey = themedItemKey(theme, item, singleSubject);
+      published.set(memoryKey, tile);
       result.set(itemKey(item), tile);
     }
   });
+  publishResolvedTiles(published);
   return result;
 }
 
@@ -367,6 +411,11 @@ export function useThemedSymbols(
   theme: SymbolTheme,
   options: { batchSize?: number; singleSubject?: boolean } = {},
 ): ReadonlyMap<string, ThemeTile> {
+  useSyncExternalStore(
+    subscribeResolvedMemory,
+    resolvedMemorySnapshot,
+    resolvedMemorySnapshot,
+  );
   const batchSize = Math.max(1, Math.min(9, options.batchSize ?? 9));
   const singleSubject = options.singleSubject === true;
   const signature = useMemo(() => items.map(itemKey).join('\u0002'), [items]);
@@ -406,12 +455,12 @@ export function useThemedSymbols(
     };
   }, [batchSize, singleSubject, stableItems, theme]);
 
-  if (resolved.theme === theme && resolved.signature === signature) return resolved.tiles;
-
-  // The application-level theme preparation has already filled this memory
-  // before it changes the displayed theme. Read it during render so every
-  // surface flips in that same React commit rather than in later effects.
-  const immediate = new Map<string, ThemeTile>();
+  // The application-level preparation and visible surfaces share one memory.
+  // Merge it during every render so a completed image appears everywhere in
+  // the same React commit, even when another hook performed the generation.
+  const immediate = resolved.theme === theme && resolved.signature === signature
+    ? new Map(resolved.tiles)
+    : new Map<string, ThemeTile>();
   if (theme !== 'emoji') {
     stableItems.forEach((item) => {
       const tile = resolvedMemory.get(themedItemKey(theme, item, singleSubject));
@@ -472,6 +521,7 @@ export function themeTileFor(
 export function resetThemedSymbolMemoryForTests(): void {
   itemMemory.clear();
   resolvedMemory.clear();
+  announceResolvedMemory();
   activeGenerations = 0;
   generationWaiters.splice(0);
 }

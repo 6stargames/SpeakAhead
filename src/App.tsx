@@ -19,7 +19,10 @@ import { SuggestionStrip } from '@/components/SuggestionStrip';
 import { TranscriptLog } from '@/components/TranscriptLog';
 import { VerificationPanel } from '@/components/VerificationPanel';
 import { VoicePanel } from '@/components/VoicePanel';
-import { CONTEXT_READY_THEME_ITEM } from '@/components/ContextSuggestionRow';
+import {
+  CONTEXT_BANNER_THEME_ITEMS,
+  CONTEXT_READY_THEME_ITEM,
+} from '@/components/ContextSuggestionRow';
 import { CLOSE_CHAT_THEME_ITEM } from '@/components/ThemedCloseButton';
 import { session } from '@/session/AacSession';
 import { useContextAssist } from '@/assist/useContextAssist';
@@ -71,6 +74,9 @@ const SPINE_THEME_ITEMS = [...BOARD_VIEWS, ...SYSTEM_VIEWS].map(({ label, icon }
   symbol: icon,
   presentation: 'control-icon' as const,
 }));
+const SPINE_THEME_ITEM_BY_LABEL = new Map(
+  SPINE_THEME_ITEMS.map((item) => [item.text, item] as const),
+);
 const INTERFACE_THEME_ITEMS = [
   ...SPINE_THEME_ITEMS,
   ...ASSIST_FEATURE_THEME_ITEMS,
@@ -147,7 +153,11 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
     // Functional icons are separate 1x1 images. Generated sprite sheets can
     // bleed across cells and make a control look like two unrelated pictures.
     { items: INTERFACE_THEME_ITEMS, batchSize: 1, singleSubject: true },
-    { items: [CLOSE_CHAT_THEME_ITEM], batchSize: 1, singleSubject: true },
+    {
+      items: [CLOSE_CHAT_THEME_ITEM, ...Object.values(CONTEXT_BANNER_THEME_ITEMS)],
+      batchSize: 1,
+      singleSubject: true,
+    },
     { items: SETTINGS_THEME_ITEMS, batchSize: 9, singleSubject: true },
     { items: CORE_THEME_ITEMS },
     { items: PHRASE_THEME_ITEMS },
@@ -271,7 +281,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
                 candidate={candidate}
                 view={view}
                 onSelect={setView}
-                tile={themeTileFor(interfaceSymbols, { text: candidate.label, symbol: candidate.icon })}
+                tile={themeTileFor(interfaceSymbols, SPINE_THEME_ITEM_BY_LABEL.get(candidate.label)!)}
               />
             ))}
           </div>
@@ -291,7 +301,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
                 }
                 view={view}
                 onSelect={setView}
-                tile={themeTileFor(interfaceSymbols, { text: candidate.label, symbol: candidate.icon })}
+                tile={themeTileFor(interfaceSymbols, SPINE_THEME_ITEM_BY_LABEL.get(candidate.label)!)}
               />
             ))}
           </div>

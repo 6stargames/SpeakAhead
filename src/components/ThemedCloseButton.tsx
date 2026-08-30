@@ -24,7 +24,7 @@ export function ThemedCloseButton({
   const style: CSSProperties | undefined = tile
     ? {
       backgroundImage: `url(${JSON.stringify(tile.imageUrl)})`,
-      backgroundPosition: 'center',
+      backgroundPosition: 'center 52%',
       backgroundRepeat: 'no-repeat',
       backgroundSize: 'cover',
     }
@@ -33,7 +33,9 @@ export function ThemedCloseButton({
   return (
     <button
       type="button"
-      className="button button--primary assist-tasks__close themed-close"
+      className={`button button--primary assist-tasks__close themed-close${
+        tile ? ' themed-close--pictured' : ''
+      }`}
       onClick={onClose}
       style={style}
     >

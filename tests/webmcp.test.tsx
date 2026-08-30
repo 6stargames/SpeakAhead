@@ -376,6 +376,7 @@ describe('AAC context tools', () => {
     expect(container.querySelector('.assist-tasks__hero-icon .cell__symbol')?.textContent).toBe('🎨');
     expect(container.querySelectorAll('.themed-close__edge')).toHaveLength(0);
     expect(container.querySelector('.themed-close__label')?.textContent).toBe('Close - back to chat');
+    expect(container.querySelector('.themed-close')?.classList.contains('themed-close--pictured')).toBe(false);
 
     const close = [...container.querySelectorAll('button')].find((button) =>
       button.textContent?.includes('Close - back to chat'),
