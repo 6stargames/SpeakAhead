@@ -33,7 +33,7 @@ export const THEME_PREVIEW_ITEMS: Record<SymbolTheme, { text: string; symbol: st
   'hello-kitty': { text: 'Hello Kitty art style preview', symbol: '🎀' },
   claymation: { text: 'Claymation art style preview', symbol: '🟠' },
   'pixel-art': { text: 'Pixel art style preview', symbol: '👾' },
-  'halo-hud': { text: 'Halo HUD art style preview', symbol: '🛡️' },
+  'halo-3': { text: 'HALO 3 art style preview', symbol: '🛡️' },
   'stained-glass': { text: 'Stained glass art style preview', symbol: '💎' },
   'pop-art': { text: 'Pop art style preview', symbol: '💥' },
   cubism: { text: 'Cubism art style preview', symbol: '🖼️' },

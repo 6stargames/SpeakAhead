@@ -4,7 +4,7 @@ export const PICTURE_THEME_IDS = [
   'hello-kitty',
   'claymation',
   'pixel-art',
-  'halo-hud',
+  'halo-3',
   'stained-glass',
   'pop-art',
   'cubism',
@@ -33,7 +33,7 @@ export const PRIMARY_PICTURE_THEMES: readonly PictureThemeOption[] = [
 export const MORE_PICTURE_THEMES: readonly PictureThemeOption[] = [
   { label: 'Claymation', value: 'claymation' },
   { label: 'Pixel Art', value: 'pixel-art' },
-  { label: 'Halo HUD', value: 'halo-hud' },
+  { label: 'HALO 3', value: 'halo-3' },
   { label: 'Stained Glass', value: 'stained-glass' },
   { label: 'Pop Art', value: 'pop-art' },
   { label: 'Cubism', value: 'cubism' },
@@ -57,5 +57,6 @@ export function isPictureTheme(value: unknown): value is PictureTheme {
 export function normaliseSymbolTheme(value: unknown): SymbolTheme | null {
   if (value === 'emoji') return 'emoji';
   if (value === 'anime') return 'ghibli';
+  if (value === 'halo-hud') return 'halo-3';
   return isPictureTheme(value) ? value : null;
 }

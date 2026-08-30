@@ -290,6 +290,14 @@ describe('settings persistence', () => {
     expect(store.getState().settings.symbolTheme).toBe('ghibli');
   });
 
+  it('moves the old Halo HUD preference to HALO 3', () => {
+    localStorage.setItem('aac.settings.v1', JSON.stringify({ symbolTheme: 'halo-hud' }));
+
+    actions.loadSettings();
+
+    expect(store.getState().settings.symbolTheme).toBe('halo-3');
+  });
+
   it('survives corrupt stored settings', () => {
     localStorage.setItem('aac.settings.v1', '{not json');
     expect(() => actions.loadSettings()).not.toThrow();

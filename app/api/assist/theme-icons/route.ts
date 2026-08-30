@@ -83,7 +83,9 @@ function decodeBase64(value: string): ArrayBuffer {
 function parseInput(value: unknown): ThemeIconInput | null {
   if (!value || typeof value !== 'object') return null;
   const body = value as Record<string, unknown>;
-  const theme = body.theme === 'anime' ? 'ghibli' : body.theme;
+  const theme = body.theme === 'anime'
+    ? 'ghibli'
+    : body.theme === 'halo-hud' ? 'halo-3' : body.theme;
   if (!isPictureTheme(theme) || !Array.isArray(body.items)) return null;
   const items = body.items
     .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
@@ -119,7 +121,9 @@ function parseInput(value: unknown): ThemeIconInput | null {
 function parseLookupUrl(request: Request): ThemeIconInput | null {
   const url = new URL(request.url);
   const requestedTheme = url.searchParams.get('theme');
-  const theme = requestedTheme === 'anime' ? 'ghibli' : requestedTheme;
+  const theme = requestedTheme === 'anime'
+    ? 'ghibli'
+    : requestedTheme === 'halo-hud' ? 'halo-3' : requestedTheme;
   const text = url.searchParams.get('text')?.trim().slice(0, 100) ?? '';
   if (!isPictureTheme(theme) || !text) return null;
   const presentation =
@@ -155,8 +159,8 @@ const THEME_DIRECTION: Record<PictureTheme, string> = {
     'Use tactile plasticine claymation art, subtle fingerprint texture, soft studio lighting, chunky rounded shapes, and a clean neutral background.',
   'pixel-art':
     'Use crisp 16-bit pixel art with a classic console-sprite feeling, pixel-perfect dark outlines, a vibrant limited palette, and a solid dark background.',
-  'halo-hud':
-    'Use a sci-fi military tactical HUD style with hard-surface industrial design, matte olive and titanium plating, glowing cyan vector accents, angular geometry, and a dark backdrop.',
+  'halo-3':
+    'Use the beloved Halo 3 game art direction: heroic military science fiction, battle-worn olive and titanium armour surfaces, luminous cyan energy, golden visor tones, angular UNSC-era geometry, and the richly atmospheric cinematic colour grading associated with Halo 3.',
   'stained-glass':
     'Use a luminous stained-glass window style with thick black lead contours, jewel-toned translucent glass, bright backlighting, and a centered medallion composition.',
   'pop-art':
@@ -184,7 +188,7 @@ const CONTROL_THEME_DIRECTION: Record<PictureTheme, string> = {
     'Use soft kawaii colours, rounded toy-like linework, and a small bow accent integrated into the icon without adding a kitten or character.',
   claymation: 'Render the icon itself as chunky tactile plasticine with subtle fingerprint texture and soft studio highlights.',
   'pixel-art': 'Render the icon itself as crisp 16-bit pixel art with a limited vibrant palette and pixel-perfect dark outline.',
-  'halo-hud': 'Render the icon itself as an angular tactical HUD glyph with titanium surfaces and glowing cyan vector accents.',
+  'halo-3': 'Render the icon itself in the unmistakable Halo 3 HUD language: a crisp tactical glyph, olive titanium surfaces, luminous cyan shield energy, and restrained golden highlights. Keep it readable and do not add a character.',
   'stained-glass': 'Render the icon itself in luminous jewel-toned glass with thick black lead contours and strong backlighting.',
   'pop-art': 'Render the icon itself with thick black outlines, flat primary colours, Ben-Day dots, and stark graphic contrast.',
   cubism: 'Render the icon itself with a small number of clear angular planes, ochre and cobalt collage textures, while preserving its silhouette.',
@@ -204,7 +208,7 @@ const WALLPAPER_THEME_DIRECTION: Record<PictureTheme, string> = {
     'Use an abstract kawaii atmosphere made only from soft pink, white, and red colour fields, rounded gradients, tiny light speckles, and plush-looking texture.',
   claymation: 'Use an abstract plasticine atmosphere made only from softly pressed clay layers, subtle fingerprints, rounded ridges, and warm studio light.',
   'pixel-art': 'Use an abstract 16-bit atmosphere made only from crisp pixel gradients, tiled light rhythms, and a vibrant limited palette on dark colour fields.',
-  'halo-hud': 'Use an abstract tactical HUD atmosphere made only from dark titanium and olive surfaces, angular cyan vector traces, grid rhythm, and restrained glow.',
+  'halo-3': 'Use an abstract Halo 3 battlefield atmosphere made only from dark olive titanium colour fields, luminous cyan shield energy, warm golden light, angular military interface rhythms, and cinematic alien-sky gradients. Include no characters, weapons, vehicles, logos, or objects.',
   'stained-glass': 'Use an abstract stained-glass atmosphere made only from jewel-toned translucent fields, bold lead contours, and luminous backlighting.',
   'pop-art': 'Use an abstract pop-art atmosphere made only from bold primary colour fields, thick black graphic divisions, Ben-Day dots, and strong contrast.',
   cubism: 'Use an abstract synthetic-cubist atmosphere made only from angular ochre and cobalt planes, collage-paper texture, and balanced geometric rhythm.',
