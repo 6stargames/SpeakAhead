@@ -16,7 +16,12 @@ import { SpeakerTracker } from '@/speech/speakers';
 import { SherpaOnnxTtsProvider } from '@/speech/tts/SherpaOnnxTtsProvider';
 import { isSpeechSynthesisAvailable, SpeechSynthesisTtsProvider } from '@/speech/tts/SpeechSynthesisTtsProvider';
 import { requestChatGptSpeech } from '@/speech/gptSpeech';
-import { chatGptVoiceName, isChatGptVoiceId, voiceChoice } from '@/speech/tts/voiceChoices';
+import {
+  chatGptVoiceName,
+  isChatGptVoiceId,
+  voiceChoice,
+  voiceChoicesForGender,
+} from '@/speech/tts/voiceChoices';
 import type { AsrProvider, EngineInfo, TtsProvider } from '@/speech/types';
 import { actions, selectContextWindow, store, type Turn } from '@/state/store';
 import { isWebMcpAvailable } from '@/webmcp/types';
@@ -465,7 +470,17 @@ export class AacSession {
 
     const voices = provider.voices();
     const settings = store.getState().settings;
-    if (!settings.voiceId && voices[0]) actions.setSettings({ voiceId: voices[0].id });
+    if (provider.info.implementation === 'sherpa-onnx') {
+      // A previous platform fallback may have persisted a browser voice URI
+      // such as Samantha. It is not a valid Piper speaker id, so move back to
+      // the first device voice in the selected Settings category.
+      if (!settings.voiceId || (!isChatGptVoiceId(settings.voiceId) && !voiceChoice(settings.voiceId))) {
+        const firstDevice = voiceChoicesForGender(settings.voiceGender, false)[0];
+        if (firstDevice) actions.setSettings({ voiceId: firstDevice.id });
+      }
+    } else if (!settings.voiceId && voices[0]) {
+      actions.setSettings({ voiceId: voices[0].id });
+    }
   }
 
   // -------------------------------------------------------------------------

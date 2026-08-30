@@ -52,9 +52,22 @@ function resolveSignalingUrl(raw: string | undefined): string {
  * new one. `npm run fetch:models` prints the paths it installed.
  */
 export const config = {
-  asrBase: normaliseBase(readString(env.VITE_SHERPA_ASR_BASE, '/models/asr-v1.13.6')),
-  ttsBase: normaliseBase(readString(env.VITE_SHERPA_TTS_BASE, '/models/tts-v1.12.37')),
-  vadBase: normaliseBase(readString(env.VITE_SHERPA_VAD_BASE, '/models/vad-v1.13.6')),
+  // Production keeps the 339 MB neural bundles on the existing immutable
+  // model host rather than inside every application deployment. These public
+  // defaults also prevent a missing build-time env file from silently turning
+  // into same-origin /models/* 404s.
+  asrBase: normaliseBase(readString(
+    env.VITE_SHERPA_ASR_BASE,
+    'https://webmcp-aac-models.web.app/asr-v1.13.6',
+  )),
+  ttsBase: normaliseBase(readString(
+    env.VITE_SHERPA_TTS_BASE,
+    'https://webmcp-aac-models.web.app/tts-v1.12.37',
+  )),
+  vadBase: normaliseBase(readString(
+    env.VITE_SHERPA_VAD_BASE,
+    'https://webmcp-aac-models.web.app/vad-v1.13.6',
+  )),
   /** Empty string disables the spec's optional second decoding pass. */
   refineBase: normaliseBase(readString(env.VITE_SHERPA_REFINE_BASE, '')),
   /**
@@ -62,7 +75,10 @@ export const config = {
    * run via onnxruntime-web to attribute utterances to voices. Empty string
    * disables the neural path; the pitch-and-timbre heuristics carry on alone.
    */
-  speakerModelUrl: readString(env.VITE_SPEAKER_MODEL_URL, '/models/speaker-v1/campplus-en-voxceleb.onnx'),
+  speakerModelUrl: readString(
+    env.VITE_SPEAKER_MODEL_URL,
+    'https://webmcp-aac-models.web.app/speaker-v1/campplus-en-voxceleb.onnx',
+  ),
   signalingUrl: resolveSignalingUrl(env.VITE_SIGNALING_URL),
   iceServers: parseIceServers(env.VITE_ICE_SERVERS),
   buildTime: __BUILD_TIME__,

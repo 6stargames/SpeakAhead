@@ -20,8 +20,9 @@ import { TranscriptLog } from '@/components/TranscriptLog';
 import { VerificationPanel } from '@/components/VerificationPanel';
 import { VoicePanel } from '@/components/VoicePanel';
 import {
-  VOICE_BADGE_THEME_ITEMS,
-  VOICE_PORTRAIT_THEME_ITEMS,
+  voiceBadgeThemeItem,
+  voiceChoicesForGender,
+  voicePortraitThemeItem,
 } from '@/speech/tts/voiceChoices';
 import {
   CONTEXT_BANNER_THEME_ITEMS,
@@ -157,6 +158,18 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
   const signedIn = Boolean(chatGPTIdentity?.displayName);
   const contextAssistEnabled = signedIn;
   const requestedSymbolTheme = signedIn ? settings.symbolTheme : 'emoji';
+  const visibleVoiceChoices = useMemo(
+    () => voiceChoicesForGender(settings.voiceGender, signedIn),
+    [settings.voiceGender, signedIn],
+  );
+  const visibleVoicePortraitItems = useMemo(
+    () => visibleVoiceChoices.map(voicePortraitThemeItem),
+    [visibleVoiceChoices],
+  );
+  const visibleVoiceBadgeItems = useMemo(
+    () => visibleVoiceChoices.map(voiceBadgeThemeItem),
+    [visibleVoiceChoices],
+  );
   const themePreparationGroups = useMemo(() => [
     // Functional icons are separate 1x1 images. Generated sprite sheets can
     // bleed across cells and make a control look like two unrelated pictures.
@@ -171,8 +184,8 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
       batchSize: 1,
       singleSubject: true,
     },
-    { items: VOICE_PORTRAIT_THEME_ITEMS, batchSize: 3, singleSubject: true },
-    { items: VOICE_BADGE_THEME_ITEMS, batchSize: 1, singleSubject: true },
+    { items: visibleVoicePortraitItems, batchSize: 3, singleSubject: true },
+    { items: visibleVoiceBadgeItems, batchSize: 1, singleSubject: true },
     { items: SETTINGS_THEME_ITEMS, batchSize: 9, singleSubject: true },
     { items: CORE_THEME_ITEMS },
     { items: PHRASE_THEME_ITEMS },
@@ -187,6 +200,8 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
     favorites,
     previousContextualPhrases,
     previousContextualWords,
+    visibleVoiceBadgeItems,
+    visibleVoicePortraitItems,
   ]);
   const symbolTheme = usePreparedSymbolTheme(requestedSymbolTheme, themePreparationGroups);
   const interfaceSymbols = useThemedSymbols(INTERFACE_THEME_ITEMS, symbolTheme, {

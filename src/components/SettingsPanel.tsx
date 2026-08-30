@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
 import { session } from '@/session/AacSession';
+import { isChatGptVoiceId, voiceChoicesForGender } from '@/speech/tts/voiceChoices';
 import { actions, selectSettings, useStore, type SymbolTheme } from '@/state/store';
 
 export const SETTINGS_THEME_ITEMS = [
@@ -170,7 +171,18 @@ export function SettingsPanel({
           { label: 'Female', value: 'female' as const, symbol: '👩' },
           { label: 'Neutral', value: 'neutral' as const, symbol: '🧑' },
         ]}
-        onChange={(voiceGender) => actions.setSettings({ voiceGender })}
+        onChange={(voiceGender) => {
+          const choices = voiceChoicesForGender(voiceGender, signedIn);
+          const currentVoiceIsVisible = choices.some((voice) => voice.id === settings.voiceId);
+          const currentSource = isChatGptVoiceId(settings.voiceId) ? 'chatgpt' : 'device';
+          const nextVoiceId = currentVoiceIsVisible
+            ? settings.voiceId
+            : (choices.find((voice) => voice.source === currentSource) ?? choices[0])?.id;
+          actions.setSettings({
+            voiceGender,
+            ...(nextVoiceId ? { voiceId: nextVoiceId } : {}),
+          });
+        }}
       />
 
       <OptionRow

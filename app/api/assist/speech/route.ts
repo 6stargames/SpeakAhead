@@ -1,15 +1,14 @@
 import { env, type R2Bucket } from 'cloudflare:workers';
+import { CHATGPT_VOICE_NAMES, type ChatGptVoiceName } from '@/speech/tts/voiceChoices';
 import { json, postOpenAIJson, readSmallJson, requireAssistUser } from '../server';
 
-type SpeechVoice = 'marin' | 'cedar' | 'alloy';
-
-const VOICES = new Set<SpeechVoice>(['marin', 'cedar', 'alloy']);
+const VOICES = new Set<ChatGptVoiceName>(CHATGPT_VOICE_NAMES);
 const MAX_TEXT_LENGTH = 2_000;
 const CACHE_VERSION = 'v1';
 
 function speechInput(value: unknown): {
   text: string;
-  voice: SpeechVoice;
+  voice: ChatGptVoiceName;
   instructions: string;
   rate: number;
 } | null {
@@ -18,8 +17,8 @@ function speechInput(value: unknown): {
   const text = typeof body.text === 'string'
     ? body.text.replace(/\s+/g, ' ').trim().slice(0, MAX_TEXT_LENGTH)
     : '';
-  const voice = typeof body.voice === 'string' && VOICES.has(body.voice as SpeechVoice)
-    ? body.voice as SpeechVoice
+  const voice = typeof body.voice === 'string' && VOICES.has(body.voice as ChatGptVoiceName)
+    ? body.voice as ChatGptVoiceName
     : null;
   const instructions = typeof body.instructions === 'string'
     ? body.instructions.replace(/\s+/g, ' ').trim().slice(0, 240)
