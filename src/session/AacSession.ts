@@ -142,6 +142,7 @@ export class AacSession {
 
   /** Watches for the voice changing part-way through an utterance. */
   #changeDetector = new SpeakerChangeDetector();
+  #tabChangeDetector = new SpeakerChangeDetector();
   /**
    * Utterances closed by a speaker change, waiting for the recogniser's final
    * result to catch up.
@@ -151,6 +152,13 @@ export class AacSession {
    * has already been detected.
    */
   #pendingUtterances: {
+    pitches: number[];
+    crossings: number[];
+    timbres: Float32Array[];
+    audio: Float32Array[];
+    considered: number;
+  }[] = [];
+  #tabPendingUtterances: {
     pitches: number[];
     crossings: number[];
     timbres: Float32Array[];
@@ -170,6 +178,11 @@ export class AacSession {
   #headGeneration = -1;
   #changeCheckBusy = false;
   #framesSinceChangeCheck = 0;
+  #tabUtteranceGeneration = 0;
+  #tabHeadEmbedding: Float32Array | null = null;
+  #tabHeadGeneration = -1;
+  #tabChangeCheckBusy = false;
+  #tabFramesSinceChangeCheck = 0;
 
   /**
    * Whether the partner is sending Real-Time Text.
@@ -692,6 +705,8 @@ export class AacSession {
   #resetTabInputState(): void {
     this.#asr.reset('tab');
     this.#recognitionTurns.reset('tab');
+    this.#tabChangeDetector.reset();
+    this.#tabPendingUtterances = [];
     this.#tabUtteranceAudio = [];
     this.#tabUtteranceSampleRate = 16000;
     this.#tabUtteranceFramesConsidered = 0;
@@ -700,6 +715,8 @@ export class AacSession {
     this.#tabUtteranceTimbres = [];
     this.#tabLiveSpeakerId = null;
     this.#tabFramesSinceIdentify = 0;
+    this.#tabUtteranceGeneration += 1;
+    this.#tabFramesSinceChangeCheck = 0;
     actions.setLiveTabSpeaker(null);
   }
 
@@ -766,6 +783,12 @@ export class AacSession {
       this.#tabUtteranceSampleRate = frame.sampleRate;
       if (this.#tabUtteranceAudio.length > 960) this.#tabUtteranceAudio.shift();
 
+      this.#tabFramesSinceChangeCheck += 1;
+      if (this.#tabFramesSinceChangeCheck >= CHANGE_CHECK_EVERY) {
+        this.#tabFramesSinceChangeCheck = 0;
+        void this.#maybeSplitTabByVoiceprint();
+      }
+
       const pitch = estimatePitch(frame.samples, frame.sampleRate);
       if (pitch !== null) {
         this.#tabUtterancePitches.push(pitch);
@@ -777,6 +800,7 @@ export class AacSession {
           this.#tabUtteranceCrossings.shift();
         }
         if (this.#tabUtteranceTimbres.length > 200) this.#tabUtteranceTimbres.shift();
+        if (this.#tabChangeDetector.push(pitch)) this.#splitTabOnSpeakerChange();
 
         this.#tabFramesSinceIdentify += 1;
         if (this.#tabFramesSinceIdentify >= 4) {
@@ -858,6 +882,29 @@ export class AacSession {
     this.#asr.flush('local');
   }
 
+  /** Close only the shared-tab turn when its speaker changes mid-sentence. */
+  #splitTabOnSpeakerChange(carry = 5): void {
+    this.#tabUtteranceGeneration += 1;
+    const boundary = Math.max(0, this.#tabUtterancePitches.length - carry);
+    const timbreBoundary = Math.max(0, this.#tabUtteranceTimbres.length - carry);
+    const audioBoundary = Math.max(0, this.#tabUtteranceAudio.length - carry);
+    this.#tabPendingUtterances.push({
+      pitches: this.#tabUtterancePitches.slice(0, boundary),
+      crossings: this.#tabUtteranceCrossings.slice(0, boundary),
+      timbres: this.#tabUtteranceTimbres.slice(0, timbreBoundary),
+      audio: this.#tabUtteranceAudio.slice(0, audioBoundary),
+      considered: this.#tabUtteranceFramesConsidered,
+    });
+
+    this.#tabUtterancePitches = this.#tabUtterancePitches.slice(boundary);
+    this.#tabUtteranceCrossings = this.#tabUtteranceCrossings.slice(boundary);
+    this.#tabUtteranceTimbres = this.#tabUtteranceTimbres.slice(timbreBoundary);
+    this.#tabUtteranceAudio = this.#tabUtteranceAudio.slice(audioBoundary);
+    this.#tabUtteranceFramesConsidered = this.#tabUtterancePitches.length;
+
+    this.#asr.flush('tab');
+  }
+
   /**
    * Ask the voiceprint network whether the person talking now is the person
    * who started this utterance, and split the turn if not.
@@ -896,6 +943,40 @@ export class AacSession {
       }
     } finally {
       this.#changeCheckBusy = false;
+    }
+  }
+
+  /** Same-speaker-change guard as the room path, scoped to shared-tab audio. */
+  async #maybeSplitTabByVoiceprint(): Promise<void> {
+    if (this.#tabChangeCheckBusy || !speakerEmbedder.ready) return;
+    if (this.#tabUtteranceAudio.length < CHANGE_MIN_FRAMES) return;
+
+    const generation = this.#tabUtteranceGeneration;
+    this.#tabChangeCheckBusy = true;
+    try {
+      if (this.#tabHeadGeneration !== generation) {
+        const head = joinFrames(this.#tabUtteranceAudio.slice(0, CHANGE_HEAD_FRAMES));
+        const headEmbedding = await speakerEmbedder.embed(head, this.#tabUtteranceSampleRate);
+        if (this.#tabUtteranceGeneration !== generation || !headEmbedding) return;
+        this.#tabHeadEmbedding = headEmbedding;
+        this.#tabHeadGeneration = generation;
+      }
+
+      if (this.#tabUtteranceAudio.length < CHANGE_MIN_FRAMES) return;
+      const tail = joinFrames(this.#tabUtteranceAudio.slice(-CHANGE_TAIL_FRAMES));
+      const tailEmbedding = await speakerEmbedder.embed(tail, this.#tabUtteranceSampleRate);
+      if (
+        this.#tabUtteranceGeneration !== generation ||
+        !tailEmbedding ||
+        !this.#tabHeadEmbedding
+      ) return;
+
+      const similarity = cosineSimilarity(this.#tabHeadEmbedding, tailEmbedding);
+      if (similarity < CHANGE_SPLIT_BELOW) {
+        this.#splitTabOnSpeakerChange(CHANGE_TAIL_FRAMES);
+      }
+    } finally {
+      this.#tabChangeCheckBusy = false;
     }
   }
 
@@ -938,6 +1019,10 @@ export class AacSession {
   }
 
   #captureTabUtterance(): CapturedUtterance {
+    const queued = this.#tabPendingUtterances.shift();
+    const sampleRate = this.#tabUtteranceSampleRate;
+    if (queued) return { ...queued, sampleRate };
+
     const captured: CapturedUtterance = {
       pitches: this.#tabUtterancePitches,
       crossings: this.#tabUtteranceCrossings,
@@ -953,6 +1038,9 @@ export class AacSession {
     this.#tabUtteranceTimbres = [];
     this.#tabLiveSpeakerId = null;
     this.#tabFramesSinceIdentify = 0;
+    this.#tabUtteranceGeneration += 1;
+    this.#tabFramesSinceChangeCheck = 0;
+    this.#tabChangeDetector.reset();
     actions.setLiveTabSpeaker(null);
     return captured;
   }

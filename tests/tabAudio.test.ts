@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AacSession } from '@/session/AacSession';
 import { store } from '@/state/store';
@@ -61,5 +63,18 @@ describe('browser tab audio', () => {
     expect(store.getState().tabAudioActive).toBe(true);
     expect(store.getState().audioInputSource).toBe('microphone');
     expect(store.getState().micActive).toBe(true);
+  });
+
+  it('uses the same pitch and voiceprint endpointing as room audio', async () => {
+    const session = await readFile(resolve(process.cwd(), 'src/session/AacSession.ts'), 'utf8');
+
+    expect(session).toContain('this.#changeDetector.push(pitch)) this.#splitOnSpeakerChange()');
+    expect(session).toContain('this.#tabChangeDetector.push(pitch)) this.#splitTabOnSpeakerChange()');
+    expect(session).toContain('void this.#maybeSplitByVoiceprint()');
+    expect(session).toContain('void this.#maybeSplitTabByVoiceprint()');
+    expect(session).toContain("this.#asr.flush('local')");
+    expect(session).toContain("this.#asr.flush('tab')");
+    expect(session).toContain('this.#pendingUtterances.shift()');
+    expect(session).toContain('this.#tabPendingUtterances.shift()');
   });
 });
