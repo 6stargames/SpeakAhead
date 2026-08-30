@@ -24,6 +24,20 @@ function monoWav(samples: readonly number[], sampleRate = 24_000): ArrayBuffer {
   return buffer;
 }
 
+function speechCache() {
+  const entries = new Map<string, Response>();
+  const cache = {
+    match: vi.fn(async (request: Request) => entries.get(request.url)?.clone()),
+    put: vi.fn(async (request: Request, response: Response) => {
+      entries.set(request.url, response.clone());
+    }),
+    keys: vi.fn(async () => [...entries.keys()].map((url) => new Request(url))),
+    delete: vi.fn(async (request: Request) => entries.delete(request.url)),
+  };
+  vi.stubGlobal('caches', { open: vi.fn(async () => cache) });
+  return cache;
+}
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe('ChatGPT speech client', () => {
@@ -63,5 +77,66 @@ describe('ChatGPT speech client', () => {
   it('keeps the device path available when the speech route fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 502 })));
     await expect(requestChatGptSpeech('Hello.', 'cedar', 'Speak clearly.', 1)).resolves.toBeNull();
+  });
+
+  it('plays an exact repeated phrase from the persistent device cache', async () => {
+    speechCache();
+    const fetchMock = vi.fn().mockResolvedValue(new Response(monoWav([0, 200, -200]), {
+      status: 200,
+      headers: {
+        'content-type': 'audio/wav',
+        'x-aac-speech-source': 'generated',
+      },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const first = await requestChatGptSpeech('  Same   phrase. ', 'marin', ' Speak naturally. ', 1);
+    await Promise.resolve();
+    const repeated = await requestChatGptSpeech('Same phrase.', 'marin', 'Speak naturally.', 1);
+
+    expect(first?.source).toBe('generated');
+    expect(repeated?.source).toBe('saved');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('finishes and caches generation after playback is canceled', async () => {
+    const cache = speechCache();
+    let finishRequest: ((response: Response) => void) | undefined;
+    const fetchMock = vi.fn().mockReturnValue(new Promise<Response>((resolve) => {
+      finishRequest = resolve;
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const controller = new AbortController();
+
+    const canceledPlayback = requestChatGptSpeech(
+      'Do not waste this generation.',
+      'cedar',
+      'Speak clearly.',
+      1,
+      controller.signal,
+    );
+    await Promise.resolve();
+    controller.abort();
+    await expect(canceledPlayback).resolves.toBeNull();
+
+    finishRequest?.(new Response(monoWav([0, 300, -300]), {
+      status: 200,
+      headers: {
+        'content-type': 'audio/wav',
+        'x-aac-speech-source': 'generated',
+      },
+    }));
+    await vi.waitFor(() => expect(cache.put).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
+    const repeated = await requestChatGptSpeech(
+      'Do not waste this generation.',
+      'cedar',
+      'Speak clearly.',
+      1,
+    );
+
+    expect(repeated?.source).toBe('saved');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[1]).not.toHaveProperty('signal');
   });
 });
