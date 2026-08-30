@@ -190,7 +190,7 @@ describe('themed image reuse', () => {
     ]));
   });
 
-  it('regenerates interface art for the selected gender but reuses ordinary word art', async () => {
+  it('prepares distinct interface and subject art for every selected gender', async () => {
     const generatedBodies: Record<string, unknown>[] = [];
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       if (isLookup(init)) return Response.json({ groups: [] });
@@ -207,7 +207,10 @@ describe('themed image reuse', () => {
     await vi.waitFor(() => expect(generatedBodies).toHaveLength(2));
 
     act(() => actions.setSettings({ voiceGender: 'male' }));
-    await vi.waitFor(() => expect(generatedBodies).toHaveLength(3));
+    await vi.waitFor(() => expect(generatedBodies).toHaveLength(4));
+
+    act(() => actions.setSettings({ voiceGender: 'female' }));
+    await vi.waitFor(() => expect(generatedBodies).toHaveLength(6));
 
     expect(generatedBodies.map((body) => ({
       text: (body.items as ThemeIconRequestItem[])[0]?.text,
@@ -216,6 +219,9 @@ describe('themed image reuse', () => {
       { text: 'Settings', audienceGender: 'neutral' },
       { text: 'water', audienceGender: 'neutral' },
       { text: 'Settings', audienceGender: 'male' },
+      { text: 'water', audienceGender: 'male' },
+      { text: 'Settings', audienceGender: 'female' },
+      { text: 'water', audienceGender: 'female' },
     ]);
   });
 

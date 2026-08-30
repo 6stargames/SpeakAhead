@@ -56,4 +56,20 @@ describe('Voice page', () => {
     expect(container.querySelectorAll('.voice-option')).toHaveLength(3);
     expect(container.querySelectorAll('.voice-option--chatgpt')).toHaveLength(0);
   });
+
+  it('does not offer a This is me control for voices heard in the room', () => {
+    act(() => actions.setSpeakers([{
+      id: 'speaker-1',
+      label: 'Speaker 1',
+      pitchHz: 150,
+      brightness: 0.08,
+      utterances: 1,
+      isOwner: false,
+    }]));
+    act(() => root.render(<VoicePanel />));
+
+    expect(container.textContent).not.toContain('This is me');
+    expect(container.textContent).not.toContain('mark your own voice');
+    expect(container.textContent).toContain('Forget');
+  });
 });

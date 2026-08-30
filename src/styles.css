@@ -1992,6 +1992,26 @@ body {
   height: 3.4rem;
   flex-basis: 3.4rem;
 }
+.option--theme-preview,
+.theme-option-stack__more {
+  position: relative;
+}
+.option__selected-check {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: grid;
+  width: 1.65em;
+  height: 1.65em;
+  place-items: center;
+  color: var(--accent-strong);
+  background: var(--surface);
+  border: 2px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.72em;
+  font-weight: 900;
+  line-height: 1;
+}
 .option-row--theme-previews > .option,
 .option-row--theme-previews > .theme-option-stack {
   flex: 1 1 0;

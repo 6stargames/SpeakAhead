@@ -92,8 +92,8 @@ export function ProfilePanel({
             <div><dt>New picture requests</dt><dd>{number(usage.imageRequests)}</dd></div>
           </dl>
           <p>
-            SpeakAhead usage returned to this page during this session. It is not account-wide
-            ChatGPT plan usage; reused saved pictures use no new generation request.
+            This shows SpeakAhead usage from this session only. Reused saved pictures use no new
+            generation request.
           </p>
         </div>
       </div>

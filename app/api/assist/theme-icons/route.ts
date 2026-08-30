@@ -110,7 +110,7 @@ function parseInput(value: unknown): ThemeIconInput | null {
       singleSubject: body.singleSubject === true,
       presentation,
       audienceGender:
-        presentation !== 'subject' && (body.audienceGender === 'male' || body.audienceGender === 'female')
+        body.audienceGender === 'male' || body.audienceGender === 'female'
           ? body.audienceGender
           : 'neutral',
       lookupOnly: body.lookupOnly === true,
@@ -138,10 +138,8 @@ function parseLookupUrl(request: Request): ThemeIconInput | null {
     singleSubject: url.searchParams.get('singleSubject') === 'true',
     presentation,
     audienceGender:
-      presentation !== 'subject' && (
-        url.searchParams.get('audienceGender') === 'male' ||
-        url.searchParams.get('audienceGender') === 'female'
-      )
+      url.searchParams.get('audienceGender') === 'male' ||
+      url.searchParams.get('audienceGender') === 'female'
         ? url.searchParams.get('audienceGender') as Exclude<AudienceGender, 'neutral'>
         : 'neutral',
     lookupOnly: true,
@@ -160,7 +158,7 @@ const THEME_DIRECTION: Record<PictureTheme, string> = {
   'pixel-art':
     'Use crisp 16-bit pixel art with a classic console-sprite feeling, pixel-perfect dark outlines, a vibrant limited palette, and a solid dark background.',
   'halo-3':
-    'Use the beloved Halo 3 game art direction: heroic military science fiction, battle-worn olive and titanium armour surfaces, luminous cyan energy, golden visor tones, angular UNSC-era geometry, and the richly atmospheric cinematic colour grading associated with Halo 3.',
+    'Use the beloved Halo 3 game art direction: heroic military science fiction, battle-worn titanium Mjolnir armour, luminous shield energy, golden visor tones, angular UNSC-era geometry, and the richly atmospheric cinematic colour grading associated with Halo 3. Use the varied multiplayer armour colours from Halo 3, including cobalt, crimson, violet, white, gold, teal, orange, and olive. Vary the armour colour across different subjects instead of making every Spartan green.',
   'stained-glass':
     'Use a luminous stained-glass window style with thick black lead contours, jewel-toned translucent glass, bright backlighting, and a centered medallion composition.',
   'pop-art':
@@ -188,7 +186,7 @@ const CONTROL_THEME_DIRECTION: Record<PictureTheme, string> = {
     'Use soft kawaii colours, rounded toy-like linework, and a small bow accent integrated into the icon without adding a kitten or character.',
   claymation: 'Render the icon itself as chunky tactile plasticine with subtle fingerprint texture and soft studio highlights.',
   'pixel-art': 'Render the icon itself as crisp 16-bit pixel art with a limited vibrant palette and pixel-perfect dark outline.',
-  'halo-3': 'Render the icon itself in the unmistakable Halo 3 HUD language: a crisp tactical glyph, olive titanium surfaces, luminous cyan shield energy, and restrained golden highlights. Keep it readable and do not add a character.',
+  'halo-3': 'Render the icon itself in the unmistakable Halo 3 HUD language: a crisp tactical glyph, titanium surfaces with varied multiplayer armour-colour accents, luminous cyan shield energy, and restrained golden highlights. Keep it readable and do not add a character.',
   'stained-glass': 'Render the icon itself in luminous jewel-toned glass with thick black lead contours and strong backlighting.',
   'pop-art': 'Render the icon itself with thick black outlines, flat primary colours, Ben-Day dots, and stark graphic contrast.',
   cubism: 'Render the icon itself with a small number of clear angular planes, ochre and cobalt collage textures, while preserving its silhouette.',
@@ -208,7 +206,7 @@ const WALLPAPER_THEME_DIRECTION: Record<PictureTheme, string> = {
     'Use an abstract kawaii atmosphere made only from soft pink, white, and red colour fields, rounded gradients, tiny light speckles, and plush-looking texture.',
   claymation: 'Use an abstract plasticine atmosphere made only from softly pressed clay layers, subtle fingerprints, rounded ridges, and warm studio light.',
   'pixel-art': 'Use an abstract 16-bit atmosphere made only from crisp pixel gradients, tiled light rhythms, and a vibrant limited palette on dark colour fields.',
-  'halo-3': 'Use an abstract Halo 3 battlefield atmosphere made only from dark olive titanium colour fields, luminous cyan shield energy, warm golden light, angular military interface rhythms, and cinematic alien-sky gradients. Include no characters, weapons, vehicles, logos, or objects.',
+  'halo-3': 'Use an abstract Halo 3 battlefield atmosphere made only from varied multiplayer armour colour fields, titanium texture, luminous cyan shield energy, warm golden light, angular military interface rhythms, and cinematic alien-sky gradients. Include no characters, weapons, vehicles, logos, or objects.',
   'stained-glass': 'Use an abstract stained-glass atmosphere made only from jewel-toned translucent fields, bold lead contours, and luminous backlighting.',
   'pop-art': 'Use an abstract pop-art atmosphere made only from bold primary colour fields, thick black graphic divisions, Ben-Day dots, and strong contrast.',
   cubism: 'Use an abstract synthetic-cubist atmosphere made only from angular ochre and cobalt planes, collage-paper texture, and balanced geometric rhythm.',
@@ -220,6 +218,15 @@ const WALLPAPER_THEME_DIRECTION: Record<PictureTheme, string> = {
 };
 
 function audienceDirection(input: ThemeIconInput): string {
+  if (input.theme === 'halo-3') {
+    if (input.audienceGender === 'female') {
+      return 'For this female user, favor the brighter customizable Halo 3 multiplayer armour colours such as violet, magenta, rose, aqua, white, and gold, with polished confident styling. Keep the result inclusive and dignified, never stereotyped.';
+    }
+    if (input.audienceGender === 'male') {
+      return 'For this male user, use a varied confident Halo 3 multiplayer armour palette such as cobalt, crimson, orange, white, gold, teal, and gunmetal. Do not default every subject to olive green.';
+    }
+    return 'Use a varied gender-neutral Halo 3 multiplayer armour palette across the artwork, mixing cobalt, crimson, violet, white, gold, teal, orange, and olive rather than making every subject green.';
+  }
   if (input.audienceGender === 'neutral') {
     return 'Keep the visual language welcoming and gender-inclusive without strongly gender-coded styling.';
   }
@@ -227,6 +234,11 @@ function audienceDirection(input: ThemeIconInput): string {
     return input.audienceGender === 'male'
       ? 'Design this for a male user. When the theme includes a character or mascot, use an original boyish or masculine-coded variation with a confident, dignified mood and a balanced colour palette. Avoid crude stereotypes.'
       : 'Design this for a female user. When the theme includes a character or mascot, use an original feminine-coded variation with a confident, dignified mood and a balanced colour palette. Avoid crude stereotypes.';
+  }
+  if (input.presentation === 'subject') {
+    return input.audienceGender === 'male'
+      ? 'Design this for a male user. When the subject is a person, character, or mascot, use an original masculine-coded variation with confident, dignified styling. For other subjects, tune the palette and details in an inclusive masculine direction. Avoid crude stereotypes.'
+      : 'Design this for a female user. When the subject is a person, character, or mascot, use an original feminine-coded variation with confident, dignified styling and expressive colour. For other subjects, tune the palette and details in an inclusive feminine direction. Avoid crude stereotypes.';
   }
   return input.audienceGender === 'male'
     ? 'Tune the colour balance and visual energy for a male user in an inclusive, confident way without adding people, characters, or stereotypes.'
@@ -248,11 +260,13 @@ function inputOwner(userId: string, input: ThemeIconInput): string | null {
 }
 
 function cacheAudience(
-  input: Pick<ThemeIconInput, 'presentation' | 'audienceGender'>,
+  input: Pick<ThemeIconInput, 'theme' | 'presentation' | 'audienceGender'>,
 ): Exclude<AudienceGender, 'neutral'> | undefined {
-  return input.presentation !== 'subject' && input.audienceGender !== 'neutral'
-    ? input.audienceGender
-    : undefined;
+  return input.audienceGender === 'neutral' ? undefined : input.audienceGender;
+}
+
+function themeStyleRevision(input: Pick<ThemeIconInput, 'theme'>): string | undefined {
+  return input.theme === 'halo-3' ? 'multiplayer-colours-v2' : undefined;
 }
 
 async function savedImageKey(owner: string, input: ThemeIconInput): Promise<string> {
@@ -260,6 +274,7 @@ async function savedImageKey(owner: string, input: ThemeIconInput): Promise<stri
     version: CACHE_VERSION,
     owner,
     theme: input.theme,
+    styleRevision: themeStyleRevision(input),
     singleSubject: cacheLayout(input),
     audience: cacheAudience(input),
     items: input.items,
@@ -271,6 +286,7 @@ async function previousUserImageKey(userId: string, input: ThemeIconInput): Prom
     version: USER_CACHE_VERSION,
     userId,
     theme: input.theme,
+    styleRevision: themeStyleRevision(input),
     singleSubject: cacheLayout(input),
     items: input.items,
   }, 'png');
@@ -281,6 +297,7 @@ async function legacyImageKey(userId: string, input: ThemeIconInput): Promise<st
     version: LEGACY_CACHE_VERSION,
     userId,
     theme: input.theme,
+    styleRevision: themeStyleRevision(input),
     singleSubject: cacheLayout(input),
     items: input.items,
   }, 'png');
@@ -295,6 +312,7 @@ async function savedTileKey(
     version: CACHE_VERSION,
     owner: themeImageCacheOwner(userId, item.text),
     theme: input.theme,
+    styleRevision: themeStyleRevision(input),
     singleSubject: cacheLayout(input),
     audience: cacheAudience(input),
     text: normalizedChoice(item.text),
@@ -324,6 +342,7 @@ async function generationLockKey(
     version: CACHE_VERSION,
     owner: themeImageCacheOwner(userId, item.text),
     theme: input.theme,
+    styleRevision: themeStyleRevision(input),
     singleSubject: cacheLayout(input),
     audience: cacheAudience(input),
     text: normalizedChoice(item.text),
@@ -459,7 +478,11 @@ async function findSavedTile(
 
   // Functional icons and decorative backgrounds have a deliberately new art
   // contract. Never revive an older character-plus-symbol picture for them.
-  if (input.presentation !== 'subject') return null;
+  if (
+    input.presentation !== 'subject' ||
+    input.theme === 'halo-3' ||
+    input.audienceGender !== 'neutral'
+  ) return null;
 
   // A user's v2 sheets may contain neighboring personal choices, so they are
   // never promoted globally. The same owner can still reuse them privately.
@@ -638,7 +661,11 @@ export async function POST(request: Request): Promise<Response> {
 
   // Preserve older private artwork for its owner. Old mixed sheets are never
   // copied into the shared library.
-  if (themeImageCacheScope(input.items[0]!.text) === 'private') {
+  if (
+    input.theme !== 'halo-3' &&
+    input.audienceGender === 'neutral' &&
+    themeImageCacheScope(input.items[0]!.text) === 'private'
+  ) {
     const previousKeys = [
       await previousUserImageKey(identity.userId, input),
       await legacyImageKey(identity.userId, input),

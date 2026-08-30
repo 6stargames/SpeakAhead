@@ -48,6 +48,11 @@ export const THEME_PREVIEW_PRELOADS = ALL_PICTURE_THEMES
   .filter((option): option is PictureThemeOption & { value: Exclude<SymbolTheme, 'emoji'> } => option.value !== 'emoji')
   .map((option) => ({ theme: option.value, item: THEME_PREVIEW_ITEMS[option.value] }));
 
+const MORE_THEME_PICKER_OPTIONS: readonly PictureThemeOption[] = [
+  PRIMARY_PICTURE_THEMES[0]!,
+  ...MORE_PICTURE_THEMES,
+];
+
 /**
  * One setting, several big buttons.
  *
@@ -151,6 +156,7 @@ function ThemeOptionButton({ option, selected }: {
         <ThemePreview theme={option.value} />
       </span>
       {option.label}
+      {selected && <span className="option__selected-check" aria-hidden="true">✓</span>}
     </button>
   );
 }
@@ -172,9 +178,13 @@ function ThemeOptionRow({ value, onViewMore }: {
             type="button"
             className="option theme-option-stack__more"
             aria-haspopup="dialog"
+            aria-pressed={MORE_PICTURE_THEMES.some((option) => option.value === value)}
             onClick={onViewMore}
           >
             View more
+            {MORE_PICTURE_THEMES.some((option) => option.value === value) && (
+              <span className="option__selected-check" aria-hidden="true">✓</span>
+            )}
           </button>
         </div>
         {PRIMARY_PICTURE_THEMES.slice(1).map((option) => (
@@ -197,7 +207,7 @@ function MoreThemesPanel({ value, onDone }: {
           <p>Choose a style. Pictures are saved and reused.</p>
         </div>
         <div className="theme-more__grid" data-scan="grid">
-          {MORE_PICTURE_THEMES.map((option) => (
+          {MORE_THEME_PICKER_OPTIONS.map((option) => (
             <ThemeOptionButton key={option.value} option={option} selected={value === option.value} />
           ))}
         </div>

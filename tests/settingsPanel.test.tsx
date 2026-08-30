@@ -60,6 +60,10 @@ describe('Settings voice type', () => {
   it('opens the researched picture styles and keeps Done docked in the picker', () => {
     act(() => root.render(<SettingsPanel signedIn symbolTheme="emoji" />));
 
+    const primaryEmoji = container.querySelector<HTMLButtonElement>('button[aria-label="Emoji"]');
+    expect(primaryEmoji?.getAttribute('aria-pressed')).toBe('true');
+    expect(primaryEmoji?.querySelector('.option__selected-check')?.textContent).toBe('✓');
+
     const viewMore = [...container.querySelectorAll<HTMLButtonElement>('button')]
       .find((button) => button.textContent?.trim() === 'View more');
     expect(viewMore).toBeDefined();
@@ -68,6 +72,10 @@ describe('Settings voice type', () => {
     act(() => viewMore?.click());
 
     expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    const moreEmoji = container.querySelector<HTMLButtonElement>('button[aria-label="Emoji"]');
+    expect(moreEmoji).not.toBeNull();
+    expect(moreEmoji?.getAttribute('aria-pressed')).toBe('true');
+    expect(moreEmoji?.querySelector('.option__selected-check')?.textContent).toBe('✓');
     expect(container.textContent).toContain('Claymation');
     expect(container.textContent).toContain('Pixel Art');
     expect(container.textContent).toContain('Mid-Century');
@@ -78,6 +86,8 @@ describe('Settings voice type', () => {
     const pixelArt = container.querySelector<HTMLButtonElement>('button[aria-label="Pixel Art"]');
     act(() => pixelArt?.click());
     expect(store.getState().settings.symbolTheme).toBe('pixel-art');
+    expect(pixelArt?.getAttribute('aria-pressed')).toBe('true');
+    expect(pixelArt?.querySelector('.option__selected-check')?.textContent).toBe('✓');
 
     act(() => done?.click());
     expect(container.querySelector('[role="dialog"]')).toBeNull();

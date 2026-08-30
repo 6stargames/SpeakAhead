@@ -96,7 +96,7 @@ export function VoicePanel(): JSX.Element {
       <hr className="voice-panel__divider" />
       <h3 className="panel__title">Voices heard in the room</h3>
       <p className="field__hint voice-panel__hint">
-        The device listens and learns each voice it hears. Tap a name to correct it, or mark your own voice.
+        The device listens and learns each voice it hears. Tap a name to correct it.
       </p>
 
       {speakers.length === 0 ? (
@@ -115,16 +115,6 @@ export function VoicePanel(): JSX.Element {
               <span className="speaker__meta">
                 {speaker.utterances} {speaker.utterances === 1 ? 'turn' : 'turns'}
               </span>
-              <button
-                type="button"
-                className="button"
-                aria-pressed={speaker.isOwner}
-                disabled={speaker.isOwner}
-                onClick={() => session.markSpeakerAsOwner(speaker.id)}
-                title="Words from this voice appear as yours"
-              >
-                {speaker.isOwner ? 'This is you' : 'This is me'}
-              </button>
               <button
                 type="button"
                 className="button button--ghost"

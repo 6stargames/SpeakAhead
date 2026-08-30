@@ -394,7 +394,7 @@ describe('AAC context tools', () => {
     );
 
     expect(container.textContent).toContain('140');
-    expect(container.textContent).toContain('SpeakAhead usage returned to this page');
+    expect(container.textContent).toContain('SpeakAhead usage from this session only');
     expect(container.textContent).toContain('AI requests');
     expect(container.textContent).toContain('Voice requests');
     expect(container.textContent).not.toContain('Activity');

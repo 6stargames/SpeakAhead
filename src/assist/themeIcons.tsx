@@ -97,9 +97,7 @@ function themedItemKey(
   // A button's meaning, rather than its fallback emoji or punctuation, owns
   // the picture. This is the same identity used by the signed-in R2 library.
   const presentation = item.presentation ?? 'subject';
-  const audience = presentation === 'subject' || audienceGender === 'neutral'
-    ? ''
-    : `\u0000audience:${audienceGender}`;
+  const audience = audienceGender === 'neutral' ? '' : `\u0000audience:${audienceGender}`;
   return `${theme}\u0000${singleSubject ? 'single' : 'board'}\u0000${presentation}\u0000${normalizedChoice(item.text)}${audience}`;
 }
 

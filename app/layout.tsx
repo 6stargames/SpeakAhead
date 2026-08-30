@@ -20,7 +20,8 @@ export async function generateMetadata(): Promise<Metadata> {
     applicationName: 'SpeakAhead',
     manifest: '/manifest.webmanifest',
     icons: {
-      icon: '/icons/icon-192.png',
+      icon: [{ url: '/openai-mark.svg', type: 'image/svg+xml' }],
+      shortcut: '/openai-mark.svg',
       apple: '/icons/apple-touch-icon.png',
     },
     openGraph: {
