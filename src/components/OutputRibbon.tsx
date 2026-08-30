@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useId, useRef, useState, type JSX, type ReactNode } from 'react';
+import { themeTileBackgroundStyle, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
 import { session } from '@/session/AacSession';
+import { voiceBadgeThemeItem, voiceChoicesForGender } from '@/speech/tts/voiceChoices';
 import { actions, selectComposition, selectCompositionAuthor, useStore, type AppState } from '@/state/store';
 
 const selectSpeaking = (state: AppState): boolean => state.speaking;
 const selectLastSpoken = (state: AppState): string | null => state.lastSpokenText;
+const selectVoicePresentation = (state: AppState) => ({
+  voiceId: state.settings.voiceId,
+  voiceGender: state.settings.voiceGender,
+  symbolTheme: state.settings.symbolTheme,
+});
 
 /**
  * The output ribbon: the utterance under construction and the button that says
@@ -19,6 +26,18 @@ export function OutputRibbon({ leading }: { leading?: ReactNode } = {}): JSX.Ele
   const compositionAuthor = useStore(selectCompositionAuthor);
   const speaking = useStore(selectSpeaking);
   const lastSpoken = useStore(selectLastSpoken);
+  const voicePresentation = useStore(selectVoicePresentation);
+  const selectedVoice = voiceChoicesForGender(voicePresentation.voiceGender)
+    .find((voice) => voice.id === voicePresentation.voiceId);
+  const voiceBadgeItem = selectedVoice ? voiceBadgeThemeItem(selectedVoice) : null;
+  const voiceBadgeTiles = useThemedSymbols(
+    voiceBadgeItem ? [voiceBadgeItem] : [],
+    voicePresentation.symbolTheme,
+    { batchSize: 1, singleSubject: true },
+  );
+  const voiceBadgeTile = voiceBadgeItem
+    ? themeTileFor(voiceBadgeTiles, voiceBadgeItem)
+    : undefined;
 
   const inputId = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -94,7 +113,10 @@ export function OutputRibbon({ leading }: { leading?: ReactNode } = {}): JSX.Ele
       <div className="ribbon__actions" data-scan="">
         <button
           type="button"
-          className="button button--primary button--speak"
+          className={`button button--primary button--speak${
+            voiceBadgeTile ? ' button--speak-pictured' : ''
+          }`}
+          style={themeTileBackgroundStyle(voiceBadgeTile)}
           onClick={handleSpeak}
           disabled={composition.trim().length === 0 || speaking}
         >

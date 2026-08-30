@@ -1,5 +1,10 @@
-import type { CSSProperties, JSX } from 'react';
-import { ThemedSymbol, themeTileFor, useThemedSymbols, type ThemeTile } from '@/assist/themeIcons';
+import type { JSX } from 'react';
+import {
+  ThemedSymbol,
+  themeTileBackgroundStyle,
+  themeTileFor,
+  useThemedSymbols,
+} from '@/assist/themeIcons';
 import { session } from '@/session/AacSession';
 import {
   isChatGptVoiceId,
@@ -15,23 +20,6 @@ const selectTts = (state: AppState) => ({
   status: state.tts.status,
   signedIn: state.accurateTranscriptionEnabled,
 });
-
-function backgroundStyle(tile: ThemeTile | undefined): CSSProperties | undefined {
-  if (!tile) return undefined;
-  const column = tile.index % tile.columns;
-  const row = Math.floor(tile.index / tile.columns);
-  const x = tile.columns <= 1 ? 0 : (column / (tile.columns - 1)) * 100;
-  const y = tile.rows <= 1 ? 0 : (row / (tile.rows - 1)) * 100;
-  return {
-    backgroundImage: [
-      'linear-gradient(90deg, color-mix(in srgb, var(--surface) 68%, transparent), color-mix(in srgb, var(--surface) 42%, transparent))',
-      `url(${JSON.stringify(tile.imageUrl)})`,
-    ].join(', '),
-    backgroundPosition: `center, ${x}% ${y}%`,
-    backgroundRepeat: 'no-repeat',
-    backgroundSize: `cover, ${tile.columns * 100}% ${tile.rows * 100}%`,
-  };
-}
 
 /** The selected speaking voice, plus the voices learned from the room. */
 export function VoicePanel(): JSX.Element {
@@ -80,7 +68,7 @@ export function VoicePanel(): JSX.Element {
             <button
               type="button"
               className={`voice-option voice-option--${voice.source}${background ? ' voice-option--pictured' : ''}`}
-              style={backgroundStyle(background)}
+              style={themeTileBackgroundStyle(background)}
               key={`${voice.gender}:${voice.id}`}
               aria-pressed={chosenId === voice.id}
               aria-label={`${voice.name}, ${voice.source === 'chatgpt' ? 'OpenAI voice' : 'device voice'}. ${chosenId === voice.id ? 'Your current voice.' : ''}`}

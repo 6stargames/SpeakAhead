@@ -560,6 +560,24 @@ export function themeTileFor(
   return tiles.get(itemKey(item));
 }
 
+/** Fill a wide control with the exact cropped tile used by another surface. */
+export function themeTileBackgroundStyle(tile: ThemeTile | undefined): CSSProperties | undefined {
+  if (!tile) return undefined;
+  const column = tile.index % tile.columns;
+  const row = Math.floor(tile.index / tile.columns);
+  const x = tile.columns <= 1 ? 0 : (column / (tile.columns - 1)) * 100;
+  const y = tile.rows <= 1 ? 0 : (row / (tile.rows - 1)) * 100;
+  return {
+    backgroundImage: [
+      'linear-gradient(90deg, color-mix(in srgb, var(--surface) 68%, transparent), color-mix(in srgb, var(--surface) 42%, transparent))',
+      `url(${JSON.stringify(tile.imageUrl)})`,
+    ].join(', '),
+    backgroundPosition: `center, ${x}% ${y}%`,
+    backgroundRepeat: 'no-repeat',
+    backgroundSize: `cover, ${tile.columns * 100}% ${tile.rows * 100}%`,
+  };
+}
+
 /** Allows a fresh app session to be exercised without reloading the test VM. */
 export function resetThemedSymbolMemoryForTests(): void {
   itemMemory.clear();
