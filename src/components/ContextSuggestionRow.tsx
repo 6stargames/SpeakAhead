@@ -72,14 +72,11 @@ export function ContextSuggestionRow({
   const previousSuggestions: ContextSuggestion[] = mode === 'words' ? previousWords : previousPhrases;
   const themedSymbols = useThemedSymbols(suggestions, symbolTheme);
   const previousThemedSymbols = useThemedSymbols(previousSuggestions, symbolTheme);
-  const readyTiles = useThemedSymbols([CONTEXT_READY_THEME_ITEM], symbolTheme, {
-    batchSize: 1,
-    singleSubject: true,
-  });
   const bannerItem = CONTEXT_BANNER_THEME_ITEMS[mode];
   const bannerTiles = useThemedSymbols([bannerItem], symbolTheme, {
     batchSize: 1,
     singleSubject: true,
+    genderAware: true,
   });
   const bannerTile = themeTileFor(bannerTiles, bannerItem);
   const bannerStyle: CSSProperties | undefined = bannerTile
@@ -94,6 +91,7 @@ export function ContextSuggestionRow({
   const dividerTiles = useThemedSymbols([dividerItem], symbolTheme, {
     batchSize: 1,
     singleSubject: true,
+    genderAware: true,
   });
   const dividerTile = themeTileFor(dividerTiles, dividerItem);
   const dividerStyle: CSSProperties | undefined = dividerTile
@@ -134,12 +132,11 @@ export function ContextSuggestionRow({
               className={`context-row__empty${bannerTile ? ' context-row__empty--themed' : ''}`}
               style={bannerStyle}
             >
-              <span className="context-row__spark" aria-hidden="true">
-                <ThemedSymbol
-                  symbol={CONTEXT_READY_THEME_ITEM.symbol}
-                  tile={themeTileFor(readyTiles, CONTEXT_READY_THEME_ITEM)}
-                />
-              </span>
+              {symbolTheme === 'emoji' && (
+                <span className="context-row__spark" aria-hidden="true">
+                  <ThemedSymbol symbol={CONTEXT_READY_THEME_ITEM.symbol} />
+                </span>
+              )}
               <span className="context-row__message">
                 {assistStatus === 'thinking'
                   ? `Preparing AI ${mode}…`

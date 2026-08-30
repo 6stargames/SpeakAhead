@@ -172,6 +172,8 @@ export class AacSession {
   #peerSendsRtt = false;
   #predictionTimer: ReturnType<typeof setTimeout> | null = null;
   #speechController: AbortController | null = null;
+  /** Chrome tab-audio capture track, while the user is sharing one. */
+  #tabAudioTrack: MediaStreamTrack | null = null;
   #started = false;
 
   /** ONNX remains live; signed-in users may opt into this bounded second pass. */
@@ -362,6 +364,7 @@ export class AacSession {
 
     this.#peer?.hangUp();
     this.#peer = null;
+    this.#tabAudioTrack = null;
 
     await Promise.allSettled([this.#asr.dispose(), this.#tts.dispose(), this.graph.dispose()]);
     this.#started = false;
@@ -536,8 +539,17 @@ export class AacSession {
         video: false,
       });
       await this.graph.resume();
+      // If this replaces a shared tab, prevent stopping that old track from
+      // scheduling another microphone restart.
+      this.#tabAudioTrack = null;
+      this.#resetLocalInputState();
       await this.graph.attachMicrophone(stream);
-      store.set({ micActive: true, micError: null, micPermission: 'granted' });
+      store.set({
+        micActive: true,
+        audioInputSource: 'microphone',
+        micError: null,
+        micPermission: 'granted',
+      });
       // Start the speaker-verification network downloading the moment the
       // microphone is live. Until it is ready, attribution runs on the
       // pitch-and-timbre heuristics; nothing waits for it.
@@ -562,8 +574,79 @@ export class AacSession {
     }
   }
 
+  /**
+   * Listen directly to a browser tab selected by the user.
+   *
+   * Chrome deliberately requires a fresh picker from a user gesture every
+   * time. The selected video track is discarded immediately; only its audio
+   * track enters the same on-device recognition path as the microphone.
+   */
+  async startBrowserTabAudio(): Promise<void> {
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      actions.notify('warning', 'This browser cannot share audio from another tab.');
+      return;
+    }
+
+    let shared: MediaStream | null = null;
+    try {
+      shared = await navigator.mediaDevices.getDisplayMedia({
+        audio: {
+          suppressLocalAudioPlayback: false,
+        },
+        video: true,
+        // Chrome uses these hints to open on browser tabs and keep the AAC app
+        // out of the picker. The user still owns the final choice.
+        selfBrowserSurface: 'exclude',
+        surfaceSwitching: 'include',
+        systemAudio: 'exclude',
+      } as unknown as DisplayMediaStreamOptions);
+
+      const audioTrack = shared.getAudioTracks()[0];
+      if (!audioTrack) {
+        shared.getTracks().forEach((track) => track.stop());
+        actions.notify('warning', 'Choose a Chrome tab and turn on Share tab audio.');
+        return;
+      }
+
+      // getDisplayMedia requires video, but SpeakAhead never needs or keeps it.
+      shared.getVideoTracks().forEach((track) => track.stop());
+      const audioOnly = new MediaStream([audioTrack]);
+
+      await this.graph.resume();
+      this.#tabAudioTrack = null;
+      this.#resetLocalInputState();
+      await this.graph.attachMicrophone(audioOnly);
+      this.#tabAudioTrack = audioTrack;
+      store.set({ micActive: true, audioInputSource: 'browser-tab', micError: null });
+
+      audioTrack.addEventListener('ended', () => {
+        if (this.#tabAudioTrack !== audioTrack) return;
+        this.#tabAudioTrack = null;
+        this.stopMicrophone();
+        if (!this.#started) return;
+        actions.notify('info', 'Tab audio ended. Listening to the microphone again.');
+        void this.startMicrophone();
+      }, { once: true });
+    } catch (error) {
+      shared?.getTracks().forEach((track) => track.stop());
+      const cancelled = error instanceof DOMException && error.name === 'NotAllowedError';
+      actions.notify(
+        cancelled ? 'info' : 'warning',
+        cancelled
+          ? 'Tab audio was not shared.'
+          : `Tab audio unavailable: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
   stopMicrophone(): void {
+    this.#tabAudioTrack = null;
     this.graph.detachMicrophone();
+    this.#resetLocalInputState();
+    store.set({ micActive: false, audioInputSource: 'microphone' });
+  }
+
+  #resetLocalInputState(): void {
     this.#asr.reset('local');
     this.#changeDetector.reset();
     this.#pendingUtterances = [];
@@ -577,7 +660,6 @@ export class AacSession {
     this.#utteranceGeneration += 1;
     this.#framesSinceChangeCheck = 0;
     actions.setDictationPreview('');
-    store.set({ micActive: false });
   }
 
   #onFrame = (frame: AudioFrame): void => {

@@ -425,9 +425,10 @@ function pictureTaskLabel(items: readonly ThemeIconRequestItem[]): string {
 export function useThemedSymbols(
   items: readonly ThemeIconRequestItem[],
   theme: SymbolTheme,
-  options: { batchSize?: number; singleSubject?: boolean } = {},
+  options: { batchSize?: number; singleSubject?: boolean; genderAware?: boolean } = {},
 ): ReadonlyMap<string, ThemeTile> {
-  const audienceGender = useStore((state) => state.settings.voiceGender);
+  const selectedGender = useStore((state) => state.settings.voiceGender);
+  const audienceGender: ThemeAudienceGender = options.genderAware === false ? 'neutral' : selectedGender;
   useSyncExternalStore(
     subscribeResolvedMemory,
     resolvedMemorySnapshot,
@@ -491,6 +492,8 @@ export interface ThemePreparationGroup {
   readonly items: readonly ThemeIconRequestItem[];
   readonly batchSize?: number;
   readonly singleSubject?: boolean;
+  /** Set false only for reusable style previews that do not depict a communication choice. */
+  readonly genderAware?: boolean;
 }
 
 /**
@@ -504,6 +507,7 @@ export function usePreparedSymbolTheme(
   const audienceGender = useStore((state) => state.settings.voiceGender);
   const signature = groups.map((group) => [
     group.singleSubject === true ? 'single' : 'board',
+    group.genderAware === false ? 'shared' : 'gender-aware',
     Math.max(1, Math.min(9, group.batchSize ?? 9)),
     group.items.map(itemKey).join('\u0002'),
   ].join('\u0003')).join('\u0004');
@@ -518,8 +522,9 @@ export function usePreparedSymbolTheme(
     if (requestedTheme === 'emoji') return undefined;
     stableGroups.forEach((group) => {
       const size = Math.max(1, Math.min(9, group.batchSize ?? 9));
+      const groupAudience: ThemeAudienceGender = group.genderAware === false ? 'neutral' : audienceGender;
       chunk(group.items, size).forEach((items) => {
-        void loadTiles(items, requestedTheme, group.singleSubject === true, audienceGender);
+        void loadTiles(items, requestedTheme, group.singleSubject === true, groupAudience);
       });
     });
     return undefined;

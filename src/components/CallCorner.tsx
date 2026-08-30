@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX } from 'react';
+import { useEffect, useState, type CSSProperties, type JSX } from 'react';
 import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
 import { session } from '@/session/AacSession';
 import { actions, useStore, type AppState, type SymbolTheme } from '@/state/store';
@@ -8,6 +8,34 @@ export const NEW_CALL_THEME_ITEM = {
   symbol: '📞',
   presentation: 'control-icon',
 } as const;
+
+const NEW_CALL_AMBIENT: Record<SymbolTheme, readonly [string, string, string]> = {
+  emoji: ['#3559a8', '#5f7fe0', '#a9c3ff'],
+  ghibli: ['#285c4b', '#4c7d75', '#b9e6d3'],
+  'baby-shark': ['#075985', '#0e7490', '#67e8f9'],
+  'hello-kitty': ['#9d174d', '#be185d', '#fbcfe8'],
+  claymation: ['#9a3412', '#c2410c', '#fed7aa'],
+  'pixel-art': ['#4c1d95', '#6d28d9', '#c4b5fd'],
+  'halo-3': ['#33431d', '#586b2c', '#d6b66b'],
+  'stained-glass': ['#312e81', '#6b21a8', '#c4b5fd'],
+  'pop-art': ['#be123c', '#c026d3', '#fde047'],
+  cubism: ['#7c2d12', '#1e3a5f', '#fdba74'],
+  'ukiyo-e': ['#1e3a5f', '#075985', '#7dd3fc'],
+  papercraft: ['#7c2d12', '#9f3a2a', '#fdba74'],
+  'neon-cyberpunk': ['#111827', '#581c87', '#22d3ee'],
+  'felted-wool': ['#7f1d1d', '#9f1239', '#fda4af'],
+  'mid-century': ['#115e59', '#9a3412', '#facc15'],
+};
+
+export function newCallAmbientStyle(theme: SymbolTheme): CSSProperties {
+  const [start, end, glow] = NEW_CALL_AMBIENT[theme];
+  return {
+    background: `linear-gradient(135deg, ${start}, ${end})`,
+    borderColor: glow,
+    color: '#ffffff',
+    boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${glow} 45%, transparent), 0 0 1rem color-mix(in srgb, ${glow} 24%, transparent)`,
+  };
+}
 
 const selectCall = (state: AppState) => ({
   call: state.call,
@@ -37,6 +65,7 @@ export function CallCorner({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolThem
   const callTiles = useThemedSymbols([NEW_CALL_THEME_ITEM], symbolTheme, {
     batchSize: 1,
     singleSubject: true,
+    genderAware: true,
   });
   const [code, setCode] = useState('');
   const [connectedAt, setConnectedAt] = useState<number | null>(null);
@@ -131,7 +160,12 @@ export function CallCorner({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolThem
           value={code}
           onChange={(event) => setCode(event.target.value.toUpperCase())}
         />
-        <button type="button" className="button button--primary" onClick={() => void start()}>
+        <button
+          type="button"
+          className="button button--primary call-corner__new-call"
+          style={newCallAmbientStyle(symbolTheme)}
+          onClick={() => void start()}
+        >
           {code.trim() ? 'Join' : (
             <>
               <span className="call-corner__button-icon" aria-hidden="true">

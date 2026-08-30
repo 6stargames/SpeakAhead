@@ -136,7 +136,11 @@ function OptionRow<T>({
 
 function ThemePreview({ theme }: { theme: SymbolTheme }): JSX.Element {
   const item = THEME_PREVIEW_ITEMS[theme];
-  const tiles = useThemedSymbols([item], theme, { batchSize: 1, singleSubject: true });
+  const tiles = useThemedSymbols([item], theme, {
+    batchSize: 1,
+    singleSubject: true,
+    genderAware: false,
+  });
   return <ThemedSymbol symbol={item.symbol} tile={themeTileFor(tiles, item)} />;
 }
 

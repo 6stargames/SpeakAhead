@@ -90,7 +90,7 @@ function isolationHeaders() {
     'Referrer-Policy': 'no-referrer',
     // No microphone audio ever leaves the page, but a Permissions-Policy makes
     // that a browser-enforced property rather than a claim in a document.
-    'Permissions-Policy': 'camera=(), geolocation=(), payment=(), usb=(), microphone=(self)',
+    'Permissions-Policy': 'camera=(), display-capture=(self), geolocation=(), payment=(), usb=(), microphone=(self)',
   };
 }
 

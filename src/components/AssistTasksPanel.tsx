@@ -103,6 +103,7 @@ export function AssistTasksPanel({
   const panelTiles = useThemedSymbols([panelItem], symbolTheme, {
     batchSize: 1,
     singleSubject: true,
+    genderAware: true,
   });
   const panelTile = themeTileFor(panelTiles, panelItem);
   const panelStyle: CSSProperties | undefined = panelTile

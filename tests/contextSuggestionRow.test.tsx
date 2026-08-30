@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ContextSuggestionRow } from '@/components/ContextSuggestionRow';
 import { SuggestionStrip } from '@/components/SuggestionStrip';
 import { actions, store } from '@/state/store';
@@ -34,6 +34,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  vi.unstubAllGlobals();
 });
 
 describe('AI context board row', () => {
@@ -90,6 +91,18 @@ describe('AI context board row', () => {
     expect(container.textContent).toContain('AI words will appear here after the next spoken turn.');
     expect(container.querySelector('.context-row__spark .cell__symbol')?.textContent).toBe('✨');
     expect(container.querySelectorAll('.context-row--previous .context-cell--placeholder')).toHaveLength(6);
+  });
+
+  it('removes the sparkle from the first row when a picture theme is active', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 503 })));
+    act(() => actions.setContextSuggestions([], []));
+    await act(async () => {
+      root.render(<ContextSuggestionRow mode="phrases" enabled symbolTheme="halo-3" />);
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toContain('AI phrases will appear here after the next spoken turn.');
+    expect(container.querySelector('.context-row__spark')).toBeNull();
   });
 
   it('bumps the last generation into the second row when new choices arrive', () => {

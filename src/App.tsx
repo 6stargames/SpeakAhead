@@ -27,7 +27,6 @@ import {
 import {
   CONTEXT_BANNER_THEME_ITEMS,
   CONTEXT_DIVIDER_THEME_ITEMS,
-  CONTEXT_READY_THEME_ITEM,
 } from '@/components/ContextSuggestionRow';
 import { CLOSE_CHAT_THEME_ITEM } from '@/components/ThemedCloseButton';
 import { session } from '@/session/AacSession';
@@ -91,7 +90,6 @@ const INTERFACE_THEME_ITEMS = [
   ...SPINE_THEME_ITEMS,
   ...ASSIST_FEATURE_THEME_ITEMS,
   NEW_CALL_THEME_ITEM,
-  CONTEXT_READY_THEME_ITEM,
 ];
 
 const selectEmergency = (state: AppState): boolean => state.emergencyOverride;
@@ -174,7 +172,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
   const themePreparationGroups = useMemo(() => [
     // Functional icons are separate 1x1 images. Generated sprite sheets can
     // bleed across cells and make a control look like two unrelated pictures.
-    { items: INTERFACE_THEME_ITEMS, batchSize: 1, singleSubject: true },
+    { items: INTERFACE_THEME_ITEMS, batchSize: 1, singleSubject: true, genderAware: true },
     {
       items: [
         CLOSE_CHAT_THEME_ITEM,
@@ -184,6 +182,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
       ],
       batchSize: 1,
       singleSubject: true,
+      genderAware: true,
     },
     { items: visibleVoicePortraitItems, batchSize: 3, singleSubject: true },
     { items: visibleVoiceBadgeItems, batchSize: 1, singleSubject: true },
@@ -208,6 +207,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
   const interfaceSymbols = useThemedSymbols(INTERFACE_THEME_ITEMS, symbolTheme, {
     batchSize: 1,
     singleSubject: true,
+    genderAware: true,
   });
   // Theme previews have their own art direction. Warm every choice while the
   // main board is open so neither Settings nor View more visibly starts work.

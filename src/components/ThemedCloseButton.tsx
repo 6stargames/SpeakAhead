@@ -19,6 +19,7 @@ export function ThemedCloseButton({
   const tiles = useThemedSymbols([CLOSE_CHAT_THEME_ITEM], symbolTheme, {
     batchSize: 1,
     singleSubject: true,
+    genderAware: true,
   });
   const tile = themeTileFor(tiles, CLOSE_CHAT_THEME_ITEM);
   const style: CSSProperties | undefined = tile

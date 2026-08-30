@@ -18,6 +18,8 @@ function formatTime(at: number): string {
   return new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+const TRANSIENT_STATUS_MS = 4_000;
+
 /**
  * Whose words these are.
  *
@@ -165,6 +167,24 @@ function TurnRow({
   // outline, not a filled bubble: present, legible, and visually subordinate
   // to everything that was actually heard.
   const unspoken = mine && turn.dictated && turn.final;
+  const transientOwnershipLabel = mine && !turn.dictated;
+  const [showOwnershipLabel, setShowOwnershipLabel] = useState(
+    () => !transientOwnershipLabel || Date.now() - turn.at < TRANSIENT_STATUS_MS,
+  );
+  useEffect(() => {
+    if (!transientOwnershipLabel) {
+      setShowOwnershipLabel(true);
+      return undefined;
+    }
+    const remaining = TRANSIENT_STATUS_MS - (Date.now() - turn.at);
+    if (remaining <= 0) {
+      setShowOwnershipLabel(false);
+      return undefined;
+    }
+    setShowOwnershipLabel(true);
+    const timer = window.setTimeout(() => setShowOwnershipLabel(false), remaining);
+    return () => window.clearTimeout(timer);
+  }, [transientOwnershipLabel, turn.at]);
   const classes = [
     'turn',
     mine ? 'turn--mine' : 'turn--other',
@@ -176,26 +196,28 @@ function TurnRow({
     .join(' ');
 
   return (
-    <article className={classes}>
+    <article className={classes} aria-label={transientOwnershipLabel ? 'Your message' : undefined}>
       <header className="turn__meta">
         {/* An explicit textual label, not only colour and position: RAUR Need 13
             has to hold for a screen-reader user and for a colour-blind one. */}
         {/* Dictated text was heard, not spoken aloud and not sent to anyone.
             Labelling both "You said" would misrepresent what happened. */}
-        {speaker ? (
-          <button
-            type="button"
-            className="turn__who"
-            aria-expanded={menuOpen}
-            title="Fix this voice: rename it, claim it, or forget it"
-            onClick={() => onToggleMenu(menuOpen ? null : turn.id)}
-          >
-            {mine && turn.dictated ? 'You dictated' : `${who} said`} ✎
-          </button>
-        ) : (
-          <span>{mine && turn.dictated ? 'You dictated' : `${who} said`}</span>
+        {showOwnershipLabel && (
+          speaker ? (
+            <button
+              type="button"
+              className="turn__who"
+              aria-expanded={menuOpen}
+              title="Fix this voice: rename it, claim it, or forget it"
+              onClick={() => onToggleMenu(menuOpen ? null : turn.id)}
+            >
+              {mine && turn.dictated ? 'You dictated' : `${who} said`} ✎
+            </button>
+          ) : (
+            <span>{mine && turn.dictated ? 'You dictated' : `${who} said`}</span>
+          )
         )}
-        <span aria-hidden="true">·</span>
+        {showOwnershipLabel && <span aria-hidden="true">·</span>}
         <span>{formatTime(turn.at)}</span>
         {turn.viaRtt && <span className="turn__badge">real-time text</span>}
         {unspoken && <span className="turn__badge">not spoken aloud</span>}
@@ -235,6 +257,7 @@ const selectListening = (state: AppState) => ({
   ttsStatus: state.tts.status,
   ttsDetail: state.tts.detail,
   accurateTranscriptionEnabled: state.accurateTranscriptionEnabled,
+  audioInputSource: state.audioInputSource,
 });
 
 export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolTheme }): JSX.Element {
@@ -247,6 +270,22 @@ export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolT
   const onCall = callInfo.call !== 'idle' && callInfo.call !== 'closed';
   const containerRef = useRef<HTMLDivElement>(null);
   const [openMenuTurn, setOpenMenuTurn] = useState<string | null>(null);
+  const [showListeningDetails, setShowListeningDetails] = useState(true);
+  const browserTabAudioAvailable = typeof navigator !== 'undefined' &&
+    typeof navigator.mediaDevices?.getDisplayMedia === 'function';
+  useEffect(() => {
+    if (!listening.micActive || !listening.asrReady) {
+      setShowListeningDetails(true);
+      return undefined;
+    }
+    setShowListeningDetails(true);
+    const timer = window.setTimeout(() => setShowListeningDetails(false), TRANSIENT_STATUS_MS);
+    return () => window.clearTimeout(timer);
+  }, [
+    listening.accurateTranscriptionEnabled,
+    listening.asrReady,
+    listening.micActive,
+  ]);
   /**
    * The furthest the list could scroll at the previous update.
    *
@@ -421,14 +460,33 @@ export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolT
           <span className="listening-bar__label">
             {!listening.asrReady
               ? 'Getting ready'
-              : `${liveSpeaker ? `Listening · ${liveSpeaker.label}` : 'Listening'}${
-                listening.accurateTranscriptionEnabled ? ' · ONNX + GPT' : ''
-              }`}
+              : showListeningDetails
+                ? `${listening.audioInputSource === 'browser-tab'
+                  ? 'Listening · browser tab'
+                  : liveSpeaker ? `Listening · ${liveSpeaker.label}` : 'Listening'}${
+                  listening.accurateTranscriptionEnabled ? ' · ONNX + GPT' : ''
+                }`
+                : 'Listening'}
           </span>
           {!listening.asrReady ? (
             <LoadProgress percent={formatLoadPercent(listening.asrDetail)} />
           ) : (
             <Waveform active={listening.micActive} />
+          )}
+          {listening.asrReady && browserTabAudioAvailable && (
+            <button
+              type="button"
+              className="button button--ghost listening-bar__source"
+              title={listening.audioInputSource === 'browser-tab'
+                ? 'Stop hearing the shared tab and use this device microphone'
+                : 'Choose another browser tab and turn on Share tab audio'}
+              onClick={() => {
+                if (listening.audioInputSource === 'browser-tab') void session.startMicrophone();
+                else void session.startBrowserTabAudio();
+              }}
+            >
+              {listening.audioInputSource === 'browser-tab' ? 'Use microphone' : 'Hear another tab'}
+            </button>
           )}
         </div>
       ) : (
@@ -441,6 +499,16 @@ export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolT
               ? 'Allow the microphone in the address bar, then reload.'
               : 'Tap or press anywhere to start listening.'}
           </span>
+          {listening.asrReady && browserTabAudioAvailable && (
+            <button
+              type="button"
+              className="button button--ghost listening-bar__source"
+              title="Choose another browser tab and turn on Share tab audio"
+              onClick={() => void session.startBrowserTabAudio()}
+            >
+              Hear another tab
+            </button>
+          )}
         </div>
       )}
 

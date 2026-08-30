@@ -17,11 +17,13 @@ let root: Root;
 function Harness({
   items,
   batchSize,
+  genderAware,
 }: {
   items: readonly ThemeIconRequestItem[];
   batchSize?: number;
+  genderAware?: boolean;
 }) {
-  const tiles = useThemedSymbols(items, 'baby-shark', { batchSize });
+  const tiles = useThemedSymbols(items, 'baby-shark', { batchSize, genderAware });
   return <div data-count={items.filter((item) => themeTileFor(tiles, item)).length} />;
 }
 
@@ -223,6 +225,29 @@ describe('themed image reuse', () => {
       { text: 'Settings', audienceGender: 'female' },
       { text: 'water', audienceGender: 'female' },
     ]);
+  });
+
+  it('reuses art-style previews when the selected gender changes', async () => {
+    const generatedBodies: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (isLookup(init)) return Response.json({ groups: [] });
+      if (init?.method === 'POST' && typeof init.body === 'string') {
+        generatedBodies.push(JSON.parse(init.body) as Record<string, unknown>);
+      }
+      return pngResponse();
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const preview = { text: 'HALO 3 art style preview', symbol: '🛡️' };
+
+    act(() => root.render(<Harness items={[preview]} batchSize={1} genderAware={false} />));
+    await vi.waitFor(() => expect(generatedBodies).toHaveLength(1));
+
+    act(() => actions.setSettings({ voiceGender: 'male' }));
+    act(() => actions.setSettings({ voiceGender: 'female' }));
+    await flush();
+
+    expect(generatedBodies).toHaveLength(1);
+    expect(generatedBodies[0]?.audienceGender).toBe('neutral');
   });
 
   it('restores saved pictures silently even when two surfaces ask at once', async () => {
