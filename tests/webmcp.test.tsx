@@ -373,6 +373,9 @@ describe('AAC context tools', () => {
     expect(container.textContent).toMatch(/Running · \d+\.\ds/);
     expect(container.textContent).not.toContain('Accurate transcription');
     expect(container.textContent).not.toContain('Quick replies');
+    expect(container.textContent).not.toContain('Activity');
+    expect(container.querySelector('.assist-tasks__header')).toBeNull();
+    expect(container.querySelector('.assist-tasks__hero #assist-tasks-title')).not.toBeNull();
     expect(container.querySelector('.assist-tasks__hero-icon')).toBeNull();
     expect(container.querySelectorAll('.themed-close__edge')).toHaveLength(0);
     expect(container.querySelector('.themed-close__label')?.textContent).toBe('Close - back to chat');

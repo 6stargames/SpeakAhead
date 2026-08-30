@@ -82,11 +82,8 @@ export function AssistTasksPanel({
   const panelTile = themeTileFor(panelTiles, panelItem);
   const panelStyle: CSSProperties | undefined = panelTile
     ? {
-      backgroundImage: [
-        'linear-gradient(color-mix(in srgb, var(--surface-raised) 68%, transparent), color-mix(in srgb, var(--surface-raised) 78%, transparent))',
-        `url(${JSON.stringify(panelTile.imageUrl)})`,
-      ].join(', '),
-      backgroundPosition: 'center, center 52%',
+      backgroundImage: `url(${JSON.stringify(panelTile.imageUrl)})`,
+      backgroundPosition: 'center 52%',
       backgroundRepeat: 'no-repeat',
       backgroundSize: 'cover',
     }
@@ -116,19 +113,6 @@ export function AssistTasksPanel({
       aria-labelledby="assist-tasks-title"
     >
       <div className="assist-tasks__scroll">
-        <header className="assist-tasks__header">
-          <div>
-            <p className="assist-tasks__eyebrow">ChatGPT · WebMCP</p>
-            <h2 id="assist-tasks-title">{presentation.label}</h2>
-          </div>
-          <span
-            className={`assist-tasks__status assist-tasks__status--${activity.status}`}
-            role="status"
-          >
-            {headerStatus}
-          </span>
-        </header>
-
         <div
           className={`assist-tasks__hero assist-tasks__hero--${activity.status}${
             panelTile ? ' assist-tasks__hero--pictured' : ''
@@ -136,7 +120,18 @@ export function AssistTasksPanel({
           style={panelStyle}
         >
           <div>
-            <h3>Activity</h3>
+            <header className="assist-tasks__hero-header">
+              <div>
+                <p className="assist-tasks__eyebrow">ChatGPT · WebMCP</p>
+                <h2 id="assist-tasks-title">{presentation.label}</h2>
+              </div>
+              <span
+                className={`assist-tasks__status assist-tasks__status--${activity.status}`}
+                role="status"
+              >
+                {headerStatus}
+              </span>
+            </header>
             <p>{presentation.task}</p>
             <strong aria-live="polite">
               {activity.activeTasks > 0
