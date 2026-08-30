@@ -3,7 +3,7 @@ declare module 'cloudflare:workers' {
     get(key: string): Promise<{ body: ReadableStream<Uint8Array> } | null>;
     put(
       key: string,
-      value: ArrayBuffer,
+      value: ArrayBuffer | string,
       options?: {
         httpMetadata?: { contentType?: string; cacheControl?: string };
       },

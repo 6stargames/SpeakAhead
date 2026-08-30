@@ -1,18 +1,34 @@
 import { useEffect, useMemo, useState, type CSSProperties, type JSX } from 'react';
 import { actions } from '@/state/store';
 import type { SymbolTheme } from '@/state/store';
+import { normalizedChoice } from './choiceAvailability';
 import type { ThemeIconRequestItem, ThemeSprite } from './types';
 
 export interface ThemeTile extends ThemeSprite {
   readonly index: number;
 }
 
-const memory = new Map<string, Promise<ThemeSprite | null>>();
-const itemMemory = new Map<string, Promise<ThemeTile | null>>();
+type ThemedKey = string;
+
+interface SpritePayload {
+  readonly blob: Blob;
+  readonly columns: number;
+  readonly rows: number;
+  readonly index: number;
+}
+
+interface SavedGroup {
+  readonly probeText: string;
+  readonly columns: number;
+  readonly rows: number;
+  readonly tiles: readonly { requestIndex: number; index: number }[];
+}
+
+const itemMemory = new Map<ThemedKey, Promise<ThemeTile | null>>();
 let queue: Promise<unknown> = Promise.resolve();
-const CACHE_NAME = 'aac-themed-symbols-v4';
 const COLUMNS_HEADER = 'x-aac-sprite-columns';
 const ROWS_HEADER = 'x-aac-sprite-rows';
+const INDEX_HEADER = 'x-aac-sprite-index';
 
 function itemKey(item: ThemeIconRequestItem): string {
   return `${item.symbol}\u0000${item.text}`;
@@ -22,17 +38,10 @@ function themedItemKey(
   theme: Exclude<SymbolTheme, 'emoji'>,
   item: ThemeIconRequestItem,
   singleSubject: boolean,
-): string {
-  return `${theme}\u0000${singleSubject ? 'single' : 'board'}\u0000${itemKey(item)}`;
-}
-
-function hash(value: string): string {
-  let state = 0x811c9dc5;
-  for (let index = 0; index < value.length; index += 1) {
-    state ^= value.charCodeAt(index);
-    state = Math.imul(state, 0x01000193);
-  }
-  return (state >>> 0).toString(36);
+): ThemedKey {
+  // A button's meaning, rather than its fallback emoji or punctuation, owns
+  // the picture. This is the same identity used by the signed-in R2 library.
+  return `${theme}\u0000${singleSubject ? 'single' : 'board'}\u0000${normalizedChoice(item.text)}`;
 }
 
 function dimension(response: Response, header: string): number | null {
@@ -47,55 +56,18 @@ function spriteFromBlob(blob: Blob, columns: number, rows: number): ThemeSprite 
   return { imageUrl: URL.createObjectURL(blob), columns, rows };
 }
 
-async function readCached(cacheKey: string): Promise<ThemeSprite | null> {
-  if (!('caches' in globalThis) || typeof location === 'undefined') return null;
-  try {
-    const cache = await caches.open(CACHE_NAME);
-    const request = new Request(new URL(`/__aac-theme-cache/${cacheKey}`, location.href));
-    const response = await cache.match(request);
-    if (!response) return null;
-    const columns = dimension(response, COLUMNS_HEADER);
-    const rows = dimension(response, ROWS_HEADER);
-    if (!columns || !rows) return null;
-    const blob = await response.blob();
-    return spriteFromBlob(blob, columns, rows);
-  } catch {
-    return null;
-  }
+async function imagePayload(response: Response): Promise<SpritePayload | null> {
+  if (!response.ok || !response.headers.get('content-type')?.startsWith('image/png')) return null;
+  const columns = dimension(response, COLUMNS_HEADER);
+  const rows = dimension(response, ROWS_HEADER);
+  if (!columns || !rows) return null;
+  const headerIndex = Number(response.headers.get(INDEX_HEADER));
+  const index = Number.isInteger(headerIndex) && headerIndex >= 0 ? headerIndex : 0;
+  const blob = await response.blob();
+  return blob.size > 100 ? { blob, columns, rows, index } : null;
 }
 
-async function writeCached(
-  cacheKey: string,
-  blob: Blob,
-  columns: number,
-  rows: number,
-): Promise<void> {
-  if (!('caches' in globalThis) || typeof location === 'undefined') return;
-  try {
-    const cache = await caches.open(CACHE_NAME);
-    const request = new Request(new URL(`/__aac-theme-cache/${cacheKey}`, location.href));
-    await cache.put(
-      request,
-      new Response(blob, {
-        headers: {
-          'content-type': 'image/png',
-          [COLUMNS_HEADER]: String(columns),
-          [ROWS_HEADER]: String(rows),
-        },
-      }),
-    );
-  } catch {
-    /* A theme is cosmetic. Storage pressure must never affect communication. */
-  }
-}
-
-interface SpritePayload {
-  readonly blob: Blob;
-  readonly columns: number;
-  readonly rows: number;
-}
-
-async function requestSprite(
+async function requestGeneratedSprite(
   items: readonly ThemeIconRequestItem[],
   theme: Exclude<SymbolTheme, 'emoji'>,
   singleSubject: boolean,
@@ -116,18 +88,61 @@ async function requestSprite(
         await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
       }
-      if (!response.ok) return null;
-      const columns = dimension(response, COLUMNS_HEADER);
-      const rows = dimension(response, ROWS_HEADER);
-      if (!columns || !rows || !response.headers.get('content-type')?.startsWith('image/png')) return null;
-
-      const blob = await response.blob();
-      return blob.size > 100 ? { blob, columns, rows } : null;
+      return await imagePayload(response);
     } catch {
       if (attempt === 2) return null;
     }
   }
   return null;
+}
+
+async function lookupSavedGroups(
+  items: readonly ThemeIconRequestItem[],
+  theme: Exclude<SymbolTheme, 'emoji'>,
+  singleSubject: boolean,
+): Promise<readonly SavedGroup[]> {
+  try {
+    const response = await fetch('/api/assist/theme-icons', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ theme, items, singleSubject, lookupOnly: true }),
+    });
+    if (!response.ok) return [];
+    const value = await response.json() as { groups?: unknown };
+    if (!Array.isArray(value.groups)) return [];
+    return value.groups.filter((group): group is SavedGroup => {
+      if (!group || typeof group !== 'object') return false;
+      const candidate = group as Partial<SavedGroup>;
+      return typeof candidate.probeText === 'string' &&
+        Number.isInteger(candidate.columns) && (candidate.columns ?? 0) > 0 &&
+        Number.isInteger(candidate.rows) && (candidate.rows ?? 0) > 0 &&
+        Array.isArray(candidate.tiles);
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function requestSavedSprite(
+  theme: Exclude<SymbolTheme, 'emoji'>,
+  text: string,
+  singleSubject: boolean,
+): Promise<SpritePayload | null> {
+  try {
+    const params = new URLSearchParams({
+      theme,
+      text,
+      singleSubject: String(singleSubject),
+    });
+    const response = await fetch(`/api/assist/theme-icons?${params.toString()}`, {
+      credentials: 'same-origin',
+      headers: { accept: 'image/png' },
+    });
+    return await imagePayload(response);
+  } catch {
+    return null;
+  }
 }
 
 function enqueue<T>(work: () => Promise<T>): Promise<T> {
@@ -139,32 +154,39 @@ function enqueue<T>(work: () => Promise<T>): Promise<T> {
   return task;
 }
 
-function loadSprite(
+async function loadMissingTiles(
   items: readonly ThemeIconRequestItem[],
   theme: Exclude<SymbolTheme, 'emoji'>,
   singleSubject: boolean,
-): Promise<ThemeSprite | null> {
-  const cacheKey = hash(
-    `${theme}\u0001${singleSubject ? 'single' : 'board'}\u0001${items.map(itemKey).join('\u0002')}`,
-  );
-  const existing = memory.get(cacheKey);
-  if (existing) return existing;
+): Promise<ReadonlyMap<ThemedKey, ThemeTile>> {
+  const result = new Map<ThemedKey, ThemeTile>();
+  const groups = await lookupSavedGroups(items, theme, singleSubject);
 
-  const promise = enqueue(async () => {
-    const cached = await readCached(cacheKey);
-    if (cached) return cached;
-    const payload = await requestSprite(items, theme, singleSubject);
-    if (!payload) return null;
-    const sprite = spriteFromBlob(payload.blob, payload.columns, payload.rows);
-    if (!sprite) return null;
-    await writeCached(cacheKey, payload.blob, payload.columns, payload.rows);
-    return sprite;
+  // One saved sheet may contain several requested buttons. Fetch that sheet
+  // once, then reconnect every matching button to its original cell.
+  for (const group of groups) {
+    const payload = await requestSavedSprite(theme, group.probeText, singleSubject);
+    if (!payload) continue;
+    const sprite = spriteFromBlob(payload.blob, group.columns, group.rows);
+    if (!sprite) continue;
+    group.tiles.forEach(({ requestIndex, index }) => {
+      const item = items[requestIndex];
+      if (!item || !Number.isInteger(index) || index < 0) return;
+      result.set(themedItemKey(theme, item, singleSubject), { ...sprite, index });
+    });
+  }
+
+  const missing = items.filter((item) => !result.has(themedItemKey(theme, item, singleSubject)));
+  if (missing.length === 0) return result;
+
+  const generated = await requestGeneratedSprite(missing, theme, singleSubject);
+  if (!generated) return result;
+  const sprite = spriteFromBlob(generated.blob, generated.columns, generated.rows);
+  if (!sprite) return result;
+  missing.forEach((item, index) => {
+    result.set(themedItemKey(theme, item, singleSubject), { ...sprite, index });
   });
-  memory.set(cacheKey, promise);
-  void promise.then((sprite) => {
-    if (!sprite) memory.delete(cacheKey);
-  });
-  return promise;
+  return result;
 }
 
 async function loadTiles(
@@ -172,12 +194,20 @@ async function loadTiles(
   theme: Exclude<SymbolTheme, 'emoji'>,
   singleSubject: boolean,
 ): Promise<ReadonlyMap<string, ThemeTile>> {
-  const missing = items.filter((item) => !itemMemory.has(themedItemKey(theme, item, singleSubject)));
-  if (missing.length > 0) {
-    const spritePromise = loadSprite(missing, theme, singleSubject);
-    missing.forEach((item, index) => {
+  const uniqueMissing = new Map<ThemedKey, ThemeIconRequestItem>();
+  items.forEach((item) => {
+    const key = themedItemKey(theme, item, singleSubject);
+    if (!itemMemory.has(key)) uniqueMissing.set(key, item);
+  });
+
+  if (uniqueMissing.size > 0) {
+    const missing = [...uniqueMissing.values()];
+    const groupPromise = enqueue(() => loadMissingTiles(missing, theme, singleSubject));
+    missing.forEach((item) => {
       const key = themedItemKey(theme, item, singleSubject);
-      const tilePromise = spritePromise.then((sprite) => (sprite ? { ...sprite, index } : null));
+      const tilePromise = groupPromise
+        .then((tiles) => tiles.get(key) ?? null)
+        .catch(() => null);
       itemMemory.set(key, tilePromise);
       void tilePromise.then((tile) => {
         if (!tile) itemMemory.delete(key);
@@ -235,8 +265,6 @@ export function useThemedSymbols(
         groupTiles.forEach((tile, key) => next.set(key, tile));
         actions.finishAssistTask('themes', 'ready', next.size);
         if (cancelled) return;
-        // Publish each completed sheet so the first nine icons do not wait for
-        // an entire board to finish generating.
         setTiles(new Map(next));
       }
     })();
@@ -253,6 +281,12 @@ export function themeTileFor(
   item: ThemeIconRequestItem,
 ): ThemeTile | undefined {
   return tiles.get(itemKey(item));
+}
+
+/** Allows a fresh app session to be exercised without reloading the test VM. */
+export function resetThemedSymbolMemoryForTests(): void {
+  itemMemory.clear();
+  queue = Promise.resolve();
 }
 
 export function ThemedSymbol({
