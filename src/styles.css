@@ -471,8 +471,20 @@ body {
   color: var(--text);
 }
 .spine__icon {
+  width: 1em;
+  height: 1em;
+  display: grid;
+  place-items: center;
   font-size: 2em;
   line-height: 1;
+}
+.spine__icon .cell__symbol {
+  font-size: 1em;
+}
+.spine__icon .cell__symbol--themed {
+  width: 1em;
+  height: 1em;
+  flex-basis: 1em;
 }
 .spine__label {
   font-size: 1em;
@@ -564,6 +576,21 @@ body {
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 50%;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+.assist-feature:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+.assist-feature:focus-visible,
+.assist-feature[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 5px currentColor;
+}
+.assist-feature[aria-pressed='true'] {
+  transform: scale(1.06);
 }
 .assist-feature__icon {
   font-size: 1.05rem;
@@ -1130,6 +1157,192 @@ body {
   flex: 1;
   max-height: none;
   min-height: 0;
+}
+
+/* Clicking any WebMCP activity circle temporarily trades the transcript for
+   an honest, live account of the work behind that circle. */
+.assist-tasks {
+  gap: var(--space-4);
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+.assist-tasks__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.assist-tasks__header h2,
+.assist-tasks__hero h3,
+.assist-tasks__header p,
+.assist-tasks__hero p {
+  margin: 0;
+}
+.assist-tasks__header h2 {
+  margin-top: var(--space-1);
+  font-size: 1.25em;
+}
+.assist-tasks__eyebrow {
+  color: var(--text-muted);
+  font-size: 0.72em;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.assist-tasks__status,
+.assist-task-row__state {
+  flex: 0 0 auto;
+  padding: var(--space-1) var(--space-2);
+  color: var(--text-muted);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.7em;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.assist-tasks__status--working,
+.assist-task-row__state--working {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.assist-tasks__status--ready,
+.assist-task-row__state--ready {
+  color: var(--success);
+  background: var(--success-soft);
+  border-color: var(--success);
+}
+.assist-tasks__status--local,
+.assist-task-row__state--local {
+  color: var(--warning);
+  background: var(--warning-soft);
+  border-color: var(--warning);
+}
+.assist-tasks__status--unavailable,
+.assist-tasks__status--error,
+.assist-task-row__state--unavailable,
+.assist-task-row__state--error {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+.assist-tasks__hero {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-raised);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+}
+.assist-tasks__hero--working { border-color: var(--accent); }
+.assist-tasks__hero--ready { border-color: var(--success); }
+.assist-tasks__hero--local { border-color: var(--warning); }
+.assist-tasks__hero--unavailable,
+.assist-tasks__hero--error { border-color: var(--danger); }
+.assist-tasks__hero-icon {
+  width: 3rem;
+  height: 3rem;
+  display: grid;
+  place-items: center;
+  flex: 0 0 3rem;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-size: 1.45em;
+}
+.assist-tasks__hero p {
+  margin: var(--space-1) 0 var(--space-2);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.assist-tasks__hero strong {
+  color: var(--text);
+  font-size: 0.82em;
+}
+.assist-tasks__running {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.assist-tasks__running li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-muted);
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  font-size: 0.78em;
+  line-height: 1.35;
+}
+.assist-tasks__spinner {
+  width: 0.8rem;
+  height: 0.8rem;
+  flex: 0 0 0.8rem;
+  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: assist-task-spin 800ms linear infinite;
+}
+@keyframes assist-task-spin {
+  to { transform: rotate(360deg); }
+}
+.assist-tasks__all {
+  display: grid;
+  gap: var(--space-2);
+}
+.assist-task-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.assist-task-row--selected {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.assist-task-row__icon {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  flex: 0 0 2rem;
+  background: var(--surface-sunken);
+  border-radius: 50%;
+}
+.assist-task-row__copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.assist-task-row__copy span {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.72em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.assist-tasks__close {
+  width: 100%;
+  min-height: calc(var(--tap-min) * 1.45);
+  margin-top: auto;
+  font-size: 1.05em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assist-tasks__spinner {
+    animation: none;
+  }
 }
 
 /* The live microphone, pinned across the foot of the conversation like a

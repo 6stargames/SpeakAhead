@@ -1,6 +1,7 @@
 import { useEffect, useState, type JSX } from 'react';
 import type { ChatGPTIdentity } from '@/auth/chatgpt';
 import { ChatGPTAuthButton } from '@/components/ChatGPTAuthButton';
+import { AssistTasksPanel } from '@/components/AssistTasksPanel';
 import { CoreBoard } from '@/components/CoreBoard';
 import { EmergencyBar } from '@/components/EmergencyBar';
 import { FringeBoard } from '@/components/FringeBoard';
@@ -14,7 +15,19 @@ import { VerificationPanel } from '@/components/VerificationPanel';
 import { VoicePanel } from '@/components/VoicePanel';
 import { session } from '@/session/AacSession';
 import { useContextAssist } from '@/assist/useContextAssist';
-import { actions, selectSettings, useStore, type AppState } from '@/state/store';
+import {
+  ThemedSymbol,
+  themeTileFor,
+  useThemedSymbols,
+  type ThemeTile,
+} from '@/assist/themeIcons';
+import {
+  actions,
+  selectSettings,
+  useStore,
+  type AppState,
+  type AssistFeature,
+} from '@/state/store';
 import { useAacWebMcpTools } from '@/webmcp/tools';
 
 /**
@@ -38,6 +51,11 @@ const SYSTEM_VIEWS: { id: View; label: string; icon: string }[] = [
   { id: 'settings', label: 'Settings', icon: '⚙️' },
   { id: 'diagnostics', label: 'Checks', icon: '🩺' },
 ];
+
+const SPINE_THEME_ITEMS = [...BOARD_VIEWS, ...SYSTEM_VIEWS].map(({ label, icon }) => ({
+  text: label,
+  symbol: icon,
+}));
 
 const selectEmergency = (state: AppState): boolean => state.emergencyOverride;
 const selectEditMode = (state: AppState): boolean => state.editMode;
@@ -66,10 +84,12 @@ function SpineItem({
   candidate,
   view,
   onSelect,
+  tile,
 }: {
   candidate: { id: View; label: string; icon: string };
   view: View;
   onSelect: (view: View) => void;
+  tile?: ThemeTile;
 }): JSX.Element {
   return (
     <button
@@ -79,7 +99,7 @@ function SpineItem({
       onClick={() => onSelect(candidate.id)}
     >
       <span className="spine__icon" aria-hidden="true">
-        {candidate.icon}
+        <ThemedSymbol symbol={candidate.icon} tile={tile} />
       </span>
       <span className="spine__label">{candidate.label}</span>
     </button>
@@ -88,6 +108,7 @@ function SpineItem({
 
 export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | null } = {}): JSX.Element {
   const [view, setView] = useState<View>('core');
+  const [selectedAssistFeature, setSelectedAssistFeature] = useState<AssistFeature | null>(null);
   const settings = useStore(selectSettings);
   const emergency = useStore(selectEmergency);
   const editMode = useStore(selectEditMode);
@@ -95,6 +116,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
   const signedIn = Boolean(chatGPTIdentity?.displayName);
   const contextAssistEnabled = signedIn && settings.chatGPTAssist;
   const symbolTheme = signedIn ? settings.symbolTheme : 'emoji';
+  const spineSymbols = useThemedSymbols(SPINE_THEME_ITEMS, symbolTheme);
 
   // Tools must be registered from a component so their lifetime is bound to the
   // React tree — that is what guarantees the AbortController teardown runs.
@@ -117,6 +139,10 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
     root.setAttribute('data-text-size', 'large');
   }, [settings.highContrast]);
 
+  useEffect(() => {
+    if (!signedIn) setSelectedAssistFeature(null);
+  }, [signedIn]);
+
   return (
     <div className={`app${emergency ? ' app--emergency' : ''}${editMode ? ' app--editing' : ''}`}>
       <a className="skip-link" href="#compose">
@@ -128,20 +154,37 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
           motor plan. Context choices live in the first row of their matching
           board. The transcript remains visible beside it. */}
       <OutputRibbon />
-      <ChatGPTAuthButton identity={chatGPTIdentity ?? null} />
+      <ChatGPTAuthButton
+        identity={chatGPTIdentity ?? null}
+        selectedFeature={selectedAssistFeature}
+        onFeatureSelect={setSelectedAssistFeature}
+      />
 
       <div className="app__main">
         {/* The conversation always sits to the LEFT of the spine, so the
             spine reads as the barrier between the passive transcript and the
             generative board. */}
         <div className="app__context">
-          <TranscriptLog />
+          {selectedAssistFeature ? (
+            <AssistTasksPanel
+              selectedFeature={selectedAssistFeature}
+              onClose={() => setSelectedAssistFeature(null)}
+            />
+          ) : (
+            <TranscriptLog />
+          )}
         </div>
 
         <nav className="spine" aria-label="Boards, emergency and panels">
           <div className="spine__nav" data-scan="">
             {BOARD_VIEWS.map((candidate) => (
-              <SpineItem key={candidate.id} candidate={candidate} view={view} onSelect={setView} />
+              <SpineItem
+                key={candidate.id}
+                candidate={candidate}
+                view={view}
+                onSelect={setView}
+                tile={themeTileFor(spineSymbols, { text: candidate.label, symbol: candidate.icon })}
+              />
             ))}
           </div>
 
@@ -160,6 +203,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
                 }
                 view={view}
                 onSelect={setView}
+                tile={themeTileFor(spineSymbols, { text: candidate.label, symbol: candidate.icon })}
               />
             ))}
           </div>

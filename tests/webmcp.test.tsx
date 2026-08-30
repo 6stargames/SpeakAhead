@@ -8,6 +8,7 @@ import type { JsonSchema, WebMcpToolDefinition } from '@/webmcp/types';
 import { useAacWebMcpTools } from '@/webmcp/tools';
 import { actions, store } from '@/state/store';
 import { ChatGPTAuthButton } from '@/components/ChatGPTAuthButton';
+import { AssistTasksPanel } from '@/components/AssistTasksPanel';
 
 const schema: JsonSchema = { type: 'object', properties: { value: { type: 'string' } } };
 
@@ -308,9 +309,11 @@ describe('AAC context tools', () => {
 
   it('shows all three feature icons and a live working-task count beside the user', () => {
     store.reset();
+    const onFeatureSelect = vi.fn();
     render(
       <ChatGPTAuthButton
         identity={{ displayName: 'Danny', email: 'danny@example.com', signOutPath: '/signout' }}
+        onFeatureSelect={onFeatureSelect}
       />,
     );
 
@@ -321,6 +324,9 @@ describe('AAC context tools', () => {
     expect(replies).toBeDefined();
     expect(replies?.querySelector('.assist-feature__count')?.textContent).toBe('0');
 
+    act(() => replies?.click());
+    expect(onFeatureSelect).toHaveBeenCalledWith('suggestions');
+
     act(() => actions.beginAssistTask('suggestions'));
     expect(replies?.querySelector('.assist-feature__count')?.textContent).toBe('1');
     expect(replies?.classList.contains('assist-feature--working')).toBe(true);
@@ -329,6 +335,29 @@ describe('AAC context tools', () => {
     expect(replies?.querySelector('.assist-feature__count')?.textContent).toBe('6');
     expect(replies?.classList.contains('assist-feature--ready')).toBe(true);
 
+    unmount();
+  });
+
+  it('shows live WebMCP work in the chat area and provides a large return button', () => {
+    store.reset();
+    const onClose = vi.fn();
+    act(() => actions.setSettings({ symbolTheme: 'anime' }));
+    act(() => actions.beginAssistTask('themes'));
+    render(<AssistTasksPanel selectedFeature="themes" onClose={onClose} />);
+
+    expect(container.textContent).toContain('What it is doing');
+    expect(container.textContent).toContain('Themed pictures');
+    expect(container.textContent).toContain('1 task running now');
+    expect(container.textContent).toContain('Task 1: Generating and saving pictures');
+
+    const close = [...container.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('Close — back to chat'),
+    );
+    expect(close).toBeDefined();
+    act(() => close?.click());
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    act(() => actions.finishAssistTask('themes', 'ready', 6));
     unmount();
   });
 });
