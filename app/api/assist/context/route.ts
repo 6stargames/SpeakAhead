@@ -1,4 +1,4 @@
-import { json, openAIHeaders, readSmallJson, requireAssistUser } from '../server';
+import { json, postOpenAIJson, readSmallJson, requireAssistUser } from '../server';
 
 type InputTurn = {
   id: string;
@@ -124,7 +124,7 @@ function outputText(response: unknown): string | null {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const auth = await requireAssistUser(24);
+  const auth = await requireAssistUser('context', 24);
   if (!auth.ok) return auth.response;
 
   let input: ReturnType<typeof parseTurns>;
@@ -149,10 +149,10 @@ export async function POST(request: Request): Promise<Response> {
 
   let upstream: Response;
   try {
-    upstream = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: openAIHeaders(auth.apiKey),
-      body: JSON.stringify({
+    upstream = await postOpenAIJson(
+      'https://api.openai.com/v1/responses',
+      auth.apiKey,
+      {
         model,
         store: false,
         instructions,
@@ -166,9 +166,9 @@ export async function POST(request: Request): Promise<Response> {
             schema: responseSchema,
           },
         },
-      }),
-      signal: AbortSignal.timeout(30_000),
-    });
+      },
+      30_000,
+    );
   } catch {
     return json({ error: 'assist_upstream_unavailable' }, 502);
   }
@@ -186,4 +186,3 @@ export async function POST(request: Request): Promise<Response> {
     return json({ error: 'assist_invalid_response' }, 502);
   }
 }
-

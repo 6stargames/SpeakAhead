@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { predictionEngine } from '@/prediction/PredictionEngine';
-import { actions, useStore, type AppState } from '@/state/store';
+import { actions, useStore, type AppState, type Turn } from '@/state/store';
 import { requestContextAssist } from './client';
 import { localContextCorrection, localWordSuggestions, symbolForText } from './fallback';
 
@@ -11,6 +11,19 @@ const selectAssistInput = (state: AppState) => ({
 });
 
 /**
+ * A live recogniser updates its unfinished turn many times a second. Those
+ * updates must not restart the context debounce: only a newly finished turn
+ * or a changed composition creates new language work.
+ */
+export function contextAssistRequestKey(
+  turns: readonly Pick<Turn, 'id' | 'final'>[],
+  composition: string,
+): string | null {
+  const latestFinal = turns.findLast((turn) => turn.final);
+  return latestFinal ? `${latestFinal.id}\u0000${composition}` : null;
+}
+
+/**
  * Text-only signed-in assistance. This hook observes finished turns, never
  * audio frames. If the cloud route is unavailable, the existing local
  * prediction ladder and a conservative context matcher take over.
@@ -18,6 +31,7 @@ const selectAssistInput = (state: AppState) => ({
 export function useContextAssist(signedIn: boolean): void {
   const input = useStore(selectAssistInput);
   const processed = useRef(new Set<string>());
+  const requestKey = contextAssistRequestKey(input.turns, input.composition);
 
   useEffect(() => {
     if (!signedIn || !input.enabled) {
@@ -30,9 +44,7 @@ export function useContextAssist(signedIn: boolean): void {
     }
 
     const finalTurns = input.turns.filter((turn) => turn.final).slice(-10);
-    const latest = finalTurns.at(-1);
-    if (!latest || processed.current.has(latest.id)) return undefined;
-    processed.current.add(latest.id);
+    if (!requestKey || processed.current.has(requestKey)) return undefined;
 
     const controller = new AbortController();
     let tasksOpen = false;
@@ -47,6 +59,11 @@ export function useContextAssist(signedIn: boolean): void {
       actions.finishAssistTask('suggestions', status, suggestionCount);
     };
     const run = async () => {
+      // Mark work only when it actually starts. If a newer finished turn lands
+      // during the debounce, cleanup can cancel this timer without losing the
+      // older key forever.
+      if (processed.current.size >= 128) processed.current.clear();
+      processed.current.add(requestKey);
       actions.setAssistStatus('thinking');
       actions.beginAssistTask('corrections');
       actions.beginAssistTask('suggestions');
@@ -150,5 +167,5 @@ export function useContextAssist(signedIn: boolean): void {
       controller.abort();
       finishTasks('idle');
     };
-  }, [input.composition, input.enabled, input.turns, signedIn]);
+  }, [input.enabled, requestKey, signedIn]);
 }

@@ -1,8 +1,10 @@
 import { getChatGPTUser } from '../../chatgpt-auth';
 
 type RateEntry = { startedAt: number; count: number };
+export type AssistRateBucket = 'context' | 'theme-icons';
 
 const rateWindows = new Map<string, RateEntry>();
+const RETRYABLE_OPENAI_STATUSES = new Set([408, 409, 429, 500, 502, 503, 504]);
 
 export function json(data: unknown, status = 200): Response {
   return Response.json(data, {
@@ -14,7 +16,10 @@ export function json(data: unknown, status = 200): Response {
   });
 }
 
-export async function requireAssistUser(limitPerMinute: number): Promise<
+export async function requireAssistUser(
+  bucket: AssistRateBucket,
+  limitPerMinute: number,
+): Promise<
   | { ok: true; userId: string; apiKey: string }
   | { ok: false; response: Response }
 > {
@@ -25,9 +30,12 @@ export async function requireAssistUser(limitPerMinute: number): Promise<
   if (!apiKey) return { ok: false, response: json({ error: 'assist_not_configured' }, 503) };
 
   const now = Date.now();
-  const entry = rateWindows.get(user.userId);
+  // Image batches and language passes are independent work. Sharing one
+  // counter made a busy anime board consume the context checker's allowance.
+  const rateKey = `${bucket}\u0000${user.userId}`;
+  const entry = rateWindows.get(rateKey);
   if (!entry || now - entry.startedAt >= 60_000) {
-    rateWindows.set(user.userId, { startedAt: now, count: 1 });
+    rateWindows.set(rateKey, { startedAt: now, count: 1 });
   } else {
     entry.count += 1;
     if (entry.count > limitPerMinute) {
@@ -59,3 +67,40 @@ export function openAIHeaders(apiKey: string): HeadersInit {
   };
 }
 
+function retryDelay(response: Response, attempt: number): number {
+  const retryAfter = Number(response.headers.get('retry-after'));
+  if (Number.isFinite(retryAfter) && retryAfter > 0) {
+    return Math.min(3_000, retryAfter * 1_000);
+  }
+  return 500 * (attempt + 1);
+}
+
+/** One quiet retry keeps a transient upstream failure from killing a pass. */
+export async function postOpenAIJson(
+  url: string,
+  apiKey: string,
+  body: unknown,
+  timeoutMs: number,
+): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: openAIHeaders(apiKey),
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (response.ok || !RETRYABLE_OPENAI_STATUSES.has(response.status) || attempt === 1) {
+        return response;
+      }
+      await response.body?.cancel();
+      await new Promise((resolve) => setTimeout(resolve, retryDelay(response, attempt)));
+    } catch (error) {
+      lastError = error;
+      if (attempt === 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('openai_request_failed');
+}

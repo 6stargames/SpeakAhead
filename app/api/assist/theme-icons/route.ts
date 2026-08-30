@@ -1,4 +1,4 @@
-import { json, openAIHeaders, readSmallJson, requireAssistUser } from '../server';
+import { json, postOpenAIJson, readSmallJson, requireAssistUser } from '../server';
 
 type IconItem = { text: string; symbol: string };
 
@@ -26,7 +26,7 @@ function parseInput(value: unknown): { theme: 'anime'; items: IconItem[] } | nul
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const auth = await requireAssistUser(12);
+  const auth = await requireAssistUser('theme-icons', 12);
   if (!auth.ok) return auth.response;
 
   let input: ReturnType<typeof parseInput>;
@@ -51,10 +51,10 @@ export async function POST(request: Request): Promise<Response> {
 
   let upstream: Response;
   try {
-    upstream = await fetch('https://api.openai.com/v1/images/generations', {
-      method: 'POST',
-      headers: openAIHeaders(auth.apiKey),
-      body: JSON.stringify({
+    upstream = await postOpenAIJson(
+      'https://api.openai.com/v1/images/generations',
+      auth.apiKey,
+      {
         model: process.env.OPENAI_IMAGE_MODEL?.trim() || 'gpt-image-2',
         prompt,
         size: '1024x1024',
@@ -62,9 +62,9 @@ export async function POST(request: Request): Promise<Response> {
         background: 'transparent',
         output_format: 'png',
         n: 1,
-      }),
-      signal: AbortSignal.timeout(55_000),
-    });
+      },
+      55_000,
+    );
   } catch {
     return json({ error: 'image_upstream_unavailable' }, 502);
   }
