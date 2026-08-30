@@ -91,4 +91,45 @@ describe('transient chat labels', () => {
     expect(container.querySelector('.listening-bar__waves--split')?.textContent).toContain('Room');
     expect(container.querySelector('.listening-bar__waves--split')?.textContent).toContain('Tab');
   });
+
+  it('revises ONNX text inside the same visible bubble and text container', () => {
+    actions.upsertTurn({
+      id: 'gpt-stable',
+      source: 'user',
+      text: 'I need watter.',
+      final: true,
+      dictated: true,
+      spoken: false,
+      transcriptionStatus: 'checking',
+      words: [{ text: 'watter', confidence: 0.2 }],
+    });
+    act(() => root.render(<TranscriptLog />));
+
+    const bubble = container.querySelector('.turn');
+    const textContainer = bubble?.querySelector('.turn__text-content');
+    expect(textContainer?.textContent).toBe('I need watter.');
+
+    act(() => {
+      expect(actions.applyAccurateTranscription('gpt-stable', 'I need watter.', 'I need water.'))
+        .toBe(true);
+    });
+
+    expect(container.querySelector('.turn')).toBe(bubble);
+    expect(bubble?.querySelector('.turn__text-content')).toBe(textContainer);
+    expect(textContainer?.textContent).toBe('I need water.');
+  });
+
+  it('does not jump a reader who is slightly below the newest message during a text revision', () => {
+    act(() => root.render(<TranscriptLog />));
+    const transcript = container.querySelector<HTMLElement>('.transcript');
+    const turn = store.getState().turns[0];
+    expect(transcript).not.toBeNull();
+    expect(turn).toBeDefined();
+    if (!transcript || !turn) return;
+    transcript.scrollTop = 40;
+
+    act(() => actions.upsertTurn({ ...turn, text: 'Hello there, corrected.' }));
+
+    expect(transcript.scrollTop).toBe(40);
+  });
 });

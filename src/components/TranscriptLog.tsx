@@ -138,10 +138,17 @@ function SpeakerMenu({ speaker, onClose }: { speaker: SpeakerProfile; onClose: (
  * worse than none.
  */
 function TurnText({ turn }: { turn: Turn }): JSX.Element {
+  // The text container itself never changes across interim, ONNX-final, and
+  // GPT-confirmed states. Replacing the confidence-markup root when GPT landed
+  // could produce a one-paint blank flash on slower displays even though the
+  // turn id and stored message were already stable.
+  if (turn.transcriptionStatus === 'checking' || turn.transcriptionStatus === 'accurate') {
+    return <span className="turn__text-content">{turn.text}</span>;
+  }
   const aligned = turn.final ? alignWordsToText(turn.text, turn.words) : null;
-  if (!aligned) return <>{turn.text}</>;
+  if (!aligned) return <span className="turn__text-content">{turn.text}</span>;
   return (
-    <>
+    <span className="turn__text-content">
       {aligned.map((word, index) => (
         <Fragment key={index}>
           {index > 0 && ' '}
@@ -154,7 +161,7 @@ function TurnText({ turn }: { turn: Turn }): JSX.Element {
           )}
         </Fragment>
       ))}
-    </>
+    </span>
   );
 }
 
@@ -329,7 +336,10 @@ export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolT
     // Newest-first: new messages arrive at the top. A reader at (or near) the
     // top follows them; one who scrolled down to re-read something is left
     // exactly where they are.
-    if (element.scrollTop <= 96) element.scrollTop = 0;
+    // Only an actually anchored reader follows. The former 96px tolerance
+    // could mistake someone reading just below the top for an anchored reader,
+    // then jump on a GPT text-height change and make the bubble seem to blink.
+    if (element.scrollTop <= 8) element.scrollTop = 0;
   }, []);
 
   // Layout effect: scroll before the browser paints, so the newest message is
