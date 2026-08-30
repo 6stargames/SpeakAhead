@@ -80,6 +80,9 @@ export class SpeechSynthesisTtsProvider implements TtsProvider {
         .find((candidate) => candidate.voiceURI === request.voiceId);
       if (voice) utterance.voice = voice;
       utterance.rate = request.rate ?? 1;
+      // The operating-system voice bypasses our Web Audio normaliser, so set
+      // its own supported volume control to the maximum explicitly.
+      utterance.volume = 1;
 
       utterance.onend = () => resolve();
       utterance.onerror = (event) => {

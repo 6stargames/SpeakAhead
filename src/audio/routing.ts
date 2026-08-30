@@ -17,6 +17,10 @@ export type AudioNodeId =
   | 'mic-splitter'
   /** AudioWorklet capturing mic PCM for local inference. Zero outputs. */
   | 'mic-capture'
+  /** Audio selected explicitly from another browser tab. */
+  | 'browser-tab'
+  /** AudioWorklet capturing shared-tab PCM for its own recogniser channel. */
+  | 'tab-capture'
   /** The WebAssembly recogniser. A terminal, device-local sink. */
   | 'asr'
   /** Synthesised AAC voice emitted by the WASM vocoder. */

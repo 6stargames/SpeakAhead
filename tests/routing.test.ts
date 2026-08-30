@@ -16,6 +16,8 @@ function buildCompliantGraph(): RoutingGraph {
   graph.connect('microphone', 'mic-splitter');
   graph.connect('mic-splitter', 'mic-capture');
   graph.connect('mic-capture', 'asr');
+  graph.connect('browser-tab', 'tab-capture');
+  graph.connect('tab-capture', 'asr');
   graph.connect('remote', 'remote-monitor');
   graph.connect('remote-monitor', 'speakers');
   graph.connect('remote', 'remote-capture');
@@ -29,6 +31,9 @@ describe('RoutingGraph', () => {
     expect(graph.pathExists('tts', 'speakers')).toBe(true);
     expect(graph.pathExists('tts', 'peer')).toBe(true);
     expect(graph.pathExists('remote', 'asr')).toBe(true);
+    expect(graph.pathExists('browser-tab', 'asr')).toBe(true);
+    expect(graph.pathExists('browser-tab', 'speakers')).toBe(false);
+    expect(graph.pathExists('browser-tab', 'peer')).toBe(false);
   });
 
   it('terminates on cycles rather than recursing forever', () => {

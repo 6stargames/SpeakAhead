@@ -1,4 +1,4 @@
-import { AacAudioGraph, type AudioFrame } from '@/audio/AudioGraph';
+import { AacAudioGraph, type AudioFrame, type CaptureChannel } from '@/audio/AudioGraph';
 import { config } from '@/lib/env';
 import { createId, createRoomCode } from '@/lib/id';
 import { detectPlatform } from '@/lib/platform';
@@ -100,7 +100,7 @@ export class AacSession {
   #tts: TtsProvider = new SpeechSynthesisTtsProvider();
   #peer: PeerSession | null = null;
 
-  #interimTurns = new Map<'local' | 'remote', string>();
+  #interimTurns = new Map<CaptureChannel, string>();
   /**
    * Identifier for the message currently being typed.
    *
@@ -121,6 +121,11 @@ export class AacSession {
   /** Gated audio for voiceprint and the optional finished-turn GPT pass. ~60s cap. */
   #utteranceAudio: Float32Array[] = [];
   #utteranceSampleRate = 16000;
+  /** Shared-tab audio is buffered separately so its GPT pass cannot consume
+   * or relabel microphone speech that happened at the same time. */
+  #tabUtteranceAudio: Float32Array[] = [];
+  #tabUtteranceSampleRate = 16000;
+  #tabUtteranceFramesConsidered = 0;
   /**
    * Frames loud enough to examine, whether or not a pitch came out.
    *
@@ -539,9 +544,6 @@ export class AacSession {
         video: false,
       });
       await this.graph.resume();
-      // If this replaces a shared tab, prevent stopping that old track from
-      // scheduling another microphone restart.
-      this.#tabAudioTrack = null;
       this.#resetLocalInputState();
       await this.graph.attachMicrophone(stream);
       store.set({
@@ -579,7 +581,7 @@ export class AacSession {
    *
    * Chrome deliberately requires a fresh picker from a user gesture every
    * time. The selected video track is discarded immediately; only its audio
-   * track enters the same on-device recognition path as the microphone.
+   * track enters its own on-device recognition path beside the microphone.
    */
   async startBrowserTabAudio(): Promise<void> {
     if (!navigator.mediaDevices?.getDisplayMedia) {
@@ -613,19 +615,25 @@ export class AacSession {
       const audioOnly = new MediaStream([audioTrack]);
 
       await this.graph.resume();
+      // Disarm the previous track's ended handler before replacing it. The
+      // microphone is deliberately untouched: room and tab stay live together.
       this.#tabAudioTrack = null;
-      this.#resetLocalInputState();
-      await this.graph.attachMicrophone(audioOnly);
+      this.#resetTabInputState();
+      await this.graph.attachBrowserTab(audioOnly);
       this.#tabAudioTrack = audioTrack;
-      store.set({ micActive: true, audioInputSource: 'browser-tab', micError: null });
+      store.set({ tabAudioActive: true, audioInputSource: 'microphone', micError: null });
+
+      // Sharing can be started while the microphone is off. Ask for the room
+      // microphone after the browser picker has succeeded so both sources are
+      // available, while keeping tab recognition alive if permission is denied.
+      if (!store.getState().micActive) await this.startMicrophone();
 
       audioTrack.addEventListener('ended', () => {
         if (this.#tabAudioTrack !== audioTrack) return;
-        this.#tabAudioTrack = null;
-        this.stopMicrophone();
-        if (!this.#started) return;
-        actions.notify('info', 'Tab audio ended. Listening to the microphone again.');
-        void this.startMicrophone();
+        this.stopBrowserTabAudio();
+        if (this.#started && store.getState().micActive) {
+          actions.notify('info', 'Tab audio ended. Still listening to the room.');
+        }
       }, { once: true });
     } catch (error) {
       shared?.getTracks().forEach((track) => track.stop());
@@ -640,10 +648,16 @@ export class AacSession {
   }
 
   stopMicrophone(): void {
-    this.#tabAudioTrack = null;
     this.graph.detachMicrophone();
     this.#resetLocalInputState();
     store.set({ micActive: false, audioInputSource: 'microphone' });
+  }
+
+  stopBrowserTabAudio(): void {
+    this.#tabAudioTrack = null;
+    this.graph.detachBrowserTab();
+    this.#resetTabInputState();
+    store.set({ tabAudioActive: false, audioInputSource: 'microphone' });
   }
 
   #resetLocalInputState(): void {
@@ -660,6 +674,14 @@ export class AacSession {
     this.#utteranceGeneration += 1;
     this.#framesSinceChangeCheck = 0;
     actions.setDictationPreview('');
+  }
+
+  #resetTabInputState(): void {
+    this.#asr.reset('tab');
+    this.#interimTurns.delete('tab');
+    this.#tabUtteranceAudio = [];
+    this.#tabUtteranceSampleRate = 16000;
+    this.#tabUtteranceFramesConsidered = 0;
   }
 
   #onFrame = (frame: AudioFrame): void => {
@@ -714,6 +736,16 @@ export class AacSession {
           this.#updateLiveSpeaker();
         }
       }
+    }
+
+    // Tab audio has an independent utterance buffer. It is never passed to the
+    // room speaker tracker, but keeping its samples means signed-in users still
+    // get the same bounded GPT accuracy check after ONNX finishes the turn.
+    if (frame.channel === 'tab' && frame.rms > 0.004) {
+      this.#tabUtteranceFramesConsidered += 1;
+      this.#tabUtteranceAudio.push(frame.samples.slice());
+      this.#tabUtteranceSampleRate = frame.sampleRate;
+      if (this.#tabUtteranceAudio.length > 960) this.#tabUtteranceAudio.shift();
     }
   };
 
@@ -849,6 +881,20 @@ export class AacSession {
     this.#liveSpeakerId = null;
     this.#framesSinceIdentify = 0;
     actions.setLiveSpeaker(null);
+    return captured;
+  }
+
+  #captureTabUtterance(): CapturedUtterance {
+    const captured: CapturedUtterance = {
+      pitches: [],
+      crossings: [],
+      timbres: [],
+      audio: this.#tabUtteranceAudio,
+      sampleRate: this.#tabUtteranceSampleRate,
+      considered: this.#tabUtteranceFramesConsidered,
+    };
+    this.#tabUtteranceAudio = [];
+    this.#tabUtteranceFramesConsidered = 0;
     return captured;
   }
 
@@ -1019,7 +1065,7 @@ export class AacSession {
   // -------------------------------------------------------------------------
 
   #onRecognition(
-    channel: 'local' | 'remote',
+    channel: CaptureChannel,
     text: string,
     final: boolean,
     words: WordConfidence[] | null = null,
@@ -1068,6 +1114,38 @@ export class AacSession {
         if (willCheck) this.#queueAccurateTranscription(id, finalText, captured);
       }
       if (final) this.#interimTurns.delete('local');
+      return;
+    }
+
+    if (channel === 'tab') {
+      let id = this.#interimTurns.get('tab');
+      if (!id) {
+        id = createId('turn');
+        this.#interimTurns.set('tab', id);
+      }
+      const captured = final ? this.#captureTabUtterance() : null;
+      const finalText = final ? restorePunctuation(trimmed) : trimmed;
+      const capturedSamples = captured?.audio.reduce((total, frame) => total + frame.length, 0) ?? 0;
+      const willCheck = Boolean(
+        final &&
+        captured &&
+        this.#accurateTranscriptionEnabled &&
+        capturedSamples >= AacSession.#MIN_TRANSCRIPTION_SAMPLES,
+      );
+      actions.upsertTurn({
+        id,
+        source: 'peer',
+        text: finalText,
+        final,
+        dictated: true,
+        spoken: false,
+        viaRtt: false,
+        audioSource: 'browser-tab',
+        ...(final && words ? { words } : {}),
+        ...(final ? { transcriptionStatus: willCheck ? 'checking' as const : 'local' as const } : {}),
+      });
+      if (captured && willCheck) this.#queueAccurateTranscription(id, finalText, captured);
+      if (final) this.#interimTurns.delete('tab');
       return;
     }
 

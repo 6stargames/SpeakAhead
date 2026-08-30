@@ -33,6 +33,7 @@ function attribute(
   speakers: readonly SpeakerProfile[],
   liveSpeaker: AppState['liveSpeaker'],
 ): { mine: boolean; who: string; speakerId?: string } {
+  if (turn.audioSource === 'browser-tab') return { mine: false, who: 'Tab audio' };
   if (turn.source === 'peer') return { mine: false, who: 'Partner' };
 
   // Anything the device said on the user's behalf is unambiguously theirs.
@@ -218,6 +219,15 @@ function TurnRow({
           )
         )}
         {showOwnershipLabel && <span aria-hidden="true">·</span>}
+        {turn.audioSource === 'browser-tab' && (
+          <span
+            className="turn__source-icon"
+            title="Heard from a shared browser tab"
+            aria-label="From shared tab audio"
+          >
+            <span aria-hidden="true">▶</span>
+          </span>
+        )}
         <span>{formatTime(turn.at)}</span>
         {turn.viaRtt && <span className="turn__badge">real-time text</span>}
         {unspoken && <span className="turn__badge">not spoken aloud</span>}
@@ -257,7 +267,7 @@ const selectListening = (state: AppState) => ({
   ttsStatus: state.tts.status,
   ttsDetail: state.tts.detail,
   accurateTranscriptionEnabled: state.accurateTranscriptionEnabled,
-  audioInputSource: state.audioInputSource,
+  tabAudioActive: state.tabAudioActive,
 });
 
 export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolTheme }): JSX.Element {
@@ -273,8 +283,9 @@ export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolT
   const [showListeningDetails, setShowListeningDetails] = useState(true);
   const browserTabAudioAvailable = typeof navigator !== 'undefined' &&
     typeof navigator.mediaDevices?.getDisplayMedia === 'function';
+  const listeningActive = listening.micActive || listening.tabAudioActive;
   useEffect(() => {
-    if (!listening.micActive || !listening.asrReady) {
+    if (!listeningActive || !listening.asrReady) {
       setShowListeningDetails(true);
       return undefined;
     }
@@ -284,7 +295,8 @@ export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolT
   }, [
     listening.accurateTranscriptionEnabled,
     listening.asrReady,
-    listening.micActive,
+    listeningActive,
+    listening.tabAudioActive,
   ]);
   /**
    * The furthest the list could scroll at the previous update.
@@ -455,15 +467,17 @@ export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolT
           working looks identical to one that is. Before permission exists it
           says what one tap will do; Chrome's quiet permission UI suppresses
           non-gesture prompts, so the first tap is what actually asks. */}
-      {listening.micActive ? (
+      {listeningActive ? (
         <div className="listening-bar" role="status" aria-live="polite">
           <span className="listening-bar__label">
             {!listening.asrReady
               ? 'Getting ready'
               : showListeningDetails
-                ? `${listening.audioInputSource === 'browser-tab'
-                  ? 'Listening · browser tab'
-                  : liveSpeaker ? `Listening · ${liveSpeaker.label}` : 'Listening'}${
+                ? `${listening.micActive && listening.tabAudioActive
+                    ? 'Listening · room + tab'
+                    : listening.tabAudioActive
+                      ? 'Listening · browser tab'
+                      : liveSpeaker ? `Listening · ${liveSpeaker.label}` : 'Listening'}${
                   listening.accurateTranscriptionEnabled ? ' · ONNX + GPT' : ''
                 }`
                 : 'Listening'}
@@ -477,15 +491,15 @@ export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolT
             <button
               type="button"
               className="button button--ghost listening-bar__source"
-              title={listening.audioInputSource === 'browser-tab'
-                ? 'Stop hearing the shared tab and use this device microphone'
+              title={listening.tabAudioActive
+                ? 'Stop hearing the shared browser tab'
                 : 'Choose another browser tab and turn on Share tab audio'}
               onClick={() => {
-                if (listening.audioInputSource === 'browser-tab') void session.startMicrophone();
+                if (listening.tabAudioActive) session.stopBrowserTabAudio();
                 else void session.startBrowserTabAudio();
               }}
             >
-              {listening.audioInputSource === 'browser-tab' ? 'Use microphone' : 'Hear another tab'}
+              {listening.tabAudioActive ? 'Stop tab audio' : 'Hear another tab'}
             </button>
           )}
         </div>

@@ -13,7 +13,7 @@ const CAPTURE_FRAME_SIZE = 1024;
 // import.meta base to file:///ROOT and startup stops before requesting the mic.
 const WORKLET_URL = '/worklets/aac-capture-worklet.js';
 
-export type CaptureChannel = 'local' | 'remote';
+export type CaptureChannel = 'local' | 'remote' | 'tab';
 
 export interface AudioFrame {
   readonly channel: CaptureChannel;
@@ -30,6 +30,7 @@ export interface AudioGraphState {
   readonly playbackSampleRate: number;
   readonly resamplingCapture: boolean;
   readonly micAttached: boolean;
+  readonly tabAttached: boolean;
   readonly remoteAttached: boolean;
   readonly emergencyOverride: boolean;
   readonly playbackState: AudioContextState | 'uninitialised';
@@ -72,6 +73,10 @@ export class AacAudioGraph {
   #micSource: MediaStreamAudioSourceNode | null = null;
   #micSplitter: ChannelSplitterNode | null = null;
   #micCapture: AudioWorkletNode | null = null;
+
+  #tabStream: MediaStream | null = null;
+  #tabSource: MediaStreamAudioSourceNode | null = null;
+  #tabCapture: AudioWorkletNode | null = null;
 
   #remoteStream: MediaStream | null = null;
   #remoteCaptureSource: MediaStreamAudioSourceNode | null = null;
@@ -249,6 +254,48 @@ export class AacAudioGraph {
   }
 
   // -------------------------------------------------------------------------
+  // User-selected browser-tab audio - capture context only and independent of
+  // the room microphone. Keeping a separate worklet/recogniser channel is what
+  // lets the transcript identify where each utterance came from.
+  // -------------------------------------------------------------------------
+
+  async attachBrowserTab(stream: MediaStream): Promise<void> {
+    const context = this.#requireCaptureContext();
+    this.detachBrowserTab();
+
+    this.#tabStream = stream;
+    this.#tabSource = context.createMediaStreamSource(stream);
+    this.#tabCapture = this.#createCaptureNode(context, 'tab');
+    this.#bindDirectRecognizer(this.#tabCapture, 'tab');
+    this.#tabSource.connect(this.#tabCapture);
+
+    this.routing.connect('browser-tab', 'tab-capture');
+    this.routing.connect('tab-capture', 'asr');
+
+    this.#publishCompliance();
+    this.#publishState();
+  }
+
+  detachBrowserTab(): void {
+    this.#tabCapture?.port.postMessage({ type: 'stop' });
+    this.#tabCapture?.disconnect();
+    this.#tabSource?.disconnect();
+
+    for (const track of this.#tabStream?.getTracks() ?? []) track.stop();
+
+    this.#tabCapture = null;
+    this.#tabSource = null;
+    this.#tabStream = null;
+    this.#directRecognizerChannels.delete('tab');
+
+    this.routing.disconnect('browser-tab');
+    this.routing.disconnect('tab-capture');
+
+    this.#publishCompliance();
+    this.#publishState();
+  }
+
+  // -------------------------------------------------------------------------
   // Remote peer audio - monitored *and* harvested for context.
   // -------------------------------------------------------------------------
 
@@ -340,7 +387,7 @@ export class AacAudioGraph {
     const buffer = context.createBuffer(1, samples.length, sampleRate);
     // `set` rather than `copyToChannel`: the samples arrive from a worker, so
     // their backing store is typed as ArrayBufferLike, and this avoids a cast.
-    buffer.getChannelData(0).set(samples);
+    buffer.getChannelData(0).set(normaliseSpeechForPlayback(samples));
 
     const source = context.createBufferSource();
     source.buffer = buffer;
@@ -441,6 +488,7 @@ export class AacAudioGraph {
 
     for (const [node, channel] of [
       [this.#micCapture, 'local'],
+      [this.#tabCapture, 'tab'],
       [this.#remoteCapture, 'remote'],
     ] as const) {
       if (!node) continue;
@@ -472,6 +520,7 @@ export class AacAudioGraph {
       playbackSampleRate: this.#playbackContext?.sampleRate ?? 0,
       resamplingCapture: this.#resamplingCapture,
       micAttached: this.#micSource !== null,
+      tabAttached: this.#tabSource !== null,
       remoteAttached: this.#remoteStream !== null,
       emergencyOverride: this.#emergencyOverride,
       playbackState: this.#playbackContext?.state ?? 'uninitialised',
@@ -484,6 +533,7 @@ export class AacAudioGraph {
 
     this.stopSynthesis();
     this.detachMicrophone();
+    this.detachBrowserTab();
     this.detachRemoteStream();
 
     this.#ttsBus?.disconnect();
@@ -581,4 +631,27 @@ export class AacAudioGraph {
 function clampGain(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.min(1, Math.max(0, value));
+}
+
+/**
+ * Bring generated speech to the digital ceiling without clipping it.
+ *
+ * Device and GPT voices arrive at very different levels. A shared video often
+ * sounds louder simply because it was mastered close to full scale. Scaling
+ * each finished speech buffer to a 0.98 peak makes Speak as loud as the browser
+ * can cleanly deliver while leaving a little headroom for the system mixer.
+ */
+export function normaliseSpeechForPlayback(samples: Float32Array): Float32Array {
+  let peak = 0;
+  for (const sample of samples) peak = Math.max(peak, Math.abs(sample));
+  if (peak <= 0 || !Number.isFinite(peak)) return samples;
+
+  const gain = 0.98 / peak;
+  if (Math.abs(gain - 1) < 0.001) return samples;
+
+  const normalised = new Float32Array(samples.length);
+  for (let index = 0; index < samples.length; index += 1) {
+    normalised[index] = Math.max(-0.98, Math.min(0.98, samples[index]! * gain));
+  }
+  return normalised;
 }

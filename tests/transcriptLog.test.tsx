@@ -43,4 +43,16 @@ describe('transient chat labels', () => {
     expect(container.textContent).not.toContain('You said');
     expect(container.querySelector('.listening-bar__label')?.textContent).toBe('Listening');
   });
+
+  it('marks speech heard from a shared tab with a small play icon', () => {
+    actions.addTurn('peer', 'Audio from the video.', {
+      dictated: true,
+      audioSource: 'browser-tab',
+    });
+
+    act(() => root.render(<TranscriptLog />));
+
+    expect(container.textContent).toContain('Tab audio said');
+    expect(container.querySelector('[aria-label="From shared tab audio"]')?.textContent).toBe('▶');
+  });
 });

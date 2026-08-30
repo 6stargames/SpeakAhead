@@ -36,7 +36,7 @@ afterEach(() => {
 });
 
 describe('browser tab audio', () => {
-  it('keeps only shared audio and sends it through the local recogniser path', async () => {
+  it('keeps only shared audio on its own recogniser path beside the microphone', async () => {
     const audio = testTrack('audio');
     const video = testTrack('video');
     const shared = new TestMediaStream([audio, video]);
@@ -46,8 +46,10 @@ describe('browser tab audio', () => {
       value: { getDisplayMedia },
     });
     const aac = new AacSession();
+    store.set({ micActive: true });
     vi.spyOn(aac.graph, 'resume').mockResolvedValue();
-    const attach = vi.spyOn(aac.graph, 'attachMicrophone').mockResolvedValue();
+    const attach = vi.spyOn(aac.graph, 'attachBrowserTab').mockResolvedValue();
+    const micAttach = vi.spyOn(aac.graph, 'attachMicrophone').mockResolvedValue();
 
     await aac.startBrowserTabAudio();
 
@@ -55,7 +57,9 @@ describe('browser tab audio', () => {
     expect(video.stop).toHaveBeenCalledOnce();
     expect(attach).toHaveBeenCalledOnce();
     expect((attach.mock.calls[0]?.[0] as unknown as TestMediaStream).getAudioTracks()).toEqual([audio]);
-    expect(store.getState().audioInputSource).toBe('browser-tab');
+    expect(micAttach).not.toHaveBeenCalled();
+    expect(store.getState().tabAudioActive).toBe(true);
+    expect(store.getState().audioInputSource).toBe('microphone');
     expect(store.getState().micActive).toBe(true);
   });
 });

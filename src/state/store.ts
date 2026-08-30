@@ -38,6 +38,8 @@ export interface Turn {
   readonly words?: readonly { text: string; confidence: number }[];
   /** Whether the visible final text is local, being checked, or GPT-confirmed. */
   readonly transcriptionStatus?: 'checking' | 'accurate' | 'local';
+  /** Present when this utterance was heard from a user-shared browser tab. */
+  readonly audioSource?: 'browser-tab';
 }
 
 export type PredictionSourceId = 'on-device-model' | 'heuristic' | 'none';
@@ -215,8 +217,10 @@ export interface AppState {
   /** Who is speaking right now, guessed while they are still talking. */
   readonly liveSpeaker: { id: string; label: string; isOwner: boolean } | null;
   readonly micActive: boolean;
-  /** The local recogniser can listen to the microphone or a user-shared browser tab. */
+  /** Retained for saved-state compatibility; the room microphone stays primary. */
   readonly audioInputSource: 'microphone' | 'browser-tab';
+  /** A user-shared tab is being recognised alongside the room microphone. */
+  readonly tabAudioActive: boolean;
   /** Browser permission state, so the interface can say *why* the mic is off. */
   readonly micPermission: 'granted' | 'denied' | 'prompt' | 'unknown';
   /** Last microphone failure, shown inline rather than only as a toast. */
@@ -309,6 +313,7 @@ const initialState: AppState = {
   liveSpeaker: null,
   micActive: false,
   audioInputSource: 'microphone',
+  tabAudioActive: false,
   micPermission: 'unknown',
   micError: null,
   speaking: false,

@@ -1833,6 +1833,20 @@ body {
 .turn--other .turn__meta {
   color: var(--text-muted);
 }
+.turn__source-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 1.45em;
+  height: 1.45em;
+  flex: 0 0 auto;
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface-raised));
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.82em;
+  line-height: 1;
+  letter-spacing: 0;
+}
 .turn__text {
   margin: 0;
   font-size: 1.05em;
