@@ -2,6 +2,7 @@ import { useEffect, useState, type JSX } from 'react';
 import type { ChatGPTIdentity } from '@/auth/chatgpt';
 import { ChatGPTAuthButton } from '@/components/ChatGPTAuthButton';
 import { AssistTasksPanel } from '@/components/AssistTasksPanel';
+import { ProfilePanel } from '@/components/ProfilePanel';
 import { CoreBoard, CORE_THEME_ITEMS } from '@/components/CoreBoard';
 import { EmergencyBar } from '@/components/EmergencyBar';
 import { FringeBoard } from '@/components/FringeBoard';
@@ -15,6 +16,7 @@ import { VerificationPanel } from '@/components/VerificationPanel';
 import { VoicePanel } from '@/components/VoicePanel';
 import { session } from '@/session/AacSession';
 import { useContextAssist } from '@/assist/useContextAssist';
+import { ASSIST_FEATURE_THEME_ITEMS } from '@/assist/featurePresentation';
 import {
   ThemedSymbol,
   themeTileFor,
@@ -60,6 +62,7 @@ const SPINE_THEME_ITEMS = [...BOARD_VIEWS, ...SYSTEM_VIEWS].map(({ label, icon }
   text: label,
   symbol: icon,
 }));
+const INTERFACE_THEME_ITEMS = [...SPINE_THEME_ITEMS, ...ASSIST_FEATURE_THEME_ITEMS];
 
 const selectEmergency = (state: AppState): boolean => state.emergencyOverride;
 const selectEditMode = (state: AppState): boolean => state.editMode;
@@ -113,7 +116,7 @@ function SpineItem({
 
 export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | null } = {}): JSX.Element {
   const [view, setView] = useState<View>('core');
-  const [selectedAssistFeature, setSelectedAssistFeature] = useState<AssistFeature | null>(null);
+  const [contextPanel, setContextPanel] = useState<AssistFeature | 'profile' | null>(null);
   const settings = useStore(selectSettings);
   const emergency = useStore(selectEmergency);
   const editMode = useStore(selectEditMode);
@@ -124,10 +127,10 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
   const previousContextualWords = useStore(selectPreviousContextualWords);
   const previousContextualPhrases = useStore(selectPreviousContextualPhrases);
   const signedIn = Boolean(chatGPTIdentity?.displayName);
-  const contextAssistEnabled = signedIn && settings.chatGPTAssist;
+  const contextAssistEnabled = signedIn;
   const symbolTheme = signedIn ? settings.symbolTheme : 'emoji';
-  const spineSymbols = useThemedSymbols(SPINE_THEME_ITEMS, symbolTheme, {
-    batchSize: 3,
+  const interfaceSymbols = useThemedSymbols(INTERFACE_THEME_ITEMS, symbolTheme, {
+    batchSize: 9,
     singleSubject: true,
   });
   useThemedSymbols(SETTINGS_THEME_ITEMS, symbolTheme, { singleSubject: true });
@@ -165,8 +168,10 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
   }, [settings.highContrast]);
 
   useEffect(() => {
-    if (!signedIn) setSelectedAssistFeature(null);
+    if (!signedIn) setContextPanel(null);
   }, [signedIn]);
+
+  const selectedAssistFeature = contextPanel === 'profile' ? null : contextPanel;
 
   return (
     <div className={`app${emergency ? ' app--emergency' : ''}${editMode ? ' app--editing' : ''}`}>
@@ -182,8 +187,11 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
         leading={(
           <ChatGPTAuthButton
             identity={chatGPTIdentity ?? null}
+            featureTiles={interfaceSymbols}
             selectedFeature={selectedAssistFeature}
-            onFeatureSelect={setSelectedAssistFeature}
+            profileSelected={contextPanel === 'profile'}
+            onProfileSelect={() => setContextPanel((current) => current === 'profile' ? null : 'profile')}
+            onFeatureSelect={(feature) => setContextPanel((current) => current === feature ? null : feature)}
           />
         )}
       />
@@ -193,10 +201,15 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
             spine reads as the barrier between the passive transcript and the
             generative board. */}
         <div className="app__context">
-          {selectedAssistFeature ? (
+          {contextPanel === 'profile' && chatGPTIdentity && !('signInPath' in chatGPTIdentity) ? (
+            <ProfilePanel
+              identity={chatGPTIdentity}
+              onClose={() => setContextPanel(null)}
+            />
+          ) : selectedAssistFeature ? (
             <AssistTasksPanel
               selectedFeature={selectedAssistFeature}
-              onClose={() => setSelectedAssistFeature(null)}
+              onClose={() => setContextPanel(null)}
             />
           ) : (
             <TranscriptLog />
@@ -211,7 +224,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
                 candidate={candidate}
                 view={view}
                 onSelect={setView}
-                tile={themeTileFor(spineSymbols, { text: candidate.label, symbol: candidate.icon })}
+                tile={themeTileFor(interfaceSymbols, { text: candidate.label, symbol: candidate.icon })}
               />
             ))}
           </div>
@@ -231,7 +244,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
                 }
                 view={view}
                 onSelect={setView}
-                tile={themeTileFor(spineSymbols, { text: candidate.label, symbol: candidate.icon })}
+                tile={themeTileFor(interfaceSymbols, { text: candidate.label, symbol: candidate.icon })}
               />
             ))}
           </div>

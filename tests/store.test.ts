@@ -260,20 +260,25 @@ describe('settings persistence', () => {
   it('drops retired settings keys lingering in old local storage', () => {
     localStorage.setItem(
       'aac.settings.v1',
-      JSON.stringify({ speechRate: 1.25, largeText: false, autoSpeakPredictions: false }),
+      JSON.stringify({
+        speechRate: 1.25,
+        largeText: false,
+        autoSpeakPredictions: false,
+        chatGPTAssist: false,
+      }),
     );
     actions.loadSettings();
     const settings = store.getState().settings as unknown as Record<string, unknown>;
     expect(settings.speechRate).toBe(1.25);
     expect('largeText' in settings).toBe(false);
     expect('autoSpeakPredictions' in settings).toBe(false);
+    expect('chatGPTAssist' in settings).toBe(false);
   });
 
   it('round-trips through local storage', () => {
     actions.setSettings({
       speechRate: 1.4,
       highContrast: true,
-      chatGPTAssist: false,
       symbolTheme: 'anime',
     });
     store.reset();
@@ -282,7 +287,6 @@ describe('settings persistence', () => {
     actions.loadSettings();
     expect(store.getState().settings.speechRate).toBe(1.4);
     expect(store.getState().settings.highContrast).toBe(true);
-    expect(store.getState().settings.chatGPTAssist).toBe(false);
     expect(store.getState().settings.symbolTheme).toBe('anime');
   });
 

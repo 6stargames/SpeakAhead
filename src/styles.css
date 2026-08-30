@@ -520,6 +520,7 @@ body {
   line-height: 1.15;
   text-decoration: none;
   white-space: nowrap;
+  cursor: pointer;
 }
 .chatgpt-auth-cluster {
   display: inline-flex;
@@ -534,6 +535,10 @@ body {
 .chatgpt-auth-overlay:focus-visible {
   border-color: var(--border-strong);
   background: var(--surface);
+}
+.chatgpt-auth-overlay[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 .chatgpt-auth-overlay__mark {
   width: 1.65rem;
@@ -1035,6 +1040,7 @@ body {
   height: 1.55em;
   flex: 0 0 1.55em;
   background-repeat: no-repeat;
+  background-position: center;
 }
 .cell__word {
   overflow-wrap: anywhere;
@@ -1323,6 +1329,137 @@ body {
   width: 100%;
   min-height: calc(var(--tap-min) * 1.45);
   font-size: 1.05em;
+}
+
+/* Account details use the same transcript-replacement shell as WebMCP work,
+   so the large return control stays pinned while profile content scrolls. */
+.profile-panel__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.profile-panel__header img {
+  width: 3.25rem;
+  height: 3.25rem;
+  flex: 0 0 3.25rem;
+}
+.profile-panel__header h2,
+.profile-panel__header p {
+  margin: 0;
+}
+.profile-panel__header > div > p:last-child {
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+  font-size: 0.8em;
+  overflow-wrap: anywhere;
+}
+.profile-panel__tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.profile-panel__tab {
+  min-width: 0;
+  padding: var(--space-2);
+}
+.profile-panel__tab[aria-pressed='true'] {
+  color: var(--text-inverse);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.profile-panel__metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.profile-panel__metrics article,
+.profile-panel__token-card,
+.profile-panel__activity article {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.profile-panel__metrics article {
+  display: flex;
+  min-height: 6rem;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  text-align: center;
+}
+.profile-panel__metrics strong {
+  color: var(--accent);
+  font-size: 1.65em;
+}
+.profile-panel__metrics span,
+.profile-panel__activity small {
+  color: var(--text-muted);
+}
+.profile-panel__token-card {
+  padding: var(--space-4);
+}
+.profile-panel__token-card > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.profile-panel__token-card > div > strong {
+  color: var(--accent);
+  font-size: 2em;
+  font-variant-numeric: tabular-nums;
+}
+.profile-panel__token-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+}
+.profile-panel__token-card dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--surface-sunken);
+  border-radius: var(--radius-sm);
+}
+.profile-panel__token-card dd {
+  margin: 0;
+  font-weight: 800;
+}
+.profile-panel__token-card p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.76em;
+  line-height: 1.4;
+}
+.profile-panel__activity {
+  display: grid;
+  gap: var(--space-2);
+}
+.profile-panel__activity article {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+.profile-panel__activity article > span {
+  font-size: 1.6em;
+}
+.profile-panel__activity article > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.profile-panel__signout {
+  display: flex;
+  min-height: var(--tap-min);
+  align-items: center;
+  justify-content: center;
+  margin-top: auto;
+  text-decoration: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1818,6 +1955,12 @@ body {
 }
 .settings-panel .option__symbol {
   font-size: 2em;
+}
+.settings-panel .option--theme-preview .option__symbol,
+.settings-panel .option--theme-preview .cell__symbol--themed {
+  width: 3.4rem;
+  height: 3.4rem;
+  flex-basis: 3.4rem;
 }
 .settings-panel .field__label {
   font-size: 1.3em;

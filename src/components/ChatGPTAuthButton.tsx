@@ -7,7 +7,6 @@ import {
 import {
   ThemedSymbol,
   themeTileFor,
-  useThemedSymbols,
   type ThemeTile,
 } from '@/assist/themeIcons';
 import {
@@ -20,9 +19,10 @@ import {
 
 const selectAssistHeader = (state: AppState) => ({
   features: state.assistFeatures,
-  assistEnabled: state.settings.chatGPTAssist,
   symbolTheme: state.settings.symbolTheme,
 });
+
+const EMPTY_THEME_TILES = new Map<string, ThemeTile>();
 
 const STATUS_TEXT: Record<AssistFeatureStatus, string> = {
   idle: 'waiting',
@@ -78,20 +78,20 @@ function FeatureIndicator({
 /** Sites authentication overlaid inside the otherwise untouched ribbon. */
 export function ChatGPTAuthButton({
   identity,
+  featureTiles = EMPTY_THEME_TILES,
   selectedFeature = null,
+  profileSelected = false,
   onFeatureSelect = () => undefined,
+  onProfileSelect = () => undefined,
 }: {
   identity: ChatGPTIdentity | null;
+  featureTiles?: ReadonlyMap<string, ThemeTile>;
   selectedFeature?: AssistFeature | null;
+  profileSelected?: boolean;
   onFeatureSelect?: (feature: AssistFeature) => void;
+  onProfileSelect?: () => void;
 }): JSX.Element | null {
   const assist = useStore(selectAssistHeader);
-  const signedIn = Boolean(identity && !('signInPath' in identity));
-  const featureTiles = useThemedSymbols(
-    ASSIST_FEATURE_THEME_ITEMS,
-    signedIn ? assist.symbolTheme : 'emoji',
-    { batchSize: 3, singleSubject: true },
-  );
   if (!identity) return null;
 
   if ('signInPath' in identity) {
@@ -108,31 +108,30 @@ export function ChatGPTAuthButton({
     );
   }
 
-  const contextOverride = assist.assistEnabled ? undefined : 'idle';
-  const contextDetail = assist.assistEnabled ? undefined : 'turned off in Settings';
   const themeOverride = assist.symbolTheme !== 'emoji' ? undefined : 'idle';
   const themeDetail = assist.symbolTheme !== 'emoji' ? undefined : 'Emoji theme selected';
 
   return (
     <div className="chatgpt-auth-cluster" aria-label="ChatGPT and WebMCP activity">
-      <a
+      <button
+        type="button"
         className="chatgpt-auth-overlay chatgpt-auth-overlay--signed-in"
-        href={identity.signOutPath}
-        target="_top"
-        title={`${identity.email} · Sign out`}
-        aria-label={`Signed in with ChatGPT as ${identity.displayName}. Sign out`}
+        title={`${identity.email} · View profile and SpeakAhead usage`}
+        aria-label={`Signed in with ChatGPT as ${identity.displayName}. View profile and usage`}
+        aria-pressed={profileSelected}
+        aria-controls="chatgpt-profile-panel"
+        aria-expanded={profileSelected}
+        onClick={onProfileSelect}
       >
         <img className="chatgpt-auth-overlay__mark" src="/openai-mark.svg" alt="" />
         <span className="chatgpt-auth-overlay__name">{identity.displayName}</span>
-      </a>
+      </button>
       <div className="assist-features" aria-label="WebMCP features">
         <FeatureIndicator
           icon={ASSIST_FEATURE_PRESENTATION.corrections.icon}
           tile={themeTileFor(featureTiles, ASSIST_FEATURE_THEME_ITEMS[0]!)}
           label={ASSIST_FEATURE_PRESENTATION.corrections.label}
           activity={assist.features.corrections}
-          overrideStatus={contextOverride}
-          overrideDetail={contextDetail}
           selected={selectedFeature === 'corrections'}
           onSelect={() => onFeatureSelect('corrections')}
         />
@@ -141,8 +140,6 @@ export function ChatGPTAuthButton({
           tile={themeTileFor(featureTiles, ASSIST_FEATURE_THEME_ITEMS[1]!)}
           label={ASSIST_FEATURE_PRESENTATION.suggestions.label}
           activity={assist.features.suggestions}
-          overrideStatus={contextOverride}
-          overrideDetail={contextDetail}
           selected={selectedFeature === 'suggestions'}
           onSelect={() => onFeatureSelect('suggestions')}
         />

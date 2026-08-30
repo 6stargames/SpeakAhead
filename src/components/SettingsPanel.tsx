@@ -4,12 +4,6 @@ import { session } from '@/session/AacSession';
 import { actions, selectSettings, useStore, type SymbolTheme } from '@/state/store';
 
 export const SETTINGS_THEME_ITEMS = [
-  { text: 'ChatGPT context help? On', symbol: '✨' },
-  { text: 'ChatGPT context help? Off', symbol: '🔒' },
-  { text: 'Button pictures Emoji', symbol: '🙂' },
-  { text: 'Button pictures Anime', symbol: '🎨' },
-  { text: 'Button pictures Baby Shark', symbol: '🦈' },
-  { text: 'Button pictures Hello Kitty', symbol: '🎀' },
   { text: 'What kind of voice? Male', symbol: '👨' },
   { text: 'What kind of voice? Female', symbol: '👩' },
   { text: 'What kind of voice? Neutral', symbol: '🧑' },
@@ -24,6 +18,13 @@ export const SETTINGS_THEME_ITEMS = [
   { text: 'Easier-to-see colours? On', symbol: '🌕' },
   { text: 'Easier-to-see colours? Off', symbol: '🌑' },
 ] as const;
+
+const THEME_PREVIEW_ITEMS: Record<SymbolTheme, { text: string; symbol: string }> = {
+  emoji: { text: 'Friendly picture-style preview', symbol: '🙂' },
+  anime: { text: 'Friendly picture-style preview', symbol: '🎨' },
+  'baby-shark': { text: 'Friendly picture-style preview', symbol: '🦈' },
+  'hello-kitty': { text: 'Friendly picture-style preview', symbol: '🎀' },
+};
 
 /**
  * One setting, several big buttons.
@@ -104,6 +105,45 @@ function OptionRow<T>({
   );
 }
 
+function ThemePreview({ theme }: { theme: SymbolTheme }): JSX.Element {
+  const item = THEME_PREVIEW_ITEMS[theme];
+  const tiles = useThemedSymbols([item], theme, { batchSize: 1, singleSubject: true });
+  return <ThemedSymbol symbol={item.symbol} tile={themeTileFor(tiles, item)} />;
+}
+
+function ThemeOptionRow({ value }: { value: SymbolTheme }): JSX.Element {
+  const options: { label: string; value: SymbolTheme }[] = [
+    { label: 'Emoji', value: 'emoji' },
+    { label: 'Anime', value: 'anime' },
+    { label: 'Baby Shark', value: 'baby-shark' },
+    { label: 'Hello Kitty', value: 'hello-kitty' },
+  ];
+  return (
+    <div className="option-group" role="group" aria-label="Button pictures">
+      <span className="field__label">Button pictures</span>
+      <div className="option-row option-row--theme-previews">
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className="option option--theme-preview"
+            aria-pressed={value === option.value}
+            onClick={() => actions.setSettings({ symbolTheme: option.value })}
+          >
+            <span className="option__symbol" aria-hidden="true">
+              <ThemePreview theme={option.value} />
+            </span>
+            {option.label}
+          </button>
+        ))}
+      </div>
+      <p className="field__hint">
+        Each button previews its own art style. Pictures are saved and reused; emoji remain as fallback.
+      </p>
+    </div>
+  );
+}
+
 export function SettingsPanel({ signedIn = false }: { signedIn?: boolean }): JSX.Element {
   const settings = useStore(selectSettings);
 
@@ -111,35 +151,7 @@ export function SettingsPanel({ signedIn = false }: { signedIn?: boolean }): JSX
     <div className="panel settings-panel">
       <h2 className="panel__title">Settings</h2>
 
-      {signedIn && (
-        <OptionRow
-          label="ChatGPT context help?"
-          hint="Uses the recent chat text to repair uncertain words and prepare quick replies. Microphone audio never leaves this device."
-          value={settings.chatGPTAssist}
-          symbolTheme={settings.symbolTheme}
-          options={[
-            { label: 'On', value: true, symbol: '✨' },
-            { label: 'Off', value: false, symbol: '🔒' },
-          ]}
-          onChange={(chatGPTAssist) => actions.setSettings({ chatGPTAssist })}
-        />
-      )}
-
-      {signedIn && (
-        <OptionRow
-          label="Button pictures"
-          hint="Themed pictures are generated once, stored on this device, and reused. Emoji always remain as a fallback."
-          value={settings.symbolTheme}
-          symbolTheme={settings.symbolTheme}
-          options={[
-            { label: 'Emoji', value: 'emoji' as const, symbol: '🙂' },
-            { label: 'Anime', value: 'anime' as const, symbol: '🎨' },
-            { label: 'Baby Shark', value: 'baby-shark' as const, symbol: '🦈' },
-            { label: 'Hello Kitty', value: 'hello-kitty' as const, symbol: '🎀' },
-          ]}
-          onChange={(symbolTheme) => actions.setSettings({ symbolTheme })}
-        />
-      )}
+      {signedIn && <ThemeOptionRow value={settings.symbolTheme} />}
 
       <OptionRow
         label="What kind of voice?"

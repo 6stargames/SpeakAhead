@@ -58,7 +58,20 @@ function parseResponse(value: unknown, request: ContextAssistRequest): ContextAs
   if (request.generateSuggestions && words.length === 0 && phrases.length === 0 && corrections.length === 0) {
     return null;
   }
-  return { corrections, words, phrases };
+  const usageRecord = record.usage && typeof record.usage === 'object'
+    ? record.usage as Record<string, unknown>
+    : null;
+  const tokenCount = (key: string) => usageRecord && Number.isFinite(usageRecord[key])
+    ? Math.max(0, Math.floor(Number(usageRecord[key])))
+    : 0;
+  const usage = usageRecord
+    ? {
+      inputTokens: tokenCount('inputTokens'),
+      outputTokens: tokenCount('outputTokens'),
+      totalTokens: tokenCount('totalTokens'),
+    }
+    : undefined;
+  return { corrections, words, phrases, ...(usage ? { usage } : {}) };
 }
 
 /**

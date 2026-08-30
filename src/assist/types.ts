@@ -29,6 +29,11 @@ export interface ContextAssistResponse {
   readonly corrections: ContextCorrection[];
   readonly words: ContextSuggestion[];
   readonly phrases: ContextSuggestion[];
+  readonly usage?: {
+    readonly inputTokens: number;
+    readonly outputTokens: number;
+    readonly totalTokens: number;
+  };
 }
 
 export interface ThemeIconRequestItem {

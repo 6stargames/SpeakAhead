@@ -29,7 +29,6 @@ let root: Root;
 beforeEach(() => {
   vi.useFakeTimers();
   store.reset();
-  actions.setSettings({ chatGPTAssist: true });
   mocks.requestContextAssist.mockReset();
   mocks.requestContextAssist.mockResolvedValue({
     corrections: [],

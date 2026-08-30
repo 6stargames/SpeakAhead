@@ -67,8 +67,6 @@ export interface Settings {
   voiceGender: 'male' | 'female' | 'neutral';
   vadSensitivity: number;
   highContrast: boolean;
-  /** Explicit consent for sending transcript text (never audio) for assistance. */
-  chatGPTAssist: boolean;
   /** Device-local visual preference for symbols on vocabulary cards. */
   symbolTheme: SymbolTheme;
 }
@@ -109,6 +107,16 @@ export interface AssistFeatureActivity {
   readonly resultCount: number;
   /** Newest work first; active and completed work share this one bounded list. */
   readonly tasks: readonly AssistTaskEntry[];
+}
+
+export interface AssistUsage {
+  /** When this in-browser SpeakAhead usage window began. */
+  readonly startedAt: number;
+  readonly textRequests: number;
+  readonly imageRequests: number;
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly totalTokens: number;
 }
 
 /**
@@ -178,6 +186,8 @@ export interface AppState {
   readonly contextSuggestionsUpdatedAt: number;
   readonly assistStatus: 'idle' | 'thinking' | 'ready' | 'local' | 'unavailable' | 'error';
   readonly assistFeatures: Record<AssistFeature, AssistFeatureActivity>;
+  /** Real API usage returned to this page; never account-wide ChatGPT usage. */
+  readonly assistUsage: AssistUsage;
 
   readonly asr: EngineInfo;
   readonly tts: EngineInfo;
@@ -258,6 +268,14 @@ const initialState: AppState = {
     suggestions: { activeTasks: 0, status: 'idle', resultCount: 0, tasks: [] },
     themes: { activeTasks: 0, status: 'idle', resultCount: 0, tasks: [] },
   },
+  assistUsage: {
+    startedAt: Date.now(),
+    textRequests: 0,
+    imageRequests: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    totalTokens: 0,
+  },
 
   asr: idleEngine,
   tts: idleEngine,
@@ -295,7 +313,6 @@ const initialState: AppState = {
     voiceGender: 'neutral',
     vadSensitivity: 9,
     highContrast: false,
-    chatGPTAssist: true,
     symbolTheme: 'emoji',
   },
   notices: [],
@@ -329,7 +346,10 @@ class Store {
   };
 
   reset = (): void => {
-    this.#state = initialState;
+    this.#state = {
+      ...initialState,
+      assistUsage: { ...initialState.assistUsage, startedAt: Date.now() },
+    };
     for (const listener of [...this.#listeners]) listener();
   };
 }
@@ -506,6 +526,25 @@ export const actions = {
 
   setAssistStatus(assistStatus: AppState['assistStatus']): void {
     store.set({ assistStatus });
+  },
+
+  recordAssistUsage(
+    kind: 'text' | 'image',
+    usage: { inputTokens?: number; outputTokens?: number; totalTokens?: number } = {},
+  ): void {
+    const whole = (value: number | undefined) => Number.isFinite(value)
+      ? Math.max(0, Math.floor(value ?? 0))
+      : 0;
+    store.set((state) => ({
+      assistUsage: {
+        ...state.assistUsage,
+        textRequests: state.assistUsage.textRequests + (kind === 'text' ? 1 : 0),
+        imageRequests: state.assistUsage.imageRequests + (kind === 'image' ? 1 : 0),
+        inputTokens: state.assistUsage.inputTokens + whole(usage.inputTokens),
+        outputTokens: state.assistUsage.outputTokens + whole(usage.outputTokens),
+        totalTokens: state.assistUsage.totalTokens + whole(usage.totalTokens),
+      },
+    }));
   },
 
   beginAssistTask(feature: AssistFeature, label = 'Working on the latest request'): string {

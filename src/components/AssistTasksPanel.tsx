@@ -1,4 +1,4 @@
-import type { JSX } from 'react';
+import { useEffect, useState, type JSX } from 'react';
 import {
   ASSIST_FEATURE_PRESENTATION,
 } from '@/assist/featurePresentation';
@@ -13,7 +13,6 @@ import {
 
 const selectAssistActivity = (state: AppState) => ({
   features: state.assistFeatures,
-  assistEnabled: state.settings.chatGPTAssist,
   symbolTheme: state.settings.symbolTheme,
 });
 
@@ -29,12 +28,8 @@ const STATUS_LABEL: Record<AssistFeatureStatus, string> = {
 function effectiveActivity(
   feature: AssistFeature,
   activity: AssistFeatureActivity,
-  assistEnabled: boolean,
   symbolTheme: AppState['settings']['symbolTheme'],
 ): AssistFeatureActivity {
-  if ((feature === 'corrections' || feature === 'suggestions') && !assistEnabled) {
-    return { ...activity, activeTasks: 0, status: 'idle' };
-  }
   if (feature === 'themes' && symbolTheme === 'emoji') {
     return { ...activity, activeTasks: 0, status: 'idle' };
   }
@@ -52,6 +47,12 @@ function taskResult(task: AssistTaskEntry): string | null {
   return `${task.resultCount} result${task.resultCount === 1 ? '' : 's'}`;
 }
 
+export function assistTaskDuration(task: AssistTaskEntry, now = Date.now()): string {
+  const finishedAt = task.finishedAt ?? now;
+  const seconds = Math.max(0, finishedAt - task.startedAt) / 1_000;
+  return `${seconds < 10 ? seconds.toFixed(1) : Math.round(seconds)}s`;
+}
+
 export function AssistTasksPanel({
   selectedFeature,
   onClose,
@@ -64,10 +65,17 @@ export function AssistTasksPanel({
   const activity = effectiveActivity(
     selectedFeature,
     assist.features[selectedFeature],
-    assist.assistEnabled,
     assist.symbolTheme,
   );
   const tasks = [...activity.tasks].sort(taskOrder);
+  const hasRunningTask = tasks.some((task) => task.status === 'working');
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!hasRunningTask) return undefined;
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(timer);
+  }, [hasRunningTask]);
   const headerStatus = activity.activeTasks > 0
     ? `${activity.activeTasks} active`
     : STATUS_LABEL[activity.status];
@@ -111,6 +119,7 @@ export function AssistTasksPanel({
           <ol className="assist-tasks__list" aria-label={`${presentation.label} activity`}>
             {tasks.map((task) => {
               const result = taskResult(task);
+              const duration = assistTaskDuration(task, now);
               return (
                 <li key={task.id} className={`assist-task-row assist-task-row--${task.status}`}>
                   {task.status === 'working' && (
@@ -119,7 +128,8 @@ export function AssistTasksPanel({
                   <div className="assist-task-row__copy">
                     <strong>{task.label}</strong>
                     <span>
-                      {STATUS_LABEL[task.status]}
+                      {task.status === 'working' ? 'Running' : STATUS_LABEL[task.status]}
+                      {` · ${duration}`}
                       {result ? ` · ${result}` : ''}
                     </span>
                   </div>

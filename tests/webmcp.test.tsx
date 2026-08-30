@@ -8,7 +8,8 @@ import type { JsonSchema, WebMcpToolDefinition } from '@/webmcp/types';
 import { useAacWebMcpTools } from '@/webmcp/tools';
 import { actions, store } from '@/state/store';
 import { ChatGPTAuthButton } from '@/components/ChatGPTAuthButton';
-import { AssistTasksPanel } from '@/components/AssistTasksPanel';
+import { AssistTasksPanel, assistTaskDuration } from '@/components/AssistTasksPanel';
+import { ProfilePanel } from '@/components/ProfilePanel';
 
 const schema: JsonSchema = { type: 'object', properties: { value: { type: 'string' } } };
 
@@ -339,6 +340,43 @@ describe('AAC context tools', () => {
     unmount();
   });
 
+  it('opens profile details from the account button instead of signing out', () => {
+    store.reset();
+    const onProfileSelect = vi.fn();
+    render(
+      <ChatGPTAuthButton
+        identity={{ displayName: 'Danny', email: 'danny@example.com', signOutPath: '/signout' }}
+        onProfileSelect={onProfileSelect}
+      />,
+    );
+
+    const account = container.querySelector<HTMLButtonElement>('.chatgpt-auth-overlay--signed-in');
+    expect(account?.tagName).toBe('BUTTON');
+    expect(account?.getAttribute('href')).toBeNull();
+    act(() => account?.click());
+    expect(onProfileSelect).toHaveBeenCalledTimes(1);
+    unmount();
+  });
+
+  it('shows real session usage in profile and keeps sign-out explicit', () => {
+    store.reset();
+    actions.recordAssistUsage('text', { inputTokens: 80, outputTokens: 20, totalTokens: 100 });
+    actions.recordAssistUsage('image', { inputTokens: 10, outputTokens: 30, totalTokens: 40 });
+    render(
+      <ProfilePanel
+        identity={{ displayName: 'Danny', email: 'danny@example.com', signOutPath: '/signout' }}
+        onClose={() => undefined}
+      />,
+    );
+
+    const tokens = [...container.querySelectorAll('button')].find((button) => button.textContent === 'Tokens');
+    act(() => tokens?.click());
+    expect(container.textContent).toContain('140');
+    expect(container.textContent).toContain('SpeakAhead usage returned to this page');
+    expect(container.querySelector<HTMLAnchorElement>('.profile-panel__signout')?.href).toContain('/signout');
+    unmount();
+  });
+
   it('shows live WebMCP work in the chat area and provides a large return button', () => {
     store.reset();
     const onClose = vi.fn();
@@ -350,6 +388,7 @@ describe('AAC context tools', () => {
     expect(container.textContent).toContain('Themed pictures');
     expect(container.textContent).toContain('1 task running now');
     expect(container.textContent).toContain('Pictures for “help”, “water”');
+    expect(container.textContent).toMatch(/Running · \d+\.\ds/);
     expect(container.textContent).not.toContain('Context correction');
     expect(container.textContent).not.toContain('Quick replies');
 
@@ -362,6 +401,16 @@ describe('AAC context tools', () => {
 
     act(() => actions.finishAssistTask('themes', 'ready', 6, taskId));
     unmount();
+  });
+
+  it('formats active and completed task time in seconds', () => {
+    const startedAt = 10_000;
+    expect(assistTaskDuration({
+      id: 'active', label: 'Active', status: 'working', resultCount: 0, startedAt, finishedAt: null,
+    }, 12_450)).toBe('2.5s');
+    expect(assistTaskDuration({
+      id: 'done', label: 'Done', status: 'ready', resultCount: 1, startedAt, finishedAt: 22_300,
+    }, 99_000)).toBe('12s');
   });
 });
 

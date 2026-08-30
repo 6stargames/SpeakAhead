@@ -35,9 +35,15 @@ let queue: Promise<unknown> = Promise.resolve();
 const COLUMNS_HEADER = 'x-aac-sprite-columns';
 const ROWS_HEADER = 'x-aac-sprite-rows';
 const INDEX_HEADER = 'x-aac-sprite-index';
+const SOURCE_HEADER = 'x-aac-image-source';
+const INPUT_TOKENS_HEADER = 'x-aac-input-tokens';
+const OUTPUT_TOKENS_HEADER = 'x-aac-output-tokens';
+const TOTAL_TOKENS_HEADER = 'x-aac-total-tokens';
 
 function itemKey(item: ThemeIconRequestItem): string {
-  return `${item.symbol}\u0000${item.text}`;
+  // The word's meaning owns the picture. A changing health/fallback emoji must
+  // not disconnect the button from artwork already made for the same label.
+  return normalizedChoice(item.text);
 }
 
 function themedItemKey(
@@ -69,6 +75,17 @@ async function imagePayload(response: Response): Promise<SpritePayload | null> {
   if (!columns || !rows) return null;
   const headerIndex = Number(response.headers.get(INDEX_HEADER));
   const index = Number.isInteger(headerIndex) && headerIndex >= 0 ? headerIndex : 0;
+  if (response.headers.get(SOURCE_HEADER) === 'generated') {
+    const tokenCount = (header: string) => {
+      const value = Number(response.headers.get(header));
+      return Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
+    };
+    actions.recordAssistUsage('image', {
+      inputTokens: tokenCount(INPUT_TOKENS_HEADER),
+      outputTokens: tokenCount(OUTPUT_TOKENS_HEADER),
+      totalTokens: tokenCount(TOTAL_TOKENS_HEADER),
+    });
+  }
   const blob = await response.blob();
   return blob.size > 100 ? { blob, columns, rows, index } : null;
 }

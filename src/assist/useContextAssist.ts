@@ -10,7 +10,6 @@ const selectAssistInput = (state: AppState) => ({
   turns: state.turns,
   composition: state.composition,
   speakers: state.speakers,
-  enabled: state.settings.chatGPTAssist,
 });
 
 /**
@@ -185,6 +184,7 @@ async function runContextJob(job: ContextAssistJob, signal: AbortSignal): Promis
     if (signal.aborted) return;
 
     if (response) {
+      actions.recordAssistUsage('text', response.usage);
       let applied = 0;
       for (const correction of response.corrections) {
         if (
@@ -319,7 +319,7 @@ export function useContextAssist(signedIn: boolean): void {
   // Coalesce a stream of new finished turns into one latest pending snapshot.
   // Updating this ref never interrupts work that is already in flight.
   useEffect(() => {
-    if (!signedIn || !input.enabled || !requestKey) {
+    if (!signedIn || !requestKey) {
       latestJob.current = null;
       observedKey.current = null;
       return;
@@ -338,12 +338,12 @@ export function useContextAssist(signedIn: boolean): void {
       replyTurns,
       queuedAt: Date.now(),
     };
-  }, [input.composition, input.enabled, input.speakers, input.turns, requestKey, signedIn]);
+  }, [input.composition, input.speakers, input.turns, requestKey, signedIn]);
 
   // One durable worker drains the latest snapshot. New transcript turns never
   // abort an OpenAI request; they replace only the not-yet-started pending job.
   useEffect(() => {
-    if (!signedIn || !input.enabled) {
+    if (!signedIn) {
       processedKey.current = null;
       handledReplyTurns.current.clear();
       actions.setAssistStatus('idle');
@@ -398,5 +398,5 @@ export function useContextAssist(signedIn: boolean): void {
       if (timer !== null) clearTimeout(timer);
       controller.abort();
     };
-  }, [input.enabled, signedIn]);
+  }, [signedIn]);
 }

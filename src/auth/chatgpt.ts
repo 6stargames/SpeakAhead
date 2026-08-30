@@ -11,3 +11,5 @@ export type ChatGPTIdentity =
       signInPath: string;
       signOutPath?: never;
     };
+
+export type SignedInChatGPTIdentity = Extract<ChatGPTIdentity, { displayName: string }>;

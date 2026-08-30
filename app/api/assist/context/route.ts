@@ -153,6 +153,25 @@ function outputText(response: unknown): string | null {
   return null;
 }
 
+function responseUsage(response: unknown): {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+} | null {
+  if (!response || typeof response !== 'object') return null;
+  const usage = (response as { usage?: unknown }).usage;
+  if (!usage || typeof usage !== 'object') return null;
+  const record = usage as Record<string, unknown>;
+  const count = (key: string) => Number.isFinite(record[key])
+    ? Math.max(0, Math.floor(Number(record[key])))
+    : 0;
+  return {
+    inputTokens: count('input_tokens'),
+    outputTokens: count('output_tokens'),
+    totalTokens: count('total_tokens'),
+  };
+}
+
 export async function POST(request: Request): Promise<Response> {
   const auth = await requireAssistUser('context', 24);
   if (!auth.ok) return auth.response;
@@ -224,7 +243,9 @@ export async function POST(request: Request): Promise<Response> {
     return json({ error: 'assist_upstream_failed' }, 502);
   }
 
-  const text = outputText(await upstream.json());
+  const upstreamBody = await upstream.json();
+  const text = outputText(upstreamBody);
+  const usage = responseUsage(upstreamBody);
   if (!text) return json({ error: 'assist_invalid_response' }, 502);
   try {
     const parsed = JSON.parse(text) as Record<string, unknown>;
@@ -251,6 +272,7 @@ export async function POST(request: Request): Promise<Response> {
       corrections: Array.isArray(parsed.corrections) ? parsed.corrections : [],
       words: filterNovelChoices(words, 'words', input.excludedWords, 6),
       phrases: filterNovelChoices(phrases, 'phrases', input.excludedPhrases, 4),
+      ...(usage ? { usage } : {}),
     });
   } catch {
     return json({ error: 'assist_invalid_response' }, 502);
