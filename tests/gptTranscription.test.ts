@@ -38,6 +38,7 @@ describe('accurate transcription client', () => {
       expect(audio.type).toBe('audio/wav');
       expect(audio.name).toBe('utterance.wav');
       expect(form.get('context')).toBe('Please call Danny.');
+      expect(form.get('draft')).toBe('Please call Daniel.');
       return Response.json({
         text: 'Please call Danny.',
         usage: { inputTokens: 12, outputTokens: 4, totalTokens: 16 },
@@ -49,6 +50,7 @@ describe('accurate transcription client', () => {
       [new Float32Array([0.1, 0.2, 0.1])],
       16_000,
       '  Please   call Danny.  ',
+      '  Please   call Daniel.  ',
     );
 
     expect(fetchMock).toHaveBeenCalledWith('/api/assist/transcription', expect.objectContaining({
@@ -67,6 +69,21 @@ describe('accurate transcription client', () => {
       [new Float32Array([0.1])],
       16_000,
       '',
+      'Local words.',
     )).resolves.toBeNull();
+  });
+
+  it('raises quiet speech without clipping loud samples', async () => {
+    const wav = encodeMonoWav([new Float32Array([0.01, -0.01, 0.02])], 16_000);
+    const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(reader.error);
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.readAsArrayBuffer(wav);
+    });
+    const view = new DataView(buffer);
+
+    expect(Math.abs(view.getInt16(44, true))).toBeGreaterThan(2_000);
+    expect(Math.abs(view.getInt16(48, true))).toBeLessThanOrEqual(32_767);
   });
 });

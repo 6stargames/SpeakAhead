@@ -888,6 +888,7 @@ export class AacSession {
         job.captured.audio,
         job.captured.sampleRate,
         context,
+        job.expectedText,
         controller.signal,
       );
       if (
