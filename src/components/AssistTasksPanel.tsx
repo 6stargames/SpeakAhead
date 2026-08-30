@@ -1,9 +1,9 @@
-import { useEffect, useState, type JSX } from 'react';
+import { useEffect, useState, type CSSProperties, type JSX } from 'react';
 import {
+  ASSIST_FEATURE_PANEL_THEME_ITEMS,
   ASSIST_FEATURE_PRESENTATION,
-  ASSIST_FEATURE_THEME_ITEMS,
 } from '@/assist/featurePresentation';
-import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
+import { themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
 import { ThemedCloseButton } from '@/components/ThemedCloseButton';
 import {
   useStore,
@@ -74,11 +74,23 @@ export function AssistTasksPanel({
 }): JSX.Element {
   const assist = useStore(selectAssistActivity);
   const presentation = ASSIST_FEATURE_PRESENTATION[selectedFeature];
-  const featureItem = ASSIST_FEATURE_THEME_ITEMS[FEATURE_INDEX[selectedFeature]]!;
-  const featureTiles = useThemedSymbols([featureItem], symbolTheme, {
+  const panelItem = ASSIST_FEATURE_PANEL_THEME_ITEMS[FEATURE_INDEX[selectedFeature]]!;
+  const panelTiles = useThemedSymbols([panelItem], symbolTheme, {
     batchSize: 1,
     singleSubject: true,
   });
+  const panelTile = themeTileFor(panelTiles, panelItem);
+  const panelStyle: CSSProperties | undefined = panelTile
+    ? {
+      backgroundImage: [
+        'linear-gradient(color-mix(in srgb, var(--surface-raised) 68%, transparent), color-mix(in srgb, var(--surface-raised) 78%, transparent))',
+        `url(${JSON.stringify(panelTile.imageUrl)})`,
+      ].join(', '),
+      backgroundPosition: 'center, center 52%',
+      backgroundRepeat: 'no-repeat',
+      backgroundSize: 'cover',
+    }
+    : undefined;
   const activity = effectiveActivity(
     selectedFeature,
     assist.features[selectedFeature],
@@ -117,13 +129,12 @@ export function AssistTasksPanel({
           </span>
         </header>
 
-        <div className={`assist-tasks__hero assist-tasks__hero--${activity.status}`}>
-          <span className="assist-tasks__hero-icon" aria-hidden="true">
-            <ThemedSymbol
-              symbol={presentation.icon}
-              tile={themeTileFor(featureTiles, featureItem)}
-            />
-          </span>
+        <div
+          className={`assist-tasks__hero assist-tasks__hero--${activity.status}${
+            panelTile ? ' assist-tasks__hero--pictured' : ''
+          }`}
+          style={panelStyle}
+        >
           <div>
             <h3>Activity</h3>
             <p>{presentation.task}</p>

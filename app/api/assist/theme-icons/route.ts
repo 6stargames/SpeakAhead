@@ -609,6 +609,7 @@ export async function POST(request: Request): Promise<Response> {
         'Create one continuous panoramic abstract wallpaper divider for a wide accessible communication interface.',
         WALLPAPER_THEME_DIRECTION[input.theme],
         'It must coordinate visually with the selected theme while remaining purely atmospheric and decorative.',
+        `Use this internal label only to choose the abstract motion, rhythm, and colour mood: ${JSON.stringify(input.items[0]?.text ?? '')}. Do not illustrate any noun from the label literally.`,
         'Do not include any characters, people, creatures, faces, eyes, animals, mascots, objects, props, icons, symbols, letters, text, logos, borders, or focal subjects.',
         'Use a seamless composition with balanced detail from left to right and no empty black areas.',
         'Keep the most attractive texture and colour variation inside a narrow horizontal safe band through the vertical centre. The interface is extremely wide and will crop most of the top and bottom.',

@@ -373,7 +373,7 @@ describe('AAC context tools', () => {
     expect(container.textContent).toMatch(/Running · \d+\.\ds/);
     expect(container.textContent).not.toContain('Accurate transcription');
     expect(container.textContent).not.toContain('Quick replies');
-    expect(container.querySelector('.assist-tasks__hero-icon .cell__symbol')?.textContent).toBe('🎨');
+    expect(container.querySelector('.assist-tasks__hero-icon')).toBeNull();
     expect(container.querySelectorAll('.themed-close__edge')).toHaveLength(0);
     expect(container.querySelector('.themed-close__label')?.textContent).toBe('Close - back to chat');
     expect(container.querySelector('.themed-close')?.classList.contains('themed-close--pictured')).toBe(false);

@@ -27,7 +27,10 @@ import {
 import { CLOSE_CHAT_THEME_ITEM } from '@/components/ThemedCloseButton';
 import { session } from '@/session/AacSession';
 import { useContextAssist } from '@/assist/useContextAssist';
-import { ASSIST_FEATURE_THEME_ITEMS } from '@/assist/featurePresentation';
+import {
+  ASSIST_FEATURE_PANEL_THEME_ITEMS,
+  ASSIST_FEATURE_THEME_ITEMS,
+} from '@/assist/featurePresentation';
 import {
   ThemedSymbol,
   themeTileFor,
@@ -159,6 +162,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
         CLOSE_CHAT_THEME_ITEM,
         ...Object.values(CONTEXT_BANNER_THEME_ITEMS),
         ...Object.values(CONTEXT_DIVIDER_THEME_ITEMS),
+        ...ASSIST_FEATURE_PANEL_THEME_ITEMS,
       ],
       batchSize: 1,
       singleSubject: true,

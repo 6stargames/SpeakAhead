@@ -37,3 +37,14 @@ export const ASSIST_FEATURE_THEME_ITEMS = ASSIST_FEATURE_ORDER.map((feature) => 
   symbol: ASSIST_FEATURE_PRESENTATION[feature].icon,
   presentation: 'control-icon' as const,
 }));
+
+/** Full-width panel art stays abstract so activity text remains the subject. */
+export const ASSIST_FEATURE_PANEL_THEME_ITEMS = ASSIST_FEATURE_ORDER.map((feature) => ({
+  text: feature === 'corrections'
+    ? 'Accurate transcription abstract audio rhythm panel'
+    : feature === 'suggestions'
+      ? 'Quick replies abstract conversational flow panel'
+      : 'Themed pictures abstract creative colour panel',
+  symbol: '▬',
+  presentation: 'wallpaper-background' as const,
+}));

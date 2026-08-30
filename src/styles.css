@@ -1273,7 +1273,6 @@ body {
 .assist-tasks__hero {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-3);
   padding: var(--space-4);
   background: var(--surface-raised);
   border: 2px solid var(--border);
@@ -1284,21 +1283,15 @@ body {
 .assist-tasks__hero--local { border-color: var(--warning); }
 .assist-tasks__hero--unavailable,
 .assist-tasks__hero--error { border-color: var(--danger); }
-.assist-tasks__hero-icon {
-  width: 3rem;
-  height: 3rem;
-  display: grid;
-  place-items: center;
-  flex: 0 0 3rem;
-  background: var(--surface-sunken);
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  font-size: 1.45em;
+.assist-tasks__hero > div {
+  width: 100%;
 }
-.assist-tasks__hero-icon .cell__symbol--themed {
-  width: 2.5rem;
-  height: 2.5rem;
-  flex-basis: 2.5rem;
+.assist-tasks__hero--pictured > div {
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 68%, transparent);
+  box-shadow: 0 0 1.4rem color-mix(in srgb, var(--surface) 72%, transparent);
+  backdrop-filter: blur(3px);
 }
 .assist-tasks__hero p {
   margin: var(--space-1) 0 var(--space-2);
