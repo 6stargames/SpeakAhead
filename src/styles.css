@@ -904,7 +904,6 @@ body {
   animation: context-bump 220ms ease-out;
 }
 .context-row--reserved {
-  visibility: hidden;
   pointer-events: none;
 }
 @keyframes context-bump {
@@ -941,6 +940,12 @@ body {
   border-color: var(--accent);
   background: var(--accent-soft);
   gap: var(--space-2);
+}
+.context-cell--placeholder {
+  min-height: var(--cell-min);
+  background: transparent;
+  border: 2px dashed color-mix(in srgb, var(--accent) 48%, var(--border));
+  border-radius: var(--radius);
 }
 .context-cell__badge {
   position: absolute;
@@ -1433,6 +1438,7 @@ body {
 .profile-panel__signout {
   display: flex;
   flex: 0 0 auto;
+  align-self: stretch;
   min-height: var(--tap-min);
   align-items: center;
   justify-content: center;

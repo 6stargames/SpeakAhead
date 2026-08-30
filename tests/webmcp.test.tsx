@@ -375,6 +375,7 @@ describe('AAC context tools', () => {
     expect(container.textContent).not.toContain('Activity');
     expect(container.querySelector('.profile-panel__tabs')).toBeNull();
     expect(container.querySelector('.profile-panel__header .profile-panel__signout')).not.toBeNull();
+    expect(container.querySelector('.profile-panel__signout')?.textContent).toBe('Sign out');
     expect(container.querySelector<HTMLAnchorElement>('.profile-panel__signout')?.href).toContain('/signout');
     unmount();
   });

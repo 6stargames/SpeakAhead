@@ -50,7 +50,7 @@ export function ProfilePanel({
             href={identity.signOutPath}
             target="_top"
           >
-            Sign out of ChatGPT
+            Sign out
           </a>
         </header>
 

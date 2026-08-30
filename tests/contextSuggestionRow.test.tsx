@@ -47,7 +47,7 @@ describe('AI context board row', () => {
       );
     });
 
-    const choices = container.querySelectorAll<HTMLButtonElement>('.context-cell');
+    const choices = container.querySelectorAll<HTMLButtonElement>('.context-row--latest .context-cell');
     expect(choices).toHaveLength(6);
     expect(container.querySelector('.suggest-overlay')).toBeNull();
 
@@ -57,9 +57,18 @@ describe('AI context board row', () => {
 
   it('renders four phrases so the AI row matches the fixed phrase grid', () => {
     act(() => root.render(<ContextSuggestionRow mode="phrases" enabled />));
-    expect(container.querySelectorAll('.context-cell')).toHaveLength(4);
+    expect(container.querySelectorAll('.context-row--latest .context-cell')).toHaveLength(4);
     expect(container.querySelector('.context-row--phrases')).not.toBeNull();
     expect(container.querySelector('.context-row--previous.context-row--reserved')).not.toBeNull();
+    expect(container.querySelectorAll('.context-row--previous .context-cell--placeholder')).toHaveLength(4);
+  });
+
+  it('reserves a complete dashed second row before the first word suggestions arrive', () => {
+    act(() => actions.setContextSuggestions([], []));
+    act(() => root.render(<ContextSuggestionRow mode="words" enabled />));
+
+    expect(container.textContent).toContain('AI words will appear here after the next spoken turn.');
+    expect(container.querySelectorAll('.context-row--previous .context-cell--placeholder')).toHaveLength(6);
   });
 
   it('bumps the last generation into the second row when new choices arrive', () => {

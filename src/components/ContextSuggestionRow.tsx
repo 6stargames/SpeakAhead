@@ -72,6 +72,14 @@ export function ContextSuggestionRow({
                   : `AI ${mode} will appear here after the next spoken turn.`}
               </span>
             </div>
+          ) : generation === 'previous' && items.length === 0 ? (
+            Array.from({ length: limit }, (_, index) => (
+              <div
+                className="context-cell context-cell--placeholder"
+                aria-hidden="true"
+                key={`empty-${mode}-${index}`}
+              />
+            ))
           ) : (
             items.slice(0, limit).map((suggestion, index) => (
               <button

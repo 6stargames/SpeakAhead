@@ -9,7 +9,11 @@ import { FringeBoard } from '@/components/FringeBoard';
 import { NoticeStack } from '@/components/NoticeStack';
 import { OutputRibbon } from '@/components/OutputRibbon';
 import { PhraseBoard, PHRASE_THEME_ITEMS } from '@/components/PhraseBoard';
-import { SettingsPanel, SETTINGS_THEME_ITEMS } from '@/components/SettingsPanel';
+import {
+  SettingsPanel,
+  SETTINGS_THEME_ITEMS,
+  THEME_PREVIEW_ITEMS,
+} from '@/components/SettingsPanel';
 import { SuggestionStrip } from '@/components/SuggestionStrip';
 import { TranscriptLog } from '@/components/TranscriptLog';
 import { VerificationPanel } from '@/components/VerificationPanel';
@@ -152,6 +156,23 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
     batchSize: 9,
     singleSubject: true,
   });
+  // Theme previews have their own art direction. Warm each one while the main
+  // board is open so Settings never visibly starts this work on first visit.
+  useThemedSymbols(
+    [THEME_PREVIEW_ITEMS.anime],
+    signedIn ? 'anime' : 'emoji',
+    { batchSize: 1, singleSubject: true },
+  );
+  useThemedSymbols(
+    [THEME_PREVIEW_ITEMS['baby-shark']],
+    signedIn ? 'baby-shark' : 'emoji',
+    { batchSize: 1, singleSubject: true },
+  );
+  useThemedSymbols(
+    [THEME_PREVIEW_ITEMS['hello-kitty']],
+    signedIn ? 'hello-kitty' : 'emoji',
+    { batchSize: 1, singleSubject: true },
+  );
 
   // Tools must be registered from a component so their lifetime is bound to the
   // React tree — that is what guarantees the AbortController teardown runs.

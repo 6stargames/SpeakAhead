@@ -19,7 +19,7 @@ export const SETTINGS_THEME_ITEMS = [
   { text: 'Easier-to-see colours? Off', symbol: '🌑' },
 ] as const;
 
-const THEME_PREVIEW_ITEMS: Record<SymbolTheme, { text: string; symbol: string }> = {
+export const THEME_PREVIEW_ITEMS: Record<SymbolTheme, { text: string; symbol: string }> = {
   emoji: { text: 'Friendly picture-style preview', symbol: '🙂' },
   anime: { text: 'Friendly picture-style preview', symbol: '🎨' },
   'baby-shark': { text: 'Friendly picture-style preview', symbol: '🦈' },
