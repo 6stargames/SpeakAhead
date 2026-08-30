@@ -8,7 +8,11 @@ import type { JsonSchema, WebMcpToolDefinition } from '@/webmcp/types';
 import { useAacWebMcpTools } from '@/webmcp/tools';
 import { actions, store } from '@/state/store';
 import { ChatGPTAuthButton } from '@/components/ChatGPTAuthButton';
-import { AssistTasksPanel, assistTaskDuration } from '@/components/AssistTasksPanel';
+import {
+  AssistTasksPanel,
+  assistTaskDuration,
+  assistTaskWaitDuration,
+} from '@/components/AssistTasksPanel';
 import { ProfilePanel } from '@/components/ProfilePanel';
 
 const schema: JsonSchema = { type: 'object', properties: { value: { type: 'string' } } };
@@ -410,7 +414,7 @@ describe('AAC context tools', () => {
     render(<AssistTasksPanel selectedFeature="themes" onClose={onClose} symbolTheme="emoji" />);
 
     expect(container.textContent).toContain('Themed pictures');
-    expect(container.textContent).toContain('1 task running now');
+    expect(container.textContent).toContain('1 active');
     expect(container.textContent).toContain('Pictures for “help”, “water”');
     expect(container.textContent).toMatch(/Running · \d+\.\ds/);
     expect(container.textContent).not.toContain('Accurate transcription');
@@ -434,6 +438,32 @@ describe('AAC context tools', () => {
     unmount();
   });
 
+  it('shows waiting image work separately before its active timer begins', () => {
+    store.reset();
+    act(() => actions.setSettings({ symbolTheme: 'ghibli' }));
+    const now = vi.spyOn(Date, 'now').mockReturnValue(10_000);
+    let taskId = '';
+    act(() => { taskId = actions.queueAssistTask('themes', 'Pictures for “waiting”'); });
+    now.mockReturnValue(12_500);
+    render(<AssistTasksPanel selectedFeature="themes" onClose={() => undefined} symbolTheme="emoji" />);
+
+    expect(container.textContent).toContain('1 waiting');
+    expect(container.textContent).toContain('Waiting · 2.5s');
+    expect(container.textContent).not.toContain('1 active');
+
+    now.mockReturnValue(13_000);
+    act(() => actions.startAssistTask('themes', taskId));
+    now.mockReturnValue(14_500);
+    act(() => window.dispatchEvent(new Event('focus')));
+    expect(container.textContent).toContain('1 active');
+    expect(container.textContent).toContain('Waited 3.0s');
+    expect(container.textContent).toContain('Active');
+
+    act(() => actions.finishAssistTask('themes', 'ready', 1, taskId));
+    now.mockRestore();
+    unmount();
+  });
+
   it('formats active and completed task time in seconds', () => {
     const startedAt = 10_000;
     expect(assistTaskDuration({
@@ -442,6 +472,26 @@ describe('AAC context tools', () => {
     expect(assistTaskDuration({
       id: 'done', label: 'Done', status: 'ready', resultCount: 1, startedAt, finishedAt: 22_300,
     }, 99_000)).toBe('12s');
+    expect(assistTaskWaitDuration({
+      id: 'queued',
+      label: 'Queued',
+      status: 'queued',
+      resultCount: 0,
+      queuedAt: 8_000,
+      waitDurationMs: 0,
+      startedAt: 8_000,
+      finishedAt: null,
+    }, 10_450)).toBe('2.5s');
+    expect(assistTaskWaitDuration({
+      id: 'started',
+      label: 'Started',
+      status: 'working',
+      resultCount: 0,
+      queuedAt: 8_000,
+      waitDurationMs: 1_250,
+      startedAt: 9_250,
+      finishedAt: null,
+    }, 50_000)).toBe('1.3s');
   });
 });
 

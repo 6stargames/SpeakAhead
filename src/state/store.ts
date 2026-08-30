@@ -85,12 +85,19 @@ export type AssistFeatureStatus =
   | 'unavailable'
   | 'error';
 
+/** A queued task is visible, but does not count as active until work begins. */
+export type AssistTaskStatus = AssistFeatureStatus | 'queued';
+
 export interface AssistTaskEntry {
   readonly id: string;
   /** Plain-language description of the actual text or pictures being handled. */
   readonly label: string;
-  readonly status: AssistFeatureStatus;
+  readonly status: AssistTaskStatus;
   readonly resultCount: number;
+  /** Present only when the task had to wait for a limited generation slot. */
+  readonly queuedAt?: number | null;
+  /** Frozen when queued work becomes active, so wait and active time stay separate. */
+  readonly waitDurationMs?: number;
   readonly startedAt: number;
   readonly finishedAt: number | null;
 }
@@ -241,6 +248,16 @@ const MAX_TURNS = 250;
 const MAX_NOTICES = 6;
 const MAX_ASSIST_TASKS = 30;
 let assistTaskSequence = 0;
+
+/** Never discard work that is still queued or active just to bound history. */
+function boundedAssistTasks(tasks: readonly AssistTaskEntry[]): readonly AssistTaskEntry[] {
+  let completedKept = 0;
+  return tasks.filter((task) => {
+    if (task.status === 'queued' || task.status === 'working') return true;
+    completedKept += 1;
+    return completedKept <= MAX_ASSIST_TASKS;
+  });
+}
 
 const idleEngine: EngineInfo = { status: 'idle', implementation: 'none', offline: true };
 
@@ -567,11 +584,64 @@ export const actions = {
           ...current,
           activeTasks: current.activeTasks + 1,
           status: 'working',
-          tasks: [task, ...current.tasks].slice(0, MAX_ASSIST_TASKS),
+          tasks: boundedAssistTasks([task, ...current.tasks]),
         },
       },
     }));
     return id;
+  },
+
+  queueAssistTask(feature: AssistFeature, label = 'Waiting to start'): string {
+    const current = store.getState().assistFeatures[feature];
+    const now = Date.now();
+    const id = `assist-${now}-${assistTaskSequence += 1}`;
+    const task: AssistTaskEntry = {
+      id,
+      label: label.trim() || 'Waiting to start',
+      status: 'queued',
+      resultCount: 0,
+      queuedAt: now,
+      waitDurationMs: 0,
+      // Kept populated for backwards-compatible task records. This timestamp
+      // is replaced with the real active start by startAssistTask.
+      startedAt: now,
+      finishedAt: null,
+    };
+    store.set((state) => ({
+      assistFeatures: {
+        ...state.assistFeatures,
+        [feature]: {
+          ...current,
+          tasks: boundedAssistTasks([task, ...current.tasks]),
+        },
+      },
+    }));
+    return id;
+  },
+
+  startAssistTask(feature: AssistFeature, taskId: string): void {
+    const current = store.getState().assistFeatures[feature];
+    const now = Date.now();
+    const tasks = current.tasks.map((task) => task.id === taskId && task.status === 'queued'
+      ? {
+        ...task,
+        status: 'working' as const,
+        waitDurationMs: Math.max(0, now - (task.queuedAt ?? now)),
+        startedAt: now,
+      }
+      : task);
+    const activeTasks = tasks.filter((task) => task.status === 'working').length;
+    store.set((state) => ({
+      assistFeatures: {
+        ...state.assistFeatures,
+        [feature]: {
+          ...current,
+          activeTasks,
+          status: activeTasks > 0 ? 'working' : current.status,
+          tasks,
+        },
+      },
+    }));
   },
 
   finishAssistTask(
@@ -582,14 +652,26 @@ export const actions = {
   ): void {
     const current = store.getState().assistFeatures[feature];
     const targetIndex = taskId
-      ? current.tasks.findIndex((task) => task.id === taskId && task.status === 'working')
+      ? current.tasks.findIndex((task) => task.id === taskId && (
+        task.status === 'working' || task.status === 'queued'
+      ))
       : current.tasks.findIndex((task) => task.status === 'working');
     const completedCount = Math.max(0, Math.floor(resultCount));
-    const tasks = targetIndex < 0
+    const now = Date.now();
+    const tasks = boundedAssistTasks(targetIndex < 0
       ? current.tasks
       : current.tasks.map((task, index) => index === targetIndex
-        ? { ...task, status, resultCount: completedCount, finishedAt: Date.now() }
-        : task);
+        ? {
+          ...task,
+          status,
+          resultCount: completedCount,
+          waitDurationMs: task.status === 'queued'
+            ? Math.max(0, now - (task.queuedAt ?? now))
+            : task.waitDurationMs,
+          startedAt: task.status === 'queued' ? now : task.startedAt,
+          finishedAt: now,
+        }
+        : task));
     const activeTasks = tasks.filter((task) => task.status === 'working').length;
     store.set((state) => ({
       assistFeatures: {
@@ -611,9 +693,21 @@ export const actions = {
   ): void {
     const current = store.getState().assistFeatures[feature];
     const completedCount = Math.max(0, Math.floor(resultCount));
-    const tasks = current.tasks.map((task) => task.status === 'working'
-      ? { ...task, status, resultCount: completedCount, finishedAt: Date.now() }
-      : task);
+    const now = Date.now();
+    const tasks = boundedAssistTasks(current.tasks.map((task) => (
+      task.status === 'working' || task.status === 'queued'
+    )
+      ? {
+        ...task,
+        status,
+        resultCount: completedCount,
+        waitDurationMs: task.status === 'queued'
+          ? Math.max(0, now - (task.queuedAt ?? now))
+          : task.waitDurationMs,
+        startedAt: task.status === 'queued' ? now : task.startedAt,
+        finishedAt: now,
+      }
+      : task));
     store.set((state) => ({
       assistFeatures: {
         ...state.assistFeatures,

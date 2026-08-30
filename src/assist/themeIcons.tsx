@@ -314,9 +314,12 @@ async function loadMissingTiles(
 
     let refreshDelay = 0;
     const generatedPartitions = await Promise.all(partitions.map(async (partition) => {
-      const taskId = actions.beginAssistTask('themes', pictureTaskLabel(partition));
+      const taskId = actions.queueAssistTask('themes', pictureTaskLabel(partition));
       const generated = await withGenerationSlot(
-        () => requestGeneratedSprite(partition, theme, singleSubject, audienceGender),
+        () => {
+          actions.startAssistTask('themes', taskId);
+          return requestGeneratedSprite(partition, theme, singleSubject, audienceGender);
+        },
       );
       return { generated, partition, taskId };
     }));

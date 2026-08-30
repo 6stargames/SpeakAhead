@@ -1230,6 +1230,11 @@ body {
   background: var(--accent-soft);
   border-color: var(--accent);
 }
+.assist-task-row__state--queued {
+  color: var(--text-muted);
+  background: var(--surface-raised);
+  border-style: dashed;
+}
 .assist-tasks__status--ready,
 .assist-task-row__state--ready {
   color: var(--success);
@@ -1298,6 +1303,10 @@ body {
   border-radius: 50%;
   animation: assist-task-spin 800ms linear infinite;
 }
+.assist-tasks__spinner--queued {
+  border-color: var(--border-strong);
+  animation: none;
+}
 @keyframes assist-task-spin {
   to { transform: rotate(360deg); }
 }
@@ -1314,6 +1323,9 @@ body {
 .assist-task-row--working {
   border-color: var(--accent);
   box-shadow: inset 3px 0 0 var(--accent);
+}
+.assist-task-row--queued {
+  border-style: dashed;
 }
 .assist-task-row__copy {
   display: flex;

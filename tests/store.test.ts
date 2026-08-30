@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   actions,
   CONTEXT_WINDOW,
@@ -202,6 +202,43 @@ describe('assistant activity', () => {
       'Pictures for “water”',
       'Pictures for “help”',
     ]);
+  });
+
+  it('tracks queued wait time separately from active work', () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const taskId = actions.queueAssistTask('themes', 'Pictures for “queued”');
+
+    expect(store.getState().assistFeatures.themes).toMatchObject({
+      activeTasks: 0,
+      tasks: [{ id: taskId, status: 'queued', queuedAt: 1_000 }],
+    });
+
+    now.mockReturnValue(3_500);
+    actions.startAssistTask('themes', taskId);
+    expect(store.getState().assistFeatures.themes).toMatchObject({
+      activeTasks: 1,
+      status: 'working',
+      tasks: [{
+        id: taskId,
+        status: 'working',
+        waitDurationMs: 2_500,
+        startedAt: 3_500,
+      }],
+    });
+
+    now.mockReturnValue(7_000);
+    actions.finishAssistTask('themes', 'ready', 1, taskId);
+    expect(store.getState().assistFeatures.themes).toMatchObject({
+      activeTasks: 0,
+      tasks: [{
+        id: taskId,
+        status: 'ready',
+        waitDurationMs: 2_500,
+        startedAt: 3_500,
+        finishedAt: 7_000,
+      }],
+    });
+    now.mockRestore();
   });
 
   it('keeps the latest and immediately previous context generations', () => {

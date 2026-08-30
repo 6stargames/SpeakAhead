@@ -129,6 +129,41 @@ describe('themed image reuse', () => {
     });
   });
 
+  it('marks only admitted generation slots active and leaves the rest waiting', async () => {
+    const generationResolvers: ((response: Response) => void)[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (isLookup(init)) return Response.json({ groups: [] });
+      return await new Promise<Response>((resolve) => generationResolvers.push(resolve));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const groups = Array.from({ length: 4 }, (_, index) => [{
+      text: `queued-slot-${index}`,
+      symbol: '✨',
+    }]);
+
+    act(() => root.render(<>{groups.map((items, index) => (
+      <Harness key={index} items={items} batchSize={1} />
+    ))}</>));
+
+    await vi.waitFor(() => expect(generationResolvers).toHaveLength(3));
+    expect(store.getState().assistFeatures.themes.activeTasks).toBe(3);
+    expect(store.getState().assistFeatures.themes.tasks.filter((task) => (
+      task.status === 'queued'
+    ))).toHaveLength(1);
+
+    generationResolvers[0]!(pngResponse());
+    await vi.waitFor(() => expect(generationResolvers).toHaveLength(4));
+    expect(store.getState().assistFeatures.themes.activeTasks).toBe(3);
+    expect(store.getState().assistFeatures.themes.tasks.filter((task) => (
+      task.status === 'queued'
+    ))).toHaveLength(0);
+
+    generationResolvers.slice(1).forEach((resolve) => resolve(pngResponse()));
+    await vi.waitFor(() => {
+      expect(store.getState().assistFeatures.themes.activeTasks).toBe(0);
+    });
+  });
+
   it('requests functional controls as isolated themed glyphs', async () => {
     const bodies: Record<string, unknown>[] = [];
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {

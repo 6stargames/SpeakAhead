@@ -29,7 +29,9 @@ export function ProfilePanel({
     [features],
   );
   const activeTasks = tasks.filter((task) => task.status === 'working').length;
-  const completedTasks = tasks.filter((task) => task.status !== 'working').length;
+  const completedTasks = tasks.filter((task) => (
+    task.status !== 'working' && task.status !== 'queued'
+  )).length;
   const resultCount = tasks.reduce((total, task) => total + task.resultCount, 0);
 
   return (

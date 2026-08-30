@@ -12,6 +12,7 @@ import {
   type AssistFeatureActivity,
   type AssistFeatureStatus,
   type AssistTaskEntry,
+  type AssistTaskStatus,
   type SymbolTheme,
 } from '@/state/store';
 
@@ -36,6 +37,11 @@ const STATUS_LABEL: Record<AssistFeatureStatus, string> = {
   error: 'Needs attention',
 };
 
+const TASK_STATUS_LABEL: Record<AssistTaskStatus, string> = {
+  ...STATUS_LABEL,
+  queued: 'Waiting',
+};
+
 function effectiveActivity(
   feature: AssistFeature,
   activity: AssistFeatureActivity,
@@ -48,20 +54,38 @@ function effectiveActivity(
 }
 
 function taskOrder(a: AssistTaskEntry, b: AssistTaskEntry): number {
-  if (a.status === 'working' && b.status !== 'working') return -1;
-  if (a.status !== 'working' && b.status === 'working') return 1;
+  const rank = (task: AssistTaskEntry) => task.status === 'working'
+    ? 0
+    : task.status === 'queued' ? 1 : 2;
+  const rankDifference = rank(a) - rank(b);
+  if (rankDifference !== 0) return rankDifference;
+  if (a.status === 'queued' && b.status === 'queued') {
+    return (a.queuedAt ?? a.startedAt) - (b.queuedAt ?? b.startedAt);
+  }
   return b.startedAt - a.startedAt;
 }
 
 function taskResult(task: AssistTaskEntry): string | null {
-  if (task.status === 'working' || task.resultCount === 0) return null;
+  if (task.status === 'working' || task.status === 'queued' || task.resultCount === 0) return null;
   return `${task.resultCount} result${task.resultCount === 1 ? '' : 's'}`;
+}
+
+function formatDuration(milliseconds: number): string {
+  const seconds = Math.max(0, milliseconds) / 1_000;
+  return `${seconds < 10 ? seconds.toFixed(1) : Math.round(seconds)}s`;
 }
 
 export function assistTaskDuration(task: AssistTaskEntry, now = Date.now()): string {
   const finishedAt = task.finishedAt ?? now;
-  const seconds = Math.max(0, finishedAt - task.startedAt) / 1_000;
-  return `${seconds < 10 ? seconds.toFixed(1) : Math.round(seconds)}s`;
+  return formatDuration(finishedAt - task.startedAt);
+}
+
+export function assistTaskWaitDuration(task: AssistTaskEntry, now = Date.now()): string {
+  if (task.queuedAt == null) return '0.0s';
+  const milliseconds = task.status === 'queued'
+    ? now - task.queuedAt
+    : task.waitDurationMs ?? task.startedAt - task.queuedAt;
+  return formatDuration(milliseconds);
 }
 
 export function AssistTasksPanel({
@@ -98,17 +122,27 @@ export function AssistTasksPanel({
     assist.symbolTheme,
   );
   const tasks = [...activity.tasks].sort(taskOrder);
-  const hasRunningTask = tasks.some((task) => task.status === 'working');
+  const queuedTasks = tasks.filter((task) => task.status === 'queued').length;
+  const hasLiveTask = tasks.some((task) => (
+    task.status === 'working' || task.status === 'queued'
+  ));
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    if (!hasRunningTask) return undefined;
+    if (!hasLiveTask) return undefined;
     setNow(Date.now());
     const timer = window.setInterval(() => setNow(Date.now()), 250);
     return () => window.clearInterval(timer);
-  }, [hasRunningTask]);
-  const headerStatus = activity.activeTasks > 0
-    ? `${activity.activeTasks} active`
-    : STATUS_LABEL[activity.status];
+  }, [hasLiveTask]);
+  const headerStatus = activity.activeTasks > 0 && queuedTasks > 0
+    ? `${activity.activeTasks} active · ${queuedTasks} waiting`
+    : activity.activeTasks > 0
+      ? `${activity.activeTasks} active`
+      : queuedTasks > 0
+        ? `${queuedTasks} waiting`
+        : STATUS_LABEL[activity.status];
+  const panelStatus: AssistFeatureStatus = activity.activeTasks > 0
+    ? 'working'
+    : queuedTasks > 0 ? 'idle' : activity.status;
 
   return (
     <section
@@ -118,7 +152,7 @@ export function AssistTasksPanel({
     >
       <div className="assist-tasks__scroll">
         <div
-          className={`assist-tasks__hero assist-tasks__hero--${activity.status}${
+          className={`assist-tasks__hero assist-tasks__hero--${panelStatus}${
             panelTile ? ' assist-tasks__hero--pictured' : ''
           }`}
           style={panelStyle}
@@ -130,7 +164,7 @@ export function AssistTasksPanel({
                 <h2 id="assist-tasks-title">{presentation.label}</h2>
               </div>
               <span
-                className={`assist-tasks__status assist-tasks__status--${activity.status}`}
+                className={`assist-tasks__status assist-tasks__status--${panelStatus}`}
                 role="status"
               >
                 {headerStatus}
@@ -138,8 +172,15 @@ export function AssistTasksPanel({
             </header>
             <p>{presentation.task}</p>
             <strong aria-live="polite">
-              {activity.activeTasks > 0
-                ? `${activity.activeTasks} task${activity.activeTasks === 1 ? '' : 's'} running now`
+              {activity.activeTasks > 0 || queuedTasks > 0
+                ? [
+                  activity.activeTasks > 0
+                    ? `${activity.activeTasks} active`
+                    : null,
+                  queuedTasks > 0
+                    ? `${queuedTasks} waiting`
+                    : null,
+                ].filter(Boolean).join(' · ')
                 : `${tasks.length} recent task${tasks.length === 1 ? '' : 's'}`}
             </strong>
           </div>
@@ -150,21 +191,32 @@ export function AssistTasksPanel({
             {tasks.map((task) => {
               const result = taskResult(task);
               const duration = assistTaskDuration(task, now);
+              const waitDuration = assistTaskWaitDuration(task, now);
+              const queuedBeforeStarting = task.queuedAt != null;
+              const timing = task.status === 'queued'
+                ? `Waiting · ${waitDuration}`
+                : queuedBeforeStarting
+                  ? `${task.status === 'working' ? 'Running' : TASK_STATUS_LABEL[task.status]} · Waited ${waitDuration} · Active ${duration}`
+                  : `${task.status === 'working' ? 'Running' : TASK_STATUS_LABEL[task.status]} · ${duration}`;
               return (
                 <li key={task.id} className={`assist-task-row assist-task-row--${task.status}`}>
-                  {task.status === 'working' && (
-                    <span className="assist-tasks__spinner" aria-hidden="true" />
+                  {(task.status === 'working' || task.status === 'queued') && (
+                    <span
+                      className={`assist-tasks__spinner${
+                        task.status === 'queued' ? ' assist-tasks__spinner--queued' : ''
+                      }`}
+                      aria-hidden="true"
+                    />
                   )}
                   <div className="assist-task-row__copy">
                     <strong>{task.label}</strong>
                     <span>
-                      {task.status === 'working' ? 'Running' : STATUS_LABEL[task.status]}
-                      {` · ${duration}`}
+                      {timing}
                       {result ? ` · ${result}` : ''}
                     </span>
                   </div>
                   <span className={`assist-task-row__state assist-task-row__state--${task.status}`}>
-                    {task.status === 'working' ? 'Active' : STATUS_LABEL[task.status]}
+                    {task.status === 'working' ? 'Active' : TASK_STATUS_LABEL[task.status]}
                   </span>
                 </li>
               );
