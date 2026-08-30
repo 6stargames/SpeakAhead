@@ -155,9 +155,12 @@ export async function POST(request: Request): Promise<Response> {
       {
         model,
         store: false,
+        // This is a small extraction task. Minimal reasoning keeps latency
+        // down and preserves the output budget for the required JSON.
+        reasoning: { effort: 'minimal' },
         instructions,
         input: JSON.stringify(input),
-        max_output_tokens: 900,
+        max_output_tokens: 2_000,
         text: {
           format: {
             type: 'json_schema',

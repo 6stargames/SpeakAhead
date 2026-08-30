@@ -1,5 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { contextAssistRequestKey, useContextAssist } from '@/assist/useContextAssist';
 import { actions, store } from '@/state/store';
@@ -49,6 +51,12 @@ afterEach(() => {
 });
 
 describe('continuous context assistance', () => {
+  it('reserves enough structured-output budget for the correction pass', async () => {
+    const route = await readFile(resolve(process.cwd(), 'app/api/assist/context/route.ts'), 'utf8');
+    expect(route).toContain("reasoning: { effort: 'minimal' }");
+    expect(route).toContain('max_output_tokens: 2_000');
+  });
+
   it('does not restart the language debounce for unfinished microphone updates', async () => {
     act(() => {
       actions.upsertTurn({
@@ -78,6 +86,63 @@ describe('continuous context assistance', () => {
     expect(mocks.requestContextAssist).toHaveBeenCalledTimes(1);
     expect(store.getState().contextualWords).toHaveLength(3);
     expect(store.getState().contextualPhrases).toHaveLength(3);
+  });
+
+  it('finishes one request and then drains only the newest pending turn', async () => {
+    let finishFirst: ((value: unknown) => void) | undefined;
+    const firstResponse = new Promise((resolve) => {
+      finishFirst = resolve;
+    });
+    const generated = {
+      corrections: [],
+      words: [
+        { text: 'yes', symbol: '✅' },
+        { text: 'no', symbol: '❌' },
+        { text: 'wait', symbol: '⏳' },
+      ],
+      phrases: [
+        { text: 'Yes, please.', symbol: '✅' },
+        { text: 'No, thank you.', symbol: '❌' },
+        { text: 'Please wait.', symbol: '⏳' },
+      ],
+    };
+    mocks.requestContextAssist
+      .mockImplementationOnce(() => firstResponse)
+      .mockResolvedValue(generated);
+
+    act(() => {
+      actions.upsertTurn({
+        id: 'first', source: 'peer', text: 'First turn', final: true, dictated: true,
+      });
+    });
+    act(() => vi.advanceTimersByTime(500));
+    expect(mocks.requestContextAssist).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      actions.upsertTurn({
+        id: 'second', source: 'peer', text: 'Second turn', final: true, dictated: true,
+      });
+      actions.upsertTurn({
+        id: 'third', source: 'peer', text: 'Newest turn', final: true, dictated: true,
+      });
+      vi.advanceTimersByTime(10_000);
+    });
+    expect(mocks.requestContextAssist).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      finishFirst?.(generated);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(mocks.requestContextAssist).toHaveBeenCalledTimes(2);
+    const secondRequest = mocks.requestContextAssist.mock.calls[1]?.[0] as {
+      turns: { id: string }[];
+    };
+    expect(secondRequest.turns.at(-1)?.id).toBe('third');
   });
 
   it('changes its work key only for finished conversation or composition changes', () => {

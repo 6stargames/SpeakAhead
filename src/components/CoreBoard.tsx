@@ -2,6 +2,7 @@ import type { JSX } from 'react';
 import type { FitzgeraldClass } from '@/lib/fitzgerald';
 import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
 import { actions, useStore, type AppState } from '@/state/store';
+import { ContextSuggestionRow } from '@/components/ContextSuggestionRow';
 
 /**
  * The 36 Universal Core words (UNC Project Core).
@@ -93,7 +94,13 @@ const CORE_THEME_ITEMS = Array.from({ length: 6 }, (_, row) =>
   CORE_WORDS.map((column) => column[row]).filter((cell): cell is CoreWord => Boolean(cell)),
 ).flat().map((cell) => ({ text: cell.word, symbol: cell.symbol }));
 
-export function CoreBoard({ themedSymbolsEnabled = false }: { themedSymbolsEnabled?: boolean }): JSX.Element {
+export function CoreBoard({
+  contextAssistEnabled = false,
+  themedSymbolsEnabled = false,
+}: {
+  contextAssistEnabled?: boolean;
+  themedSymbolsEnabled?: boolean;
+}): JSX.Element {
   const masked = useStore(selectMasked);
   const editMode = useStore(selectEditMode);
   const favorites = useStore(selectFavorites);
@@ -101,6 +108,11 @@ export function CoreBoard({ themedSymbolsEnabled = false }: { themedSymbolsEnabl
 
   return (
     <section className="board card panel" aria-label="Core words">
+      <ContextSuggestionRow
+        mode="words"
+        enabled={contextAssistEnabled}
+        themedSymbolsEnabled={themedSymbolsEnabled}
+      />
       {/* Rendered row-major so switch scanning walks rows then columns, but
           authored column-major above so the sentence-building order is legible
           in the source. The DOM order is the scan order. */}

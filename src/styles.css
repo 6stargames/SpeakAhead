@@ -868,6 +868,58 @@ body {
   margin-bottom: var(--space-2);
 }
 
+/* Context choices are a true first row of the selected board. They never
+   float over fixed vocabulary or cover the user's motor-plan coordinates. */
+.context-row {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--gutter);
+  margin-bottom: var(--gutter);
+  min-height: var(--cell-min);
+}
+.context-row__empty {
+  grid-column: 1 / -1;
+  min-height: var(--cell-min);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  color: var(--text-muted);
+  background: var(--accent-soft);
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+  font-weight: 700;
+}
+.context-row__spark {
+  font-size: 1.5em;
+}
+.context-cell {
+  position: relative;
+  flex-direction: row;
+  min-height: var(--cell-min);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  gap: var(--space-2);
+}
+.context-cell__badge {
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-2);
+  font-size: 0.58em;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+.context-cell .cell__symbol {
+  flex: 0 0 2.25rem;
+}
+.context-cell .cell__word {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .board__tabs {
   display: flex;
   flex-wrap: wrap;
@@ -2064,6 +2116,9 @@ body {
   }
   .board__grid--phrases {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .context-row {
+    grid-template-columns: 1fr;
   }
   /* Stacked: conversation on top, the spine rail as the barrier below it,
      then the board — the same order as the wide layout, rotated. */

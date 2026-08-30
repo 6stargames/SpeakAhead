@@ -3,6 +3,7 @@ import { session } from '@/session/AacSession';
 import { actions, useStore, type AppState } from '@/state/store';
 import type { FitzgeraldClass } from '@/lib/fitzgerald';
 import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
+import { ContextSuggestionRow } from '@/components/ContextSuggestionRow';
 
 interface Phrase {
   readonly text: string;
@@ -101,12 +102,23 @@ const ALL_PHRASES = CATEGORIES.flatMap((category) =>
 const selectFavorites = (state: AppState) => state.favorites;
 const PHRASE_THEME_ITEMS = ALL_PHRASES.map(({ text, symbol }) => ({ text, symbol }));
 
-export function PhraseBoard({ themedSymbolsEnabled = false }: { themedSymbolsEnabled?: boolean }): JSX.Element {
+export function PhraseBoard({
+  contextAssistEnabled = false,
+  themedSymbolsEnabled = false,
+}: {
+  contextAssistEnabled?: boolean;
+  themedSymbolsEnabled?: boolean;
+}): JSX.Element {
   const favorites = useStore(selectFavorites);
   const themedSymbols = useThemedSymbols(PHRASE_THEME_ITEMS, themedSymbolsEnabled);
 
   return (
     <section className="board card panel" aria-label="Phrases">
+      <ContextSuggestionRow
+        mode="phrases"
+        enabled={contextAssistEnabled}
+        themedSymbolsEnabled={themedSymbolsEnabled}
+      />
       <div className="board__grid board__grid--phrases" role="group" aria-label="Phrases" data-scan="grid">
         {ALL_PHRASES.map((phrase) => {
           const faved = favorites.some((fav) => fav.text === phrase.text);

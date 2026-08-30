@@ -93,6 +93,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
   const editMode = useStore(selectEditMode);
   const health = useStore(selectHealth);
   const signedIn = Boolean(chatGPTIdentity?.displayName);
+  const contextAssistEnabled = signedIn && settings.chatGPTAssist;
   const themedSymbolsEnabled =
     signedIn && settings.symbolTheme === 'anime';
 
@@ -125,9 +126,8 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
 
       {/* The generative surface owns the screen. The ribbon holds the message
           being built and the Speak button; the board below is the user's
-          fixed motor plan. Machine suggestions arrive as a floating overlay —
-          no reserved row, no reflow. The transcript lives behind the Listen
-          view — useful, passive, and no longer the landlord of the layout. */}
+          motor plan. Context choices live in the first row of their matching
+          board. The transcript remains visible beside it. */}
       <OutputRibbon />
       <ChatGPTAuthButton identity={chatGPTIdentity ?? null} />
 
@@ -167,9 +167,19 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
         </nav>
 
         <main className="app__view">
-          {view === 'core' && <CoreBoard themedSymbolsEnabled={themedSymbolsEnabled} />}
+          {view === 'core' && (
+            <CoreBoard
+              contextAssistEnabled={contextAssistEnabled}
+              themedSymbolsEnabled={themedSymbolsEnabled}
+            />
+          )}
           {view === 'fringe' && <FringeBoard themedSymbolsEnabled={themedSymbolsEnabled} />}
-          {view === 'phrases' && <PhraseBoard themedSymbolsEnabled={themedSymbolsEnabled} />}
+          {view === 'phrases' && (
+            <PhraseBoard
+              contextAssistEnabled={contextAssistEnabled}
+              themedSymbolsEnabled={themedSymbolsEnabled}
+            />
+          )}
           {view === 'voice' && (
             <section className="card">
               <VoicePanel />
@@ -188,13 +198,9 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
         </main>
       </div>
 
-      {/* Floating, self-hiding: renders only while there is something
-          machine-suggested to show, over the board rather than in a row of
-          its own, so the layout never reserves space for it. */}
-      <SuggestionStrip
-        contextMode={view === 'core' ? 'words' : view === 'phrases' ? 'phrases' : null}
-        themedSymbolsEnabled={themedSymbolsEnabled}
-      />
+      {/* Only staged agent text, microphone problems, and the older prediction
+          ladder use this self-hiding overlay. AI words and phrases never do. */}
+      <SuggestionStrip />
 
       <NoticeStack />
 
