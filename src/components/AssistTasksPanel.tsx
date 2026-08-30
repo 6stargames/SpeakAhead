@@ -1,7 +1,10 @@
 import { useEffect, useState, type JSX } from 'react';
 import {
   ASSIST_FEATURE_PRESENTATION,
+  ASSIST_FEATURE_THEME_ITEMS,
 } from '@/assist/featurePresentation';
+import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
+import { ThemedCloseButton } from '@/components/ThemedCloseButton';
 import {
   useStore,
   type AppState,
@@ -9,7 +12,14 @@ import {
   type AssistFeatureActivity,
   type AssistFeatureStatus,
   type AssistTaskEntry,
+  type SymbolTheme,
 } from '@/state/store';
+
+const FEATURE_INDEX: Record<AssistFeature, number> = {
+  corrections: 0,
+  suggestions: 1,
+  themes: 2,
+};
 
 const selectAssistActivity = (state: AppState) => ({
   features: state.assistFeatures,
@@ -56,12 +66,19 @@ export function assistTaskDuration(task: AssistTaskEntry, now = Date.now()): str
 export function AssistTasksPanel({
   selectedFeature,
   onClose,
+  symbolTheme = 'emoji',
 }: {
   selectedFeature: AssistFeature;
   onClose: () => void;
+  symbolTheme?: SymbolTheme;
 }): JSX.Element {
   const assist = useStore(selectAssistActivity);
   const presentation = ASSIST_FEATURE_PRESENTATION[selectedFeature];
+  const featureItem = ASSIST_FEATURE_THEME_ITEMS[FEATURE_INDEX[selectedFeature]]!;
+  const featureTiles = useThemedSymbols([featureItem], symbolTheme, {
+    batchSize: 1,
+    singleSubject: true,
+  });
   const activity = effectiveActivity(
     selectedFeature,
     assist.features[selectedFeature],
@@ -102,7 +119,10 @@ export function AssistTasksPanel({
 
         <div className={`assist-tasks__hero assist-tasks__hero--${activity.status}`}>
           <span className="assist-tasks__hero-icon" aria-hidden="true">
-            {presentation.icon}
+            <ThemedSymbol
+              symbol={presentation.icon}
+              tile={themeTileFor(featureTiles, featureItem)}
+            />
           </span>
           <div>
             <h3>Activity</h3>
@@ -146,13 +166,7 @@ export function AssistTasksPanel({
       </div>
 
       <div className="assist-tasks__footer">
-        <button
-          type="button"
-          className="button button--primary assist-tasks__close"
-          onClick={onClose}
-        >
-          Close — back to chat
-        </button>
+        <ThemedCloseButton onClose={onClose} symbolTheme={symbolTheme} />
       </div>
     </section>
   );

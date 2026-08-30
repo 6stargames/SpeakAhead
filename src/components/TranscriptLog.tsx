@@ -2,7 +2,14 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, ty
 import { formatLoadPercent } from '@/lib/progress';
 import { alignWordsToText } from '@/speech/confidence';
 import { session } from '@/session/AacSession';
-import { actions, selectTurns, useStore, type AppState, type Turn } from '@/state/store';
+import {
+  actions,
+  selectTurns,
+  useStore,
+  type AppState,
+  type SymbolTheme,
+  type Turn,
+} from '@/state/store';
 import type { SpeakerProfile } from '@/speech/speakers';
 import { CallCorner } from './CallCorner';
 import { LoadProgress } from './LoadProgress';
@@ -237,7 +244,7 @@ const selectListening = (state: AppState) => ({
   ttsDetail: state.tts.detail,
 });
 
-export function TranscriptLog(): JSX.Element {
+export function TranscriptLog({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolTheme }): JSX.Element {
   const turns = useStore(selectTurns);
   const speakers = useStore(selectSpeakers);
   const pendingVoices = useStore(selectPendingVoices);
@@ -505,7 +512,7 @@ export function TranscriptLog(): JSX.Element {
 
       {/* Calls live in the chat's corner: the conversation is where a call
           happens, not a separate page. */}
-      <CallCorner />
+      <CallCorner symbolTheme={symbolTheme} />
     </section>
   );
 }

@@ -386,7 +386,7 @@ describe('AAC context tools', () => {
     act(() => actions.setSettings({ symbolTheme: 'anime' }));
     let taskId = '';
     act(() => { taskId = actions.beginAssistTask('themes', 'Pictures for “help”, “water”'); });
-    render(<AssistTasksPanel selectedFeature="themes" onClose={onClose} />);
+    render(<AssistTasksPanel selectedFeature="themes" onClose={onClose} symbolTheme="emoji" />);
 
     expect(container.textContent).toContain('Themed pictures');
     expect(container.textContent).toContain('1 task running now');
@@ -394,6 +394,8 @@ describe('AAC context tools', () => {
     expect(container.textContent).toMatch(/Running · \d+\.\ds/);
     expect(container.textContent).not.toContain('Context correction');
     expect(container.textContent).not.toContain('Quick replies');
+    expect(container.querySelector('.assist-tasks__hero-icon .cell__symbol')?.textContent).toBe('🎨');
+    expect(container.querySelectorAll('.themed-close__edge')).toHaveLength(2);
 
     const close = [...container.querySelectorAll('button')].find((button) =>
       button.textContent?.includes('Close — back to chat'),

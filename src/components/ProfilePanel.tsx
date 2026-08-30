@@ -1,6 +1,7 @@
 import { useMemo, type JSX } from 'react';
 import type { SignedInChatGPTIdentity } from '@/auth/chatgpt';
-import { useStore, type AppState, type AssistFeature } from '@/state/store';
+import { ThemedCloseButton } from '@/components/ThemedCloseButton';
+import { useStore, type AppState, type AssistFeature, type SymbolTheme } from '@/state/store';
 
 const FEATURES: AssistFeature[] = ['corrections', 'suggestions', 'themes'];
 
@@ -16,9 +17,11 @@ function number(value: number): string {
 export function ProfilePanel({
   identity,
   onClose,
+  symbolTheme = 'emoji',
 }: {
   identity: SignedInChatGPTIdentity;
   onClose: () => void;
+  symbolTheme?: SymbolTheme;
 }): JSX.Element {
   const { usage, features } = useStore(selectProfileUsage);
   const tasks = useMemo(
@@ -92,13 +95,7 @@ export function ProfilePanel({
       </div>
 
       <div className="assist-tasks__footer">
-        <button
-          type="button"
-          className="button button--primary assist-tasks__close"
-          onClick={onClose}
-        >
-          Close — back to chat
-        </button>
+        <ThemedCloseButton onClose={onClose} symbolTheme={symbolTheme} />
       </div>
     </section>
   );

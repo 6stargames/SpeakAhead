@@ -931,6 +931,16 @@ body {
   font-weight: 700;
 }
 .context-row__spark {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  flex: 0 0 2.5rem;
+}
+.context-row__spark .cell__symbol {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-basis: 2.5rem;
   font-size: 1.5em;
 }
 .context-cell {
@@ -1331,9 +1341,40 @@ body {
   background: linear-gradient(to bottom, transparent, var(--surface) var(--space-3));
 }
 .assist-tasks__close {
+  position: relative;
   width: 100%;
   min-height: calc(var(--tap-min) * 1.45);
+  gap: var(--space-3);
+  overflow: hidden;
+  padding: var(--space-2) var(--space-3);
+  border: 3px solid color-mix(in srgb, var(--accent) 72%, white);
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--surface) 72%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
   font-size: 1.05em;
+}
+.themed-close__label {
+  flex: 1;
+}
+.themed-close__edge {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  place-items: center;
+  flex: 0 0 3rem;
+  padding-right: var(--space-2);
+  border-right: 2px solid color-mix(in srgb, currentColor 42%, transparent);
+}
+.themed-close__edge--end {
+  padding-right: 0;
+  padding-left: var(--space-2);
+  border-right: 0;
+  border-left: 2px solid color-mix(in srgb, currentColor 42%, transparent);
+}
+.themed-close__edge .cell__symbol {
+  width: 2.65rem;
+  height: 2.65rem;
+  flex-basis: 2.65rem;
 }
 
 /* Account details use the same transcript-replacement shell as WebMCP work,
@@ -2344,6 +2385,23 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+}
+.call-corner > .button--primary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.call-corner__button-icon {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  flex: 0 0 2.25rem;
+}
+.call-corner__button-icon .cell__symbol {
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-basis: 2.25rem;
 }
 .call-corner__status {
   font-weight: 700;

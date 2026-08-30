@@ -3,6 +3,7 @@ import type { ChatGPTIdentity } from '@/auth/chatgpt';
 import { ChatGPTAuthButton } from '@/components/ChatGPTAuthButton';
 import { AssistTasksPanel } from '@/components/AssistTasksPanel';
 import { ProfilePanel } from '@/components/ProfilePanel';
+import { NEW_CALL_THEME_ITEM } from '@/components/CallCorner';
 import { CoreBoard, CORE_THEME_ITEMS } from '@/components/CoreBoard';
 import { EmergencyBar } from '@/components/EmergencyBar';
 import { FringeBoard } from '@/components/FringeBoard';
@@ -18,6 +19,8 @@ import { SuggestionStrip } from '@/components/SuggestionStrip';
 import { TranscriptLog } from '@/components/TranscriptLog';
 import { VerificationPanel } from '@/components/VerificationPanel';
 import { VoicePanel } from '@/components/VoicePanel';
+import { CONTEXT_READY_THEME_ITEM } from '@/components/ContextSuggestionRow';
+import { CLOSE_CHAT_THEME_ITEM } from '@/components/ThemedCloseButton';
 import { session } from '@/session/AacSession';
 import { useContextAssist } from '@/assist/useContextAssist';
 import { ASSIST_FEATURE_THEME_ITEMS } from '@/assist/featurePresentation';
@@ -67,7 +70,13 @@ const SPINE_THEME_ITEMS = [...BOARD_VIEWS, ...SYSTEM_VIEWS].map(({ label, icon }
   text: label,
   symbol: icon,
 }));
-const INTERFACE_THEME_ITEMS = [...SPINE_THEME_ITEMS, ...ASSIST_FEATURE_THEME_ITEMS];
+const INTERFACE_THEME_ITEMS = [
+  ...SPINE_THEME_ITEMS,
+  ...ASSIST_FEATURE_THEME_ITEMS,
+  NEW_CALL_THEME_ITEM,
+  CONTEXT_READY_THEME_ITEM,
+  CLOSE_CHAT_THEME_ITEM,
+];
 
 const selectEmergency = (state: AppState): boolean => state.emergencyOverride;
 const selectEditMode = (state: AppState): boolean => state.editMode;
@@ -233,14 +242,16 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
             <ProfilePanel
               identity={chatGPTIdentity}
               onClose={() => setContextPanel(null)}
+              symbolTheme={symbolTheme}
             />
           ) : selectedAssistFeature ? (
             <AssistTasksPanel
               selectedFeature={selectedAssistFeature}
               onClose={() => setContextPanel(null)}
+              symbolTheme={symbolTheme}
             />
           ) : (
-            <TranscriptLog />
+            <TranscriptLog symbolTheme={symbolTheme} />
           )}
         </div>
 

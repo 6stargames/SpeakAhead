@@ -68,6 +68,7 @@ describe('AI context board row', () => {
     act(() => root.render(<ContextSuggestionRow mode="words" enabled />));
 
     expect(container.textContent).toContain('AI words will appear here after the next spoken turn.');
+    expect(container.querySelector('.context-row__spark .cell__symbol')?.textContent).toBe('✨');
     expect(container.querySelectorAll('.context-row--previous .context-cell--placeholder')).toHaveLength(6);
   });
 

@@ -16,6 +16,11 @@ import {
 
 const selectAssistStatus = (state: AppState): AppState['assistStatus'] => state.assistStatus;
 
+export const CONTEXT_READY_THEME_ITEM = {
+  text: 'AI suggestions ready',
+  symbol: '✨',
+} as const;
+
 /**
  * Context choices belong on the board, not over it. This is a fixed first row
  * above Words or Phrases, so suggestions never cover vocabulary underneath.
@@ -38,6 +43,10 @@ export function ContextSuggestionRow({
   const previousSuggestions: ContextSuggestion[] = mode === 'words' ? previousWords : previousPhrases;
   const themedSymbols = useThemedSymbols(suggestions, symbolTheme);
   const previousThemedSymbols = useThemedSymbols(previousSuggestions, symbolTheme);
+  const readyTiles = useThemedSymbols([CONTEXT_READY_THEME_ITEM], symbolTheme, {
+    batchSize: 1,
+    singleSubject: true,
+  });
   const limit = mode === 'words' ? 6 : 4;
 
   if (!enabled) return null;
@@ -65,7 +74,12 @@ export function ContextSuggestionRow({
         >
           {generation === 'latest' && items.length === 0 ? (
             <div className="context-row__empty">
-              <span className="context-row__spark" aria-hidden="true">✨</span>
+              <span className="context-row__spark" aria-hidden="true">
+                <ThemedSymbol
+                  symbol={CONTEXT_READY_THEME_ITEM.symbol}
+                  tile={themeTileFor(readyTiles, CONTEXT_READY_THEME_ITEM)}
+                />
+              </span>
               <span>
                 {assistStatus === 'thinking'
                   ? `Preparing AI ${mode}…`

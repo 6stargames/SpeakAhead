@@ -1,6 +1,9 @@
 import { useEffect, useState, type JSX } from 'react';
+import { ThemedSymbol, themeTileFor, useThemedSymbols } from '@/assist/themeIcons';
 import { session } from '@/session/AacSession';
-import { actions, useStore, type AppState } from '@/state/store';
+import { actions, useStore, type AppState, type SymbolTheme } from '@/state/store';
+
+export const NEW_CALL_THEME_ITEM = { text: 'New call', symbol: '📞' } as const;
 
 const selectCall = (state: AppState) => ({
   call: state.call,
@@ -25,8 +28,12 @@ function formatElapsed(since: number): string {
  * send it to the other person. In a call: the code with a copy button, how
  * long the call has been running, and the way out.
  */
-export function CallCorner(): JSX.Element {
+export function CallCorner({ symbolTheme = 'emoji' }: { symbolTheme?: SymbolTheme }): JSX.Element {
   const state = useStore(selectCall);
+  const callTiles = useThemedSymbols([NEW_CALL_THEME_ITEM], symbolTheme, {
+    batchSize: 1,
+    singleSubject: true,
+  });
   const [code, setCode] = useState('');
   const [connectedAt, setConnectedAt] = useState<number | null>(null);
   const [, setTick] = useState(0);
@@ -121,7 +128,17 @@ export function CallCorner(): JSX.Element {
           onChange={(event) => setCode(event.target.value.toUpperCase())}
         />
         <button type="button" className="button button--primary" onClick={() => void start()}>
-          {code.trim() ? 'Join' : '📞 New call'}
+          {code.trim() ? 'Join' : (
+            <>
+              <span className="call-corner__button-icon" aria-hidden="true">
+                <ThemedSymbol
+                  symbol={NEW_CALL_THEME_ITEM.symbol}
+                  tile={themeTileFor(callTiles, NEW_CALL_THEME_ITEM)}
+                />
+              </span>
+              <span>New call</span>
+            </>
+          )}
         </button>
       </div>
     );
