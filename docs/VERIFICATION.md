@@ -170,13 +170,15 @@ workers on the origin.
 Chrome with the WebMCP flag enabled, or an agent host that implements the API.
 
 1. Open the app. **Confirm** the status bar reads **Agent attached** and
-   Diagnostics lists five registered tools.
-2. Have the agent call `get-conversation-context` and then
-   `predict-conversational-phrase`. **Confirm** three chips appear.
-3. Type `apple juice`; have the agent call `expand-semantic-shorthand`.
-   **Confirm** the composition buffer is replaced.
-4. Have the agent call `speak-text`. **Confirm** it is *staged for confirmation*,
-   not spoken — unless direct agent speech has been enabled in Settings.
+   Diagnostics lists four registered tools.
+2. Have the agent call `get-conversation-context`. **Confirm** the returned
+   context includes the recent transcript and unavailable choices.
+3. Have the agent call `set-contextual-vocabulary`. **Confirm** six words and
+   four phrases appear without replacing anything already available.
+4. Ask the agent to call `set-chatgpt-voice` with `coral`. **Confirm** Coral is
+   selected on the Voice page and nothing is spoken automatically.
+5. Ask the agent to call `set-symbol-theme`. **Confirm** the selected theme
+   changes and missing pictures continue loading in the background.
 
 ### 4. TURN relay under symmetric NAT
 

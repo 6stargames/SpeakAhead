@@ -245,13 +245,14 @@ describe('AAC context tools', () => {
     return null;
   }
 
-  it('registers only the three current context, vocabulary, and theme tools', async () => {
+  it('registers the four current context, vocabulary, voice, and theme tools', async () => {
     store.reset();
     render(<AacHarness />);
 
     expect(toolRegistry.list().map((tool) => tool.name)).toEqual([
       'get-conversation-context',
       'set-contextual-vocabulary',
+      'set-chatgpt-voice',
       'set-symbol-theme',
     ]);
     expect(toolRegistry.get('predict-conversational-phrase')).toBeUndefined();
@@ -259,6 +260,7 @@ describe('AAC context tools', () => {
     expect(toolRegistry.get('set-composition-buffer')).toBeUndefined();
     expect(toolRegistry.get('speak-text')).toBeUndefined();
     expect(toolRegistry.get('set-contextual-vocabulary')).toBeDefined();
+    expect(toolRegistry.get('set-chatgpt-voice')).toBeDefined();
     expect(toolRegistry.get('set-symbol-theme')).toBeDefined();
 
     await toolRegistry.invoke('set-contextual-vocabulary', {
@@ -292,6 +294,33 @@ describe('AAC context tools', () => {
     await toolRegistry.invoke('set-symbol-theme', { theme: 'hello-kitty' });
     expect(store.getState().settings.symbolTheme).toBe('hello-kitty');
 
+    actions.setAccurateTranscriptionEnabled(true);
+    await toolRegistry.invoke('set-chatgpt-voice', { voice: 'coral' });
+    expect(store.getState().settings).toMatchObject({
+      voiceId: 'chatgpt:coral',
+      voiceGender: 'female',
+    });
+    expect(store.getState().assistFeatures.speech.tasks[0]).toMatchObject({
+      label: 'Selecting Coral ChatGPT voice',
+      status: 'ready',
+      resultCount: 1,
+    });
+
+    unmount();
+  });
+
+  it('registers the ChatGPT voice control with the browser WebMCP surface', () => {
+    const registerTool = vi.fn();
+    Object.defineProperty(document, 'modelContext', {
+      value: { registerTool },
+      configurable: true,
+    });
+
+    render(<AacHarness />);
+
+    expect(registerTool).toHaveBeenCalledTimes(4);
+    const toolNames = registerTool.mock.calls.map(([tool]) => tool.name);
+    expect(toolNames).toContain('set-chatgpt-voice');
     unmount();
   });
 

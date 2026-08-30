@@ -8,6 +8,12 @@ import {
   filterNovelChoices,
 } from '@/assist/choiceAvailability';
 import { suggestionText } from '@/assist/suggestionText';
+import {
+  CHATGPT_VOICE_NAMES,
+  CHATGPT_VOICE_PREFIX,
+  voiceChoice,
+  type ChatGptVoiceName,
+} from '@/speech/tts/voiceChoices';
 
 function readContextSuggestions(
   value: unknown,
@@ -57,11 +63,24 @@ const themeSchema: JsonSchema = {
   required: ['theme'],
 };
 
+const chatGptVoiceSchema: JsonSchema = {
+  type: 'object',
+  properties: {
+    voice: {
+      type: 'string',
+      enum: [...CHATGPT_VOICE_NAMES],
+      description: 'The named OpenAI voice the user explicitly asked to use.',
+    },
+  },
+  required: ['voice'],
+};
+
 // ---------------------------------------------------------------------------
 
 export interface WebMcpToolStates {
   readonly context: WebMcpRegistrationState;
   readonly vocabulary: WebMcpRegistrationState;
+  readonly speech: WebMcpRegistrationState;
   readonly theme: WebMcpRegistrationState;
 }
 
@@ -213,9 +232,43 @@ export function useAacWebMcpTools(): WebMcpToolStates {
     [],
   );
 
+  const speechTool = useMemo<WebMcpToolDefinition>(
+    () => ({
+      name: 'set-chatgpt-voice',
+      description:
+        'Choose the OpenAI voice SpeakAhead will use after the user taps Speak. ' +
+        'Only call this after the user explicitly asks to change to Coral, Nova, Shimmer, Cedar, Onyx, Echo, Alloy, Marin, or Sage. ' +
+        'This changes the voice but never speaks or changes the user\'s words by itself.',
+      inputSchema: chatGptVoiceSchema,
+      execute: (args) => {
+        const requested = (args as { voice?: unknown }).voice;
+        const voice = typeof requested === 'string'
+          ? CHATGPT_VOICE_NAMES.find((name) => name === requested.toLowerCase())
+          : undefined;
+        if (!voice) {
+          return errorResult(`voice must be one of: ${CHATGPT_VOICE_NAMES.join(', ')}.`);
+        }
+        if (!store.getState().accurateTranscriptionEnabled) {
+          return errorResult('Sign in with ChatGPT before choosing an OpenAI voice.');
+        }
+        const choice = voiceChoice(`${CHATGPT_VOICE_PREFIX}${voice as ChatGptVoiceName}`);
+        if (!choice) return errorResult('That OpenAI voice is not available.');
+
+        const taskId = actions.beginAssistTask('speech', `Selecting ${choice.name} ChatGPT voice`);
+        actions.setSettings({ voiceId: choice.id, voiceGender: choice.gender });
+        actions.finishAssistTask('speech', 'ready', 1, taskId);
+        return textResult(
+          `${choice.name} is now the selected ChatGPT voice. It will be used when the user taps Speak.`,
+        );
+      },
+    }),
+    [],
+  );
+
   return {
     context: useWebMCPTool(contextTool),
     vocabulary: useWebMCPTool(vocabularyTool),
+    speech: useWebMCPTool(speechTool),
     theme: useWebMCPTool(themeTool),
   };
 }
