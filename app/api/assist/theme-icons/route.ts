@@ -11,7 +11,11 @@ import {
 
 type IconItem = { text: string; symbol: string };
 type PictureTheme = 'anime' | 'baby-shark' | 'hello-kitty';
-type PicturePresentation = 'subject' | 'control-icon' | 'button-background';
+type PicturePresentation =
+  | 'subject'
+  | 'control-icon'
+  | 'button-background'
+  | 'wallpaper-background';
 
 type ThemeIconInput = {
   theme: PictureTheme;
@@ -50,9 +54,10 @@ type ImageUsage = { inputTokens: number; outputTokens: number; totalTokens: numb
 
 function cacheLayout(
   input: Pick<ThemeIconInput, 'singleSubject' | 'presentation'>,
-): false | 'single-v2' | 'control-v1' | 'button-background-v2' {
+): false | 'single-v2' | 'control-v1' | 'button-background-v2' | 'wallpaper-background-v1' {
   if (input.presentation === 'control-icon') return 'control-v1';
   if (input.presentation === 'button-background') return 'button-background-v2';
+  if (input.presentation === 'wallpaper-background') return 'wallpaper-background-v1';
   // v2 invalidates the older single-subject sheets whose unused 3x3 cells
   // could leave small controls showing only a clipped edge of their artwork.
   return input.singleSubject ? 'single-v2' : false;
@@ -90,7 +95,9 @@ function parseInput(value: unknown): ThemeIconInput | null {
     .filter((item) => item.text.length > 0 && item.symbol.length > 0)
     .slice(0, 9);
   const presentation: PicturePresentation =
-    body.presentation === 'control-icon' || body.presentation === 'button-background'
+    body.presentation === 'control-icon' ||
+    body.presentation === 'button-background' ||
+    body.presentation === 'wallpaper-background'
       ? body.presentation
       : 'subject';
   if (presentation !== 'subject' && items.length !== 1) return null;
@@ -116,7 +123,8 @@ function parseLookupUrl(request: Request): ThemeIconInput | null {
     singleSubject: url.searchParams.get('singleSubject') === 'true',
     presentation:
       url.searchParams.get('presentation') === 'control-icon' ||
-      url.searchParams.get('presentation') === 'button-background'
+      url.searchParams.get('presentation') === 'button-background' ||
+      url.searchParams.get('presentation') === 'wallpaper-background'
         ? url.searchParams.get('presentation') as Exclude<PicturePresentation, 'subject'>
         : 'subject',
     lookupOnly: true,
@@ -139,6 +147,15 @@ const CONTROL_THEME_DIRECTION: Record<PictureTheme, string> = {
     'Use bubbly undersea colours, rounded ocean textures, and subtle wave or fin details integrated into the icon without adding a shark or sea-creature character.',
   'hello-kitty':
     'Use soft kawaii colours, rounded toy-like linework, and a small bow accent integrated into the icon without adding a kitten or character.',
+};
+
+const WALLPAPER_THEME_DIRECTION: Record<PictureTheme, string> = {
+  anime:
+    'Use an abstract anime-inspired atmosphere made only from luminous colour gradients, soft cel-shaded light, subtle speed-line textures, and layered glow.',
+  'baby-shark':
+    'Use an abstract underwater atmosphere made only from flowing blue, coral, and sunny-yellow colour fields, soft caustic light, and gentle bubbly textures.',
+  'hello-kitty':
+    'Use an abstract kawaii atmosphere made only from soft pink, white, and red colour fields, rounded gradients, tiny light speckles, and plush-looking texture.',
 };
 
 function bytesToHex(bytes: Uint8Array): string {
@@ -587,7 +604,17 @@ export async function POST(request: Request): Promise<Response> {
     const numbered = input.items
       .map((item, index) => `${index + 1}. ${JSON.stringify(item.text)} represented by ${item.symbol}`)
       .join('\n');
-    const prompt = input.presentation === 'button-background'
+    const prompt = input.presentation === 'wallpaper-background'
+      ? [
+        'Create one continuous panoramic abstract wallpaper divider for a wide accessible communication interface.',
+        WALLPAPER_THEME_DIRECTION[input.theme],
+        'It must coordinate visually with the selected theme while remaining purely atmospheric and decorative.',
+        'Do not include any characters, people, creatures, faces, eyes, animals, mascots, objects, props, icons, symbols, letters, text, logos, borders, or focal subjects.',
+        'Use a seamless composition with balanced detail from left to right and no empty black areas.',
+        'Keep the most attractive texture and colour variation inside a narrow horizontal safe band through the vertical centre. The interface is extremely wide and will crop most of the top and bottom.',
+        'Do not make a sprite sheet or repeat the same motif in separate cells.',
+      ].join('\n')
+      : input.presentation === 'button-background'
       ? [
         'Create one continuous panoramic background for a wide accessible interface banner or return button.',
         THEME_DIRECTION[input.theme],
@@ -634,6 +661,8 @@ export async function POST(request: Request): Promise<Response> {
         numbered,
           ].join('\n');
 
+    const wideBackground = input.presentation === 'button-background' ||
+      input.presentation === 'wallpaper-background';
     let upstream: Response;
     try {
       upstream = await postOpenAIJson(
@@ -642,9 +671,9 @@ export async function POST(request: Request): Promise<Response> {
         {
           model: process.env.OPENAI_IMAGE_MODEL?.trim() || 'gpt-image-2',
           prompt,
-          size: input.presentation === 'button-background' ? '1536x1024' : '1024x1024',
+          size: wideBackground ? '1536x1024' : '1024x1024',
           quality: 'low',
-          background: input.presentation === 'button-background' ? 'opaque' : 'transparent',
+          background: wideBackground ? 'opaque' : 'transparent',
           output_format: 'png',
           n: 1,
         },

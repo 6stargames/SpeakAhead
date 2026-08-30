@@ -35,6 +35,19 @@ export const CONTEXT_BANNER_THEME_ITEMS = {
   },
 } as const;
 
+export const CONTEXT_DIVIDER_THEME_ITEMS = {
+  words: {
+    text: 'AI words wallpaper divider',
+    symbol: '▬',
+    presentation: 'wallpaper-background',
+  },
+  phrases: {
+    text: 'AI phrases wallpaper divider',
+    symbol: '▬',
+    presentation: 'wallpaper-background',
+  },
+} as const;
+
 /**
  * Context choices belong on the board, not over it. This is a fixed first row
  * above Words or Phrases, so suggestions never cover vocabulary underneath.
@@ -70,6 +83,20 @@ export function ContextSuggestionRow({
   const bannerStyle: CSSProperties | undefined = bannerTile
     ? {
       backgroundImage: `url(${JSON.stringify(bannerTile.imageUrl)})`,
+      backgroundPosition: 'center 52%',
+      backgroundRepeat: 'no-repeat',
+      backgroundSize: 'cover',
+    }
+    : undefined;
+  const dividerItem = CONTEXT_DIVIDER_THEME_ITEMS[mode];
+  const dividerTiles = useThemedSymbols([dividerItem], symbolTheme, {
+    batchSize: 1,
+    singleSubject: true,
+  });
+  const dividerTile = themeTileFor(dividerTiles, dividerItem);
+  const dividerStyle: CSSProperties | undefined = dividerTile
+    ? {
+      backgroundImage: `url(${JSON.stringify(dividerTile.imageUrl)})`,
       backgroundPosition: 'center 52%',
       backgroundRepeat: 'no-repeat',
       backgroundSize: 'cover',
@@ -117,6 +144,8 @@ export function ContextSuggestionRow({
                   : `AI ${mode} will appear here after the next spoken turn.`}
               </span>
             </div>
+          ) : generation === 'previous' && items.length === 0 && dividerTile ? (
+            <div className="context-row__divider" style={dividerStyle} aria-hidden="true" />
           ) : generation === 'previous' && items.length === 0 ? (
             Array.from({ length: limit }, (_, index) => (
               <div

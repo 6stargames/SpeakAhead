@@ -21,6 +21,7 @@ import { VerificationPanel } from '@/components/VerificationPanel';
 import { VoicePanel } from '@/components/VoicePanel';
 import {
   CONTEXT_BANNER_THEME_ITEMS,
+  CONTEXT_DIVIDER_THEME_ITEMS,
   CONTEXT_READY_THEME_ITEM,
 } from '@/components/ContextSuggestionRow';
 import { CLOSE_CHAT_THEME_ITEM } from '@/components/ThemedCloseButton';
@@ -154,7 +155,11 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
     // bleed across cells and make a control look like two unrelated pictures.
     { items: INTERFACE_THEME_ITEMS, batchSize: 1, singleSubject: true },
     {
-      items: [CLOSE_CHAT_THEME_ITEM, ...Object.values(CONTEXT_BANNER_THEME_ITEMS)],
+      items: [
+        CLOSE_CHAT_THEME_ITEM,
+        ...Object.values(CONTEXT_BANNER_THEME_ITEMS),
+        ...Object.values(CONTEXT_DIVIDER_THEME_ITEMS),
+      ],
       batchSize: 1,
       singleSubject: true,
     },

@@ -30,9 +30,13 @@ export interface ThemeIconRequestItem {
   readonly symbol: string;
   /**
    * Communication choices illustrate their meaning. Functional controls keep
-   * the supplied glyph recognisable, while a button background is decorative.
+   * the supplied glyph recognisable, while banners and wallpapers are decorative.
    */
-  readonly presentation?: 'subject' | 'control-icon' | 'button-background';
+  readonly presentation?:
+    | 'subject'
+    | 'control-icon'
+    | 'button-background'
+    | 'wallpaper-background';
 }
 
 export interface ThemeSprite {
