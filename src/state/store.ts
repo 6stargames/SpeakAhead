@@ -162,9 +162,8 @@ export interface AppState {
    */
   readonly dictationPreview: string;
   /**
-   * The last utterance spoken from the buffer, kept so an accidental Speak is
-   * recoverable: the words cannot be unsaid, but the sentence can be restored
-   * for correction instead of being rebuilt from nothing.
+   * The last utterance spoken from the buffer, kept for the one-press Again
+   * control so a frequent or urgent message does not need to be rebuilt.
    */
   readonly lastSpokenText: string | null;
   /**

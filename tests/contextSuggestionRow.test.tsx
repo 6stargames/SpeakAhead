@@ -55,6 +55,26 @@ describe('AI context board row', () => {
     expect(store.getState().composition).toBe('water');
   });
 
+  it('uses full board cards without generation labels and lets every choice be starred', () => {
+    act(() => root.render(<ContextSuggestionRow mode="words" enabled />));
+
+    const cards = container.querySelectorAll('.context-row .context-cellwrap');
+    const labels = Array.from(container.querySelectorAll('.context-row .context-cell'))
+      .map((card) => card.textContent);
+    const favorite = container.querySelector<HTMLButtonElement>(
+      '.context-row--latest .cell__fav[aria-label="Keep \\"water\\" in Favs"]',
+    );
+
+    expect(cards).toHaveLength(6);
+    expect(labels.every((label) => !label?.includes('AI') && !label?.includes('Earlier'))).toBe(true);
+    expect(favorite?.textContent).toBe('☆');
+
+    act(() => favorite?.click());
+    expect(store.getState().favorites.map((item) => item.text)).toContain('water');
+    expect(favorite?.getAttribute('aria-pressed')).toBe('true');
+    expect(favorite?.textContent).toBe('★');
+  });
+
   it('renders four phrases so the AI row matches the fixed phrase grid', () => {
     act(() => root.render(<ContextSuggestionRow mode="phrases" enabled />));
     expect(container.querySelectorAll('.context-row--latest .context-cell')).toHaveLength(4);

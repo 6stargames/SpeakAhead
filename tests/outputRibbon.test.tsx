@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetThemedSymbolMemoryForTests } from '@/assist/themeIcons';
 import { OutputRibbon } from '@/components/OutputRibbon';
 import { VoicePanel } from '@/components/VoicePanel';
+import { session } from '@/session/AacSession';
 import { actions, store } from '@/state/store';
 
 let container: HTMLDivElement;
@@ -55,6 +56,7 @@ afterEach(() => {
   container.remove();
   resetThemedSymbolMemoryForTests();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe('Speak button voice artwork', () => {
@@ -74,5 +76,21 @@ describe('Speak button voice artwork', () => {
       .map(([, init]) => JSON.parse(init.body as string) as { items: { text: string }[] });
     expect(generatedBodies.filter((body) => body.items[0]?.text.includes('Cedar male voice name badge')))
       .toHaveLength(1);
+  });
+
+  it('sends and speaks the last message again without restoring the composer', () => {
+    const speak = vi.spyOn(session, 'speak').mockResolvedValue();
+    act(() => actions.setLastSpoken('Please call my family.'));
+    act(() => root.render(<OutputRibbon />));
+
+    const again = Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
+      .find((button) => button.textContent?.trim() === 'Again');
+    expect(again).toBeDefined();
+
+    act(() => again?.click());
+
+    expect(speak).toHaveBeenCalledWith('Please call my family.');
+    expect(store.getState().composition).toBe('');
+    expect(container.querySelector('textarea')?.value).toBe('');
   });
 });

@@ -162,24 +162,19 @@ export function OutputRibbon({ leading }: { leading?: ReactNode } = {}): JSX.Ele
           Clear
         </button>
 
-        {/*
-          The other half of repair: an accidental Speak cannot be unsaid, but
-          it must not cost the sentence. Only offered while the buffer is
-          empty, so it never fights the message being written.
-        */}
+        {/* Repeat the previous message in one press. It stays out of the
+            composition buffer, so there is no second Speak step. */}
         {composition.length === 0 && lastSpoken !== null && !speaking && (
           <button
             type="button"
             className="button button--ghost"
             onClick={() => {
-              actions.setComposition(lastSpoken);
-              session.sendComposingUpdate(lastSpoken);
-              actions.setLastSpoken(null);
+              void session.speak(lastSpoken);
               textareaRef.current?.focus();
             }}
-            title="Bring the last spoken message back for correction"
+            title="Send and speak the last message again"
           >
-            Restore last
+            Again
           </button>
         )}
 

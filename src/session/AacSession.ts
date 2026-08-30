@@ -1118,8 +1118,8 @@ export class AacSession {
     const text = store.getState().composition.trim();
     if (text.length === 0) return;
     actions.clearComposition();
-    // The words cannot be unsaid, but an accidental Speak must not cost the
-    // sentence: keep it so the ribbon can offer to restore it for repair.
+    // Keep the last message so the ribbon can send and speak it again in one
+    // press without putting it back into the composition buffer first.
     actions.setLastSpoken(text);
     await this.speak(text);
   }

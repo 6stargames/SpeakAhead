@@ -15,6 +15,7 @@ import {
 } from '@/state/store';
 
 const selectAssistStatus = (state: AppState): AppState['assistStatus'] => state.assistStatus;
+const selectFavorites = (state: AppState) => state.favorites;
 
 export const CONTEXT_READY_THEME_ITEM = {
   text: 'AI suggestions ready',
@@ -66,6 +67,7 @@ export function ContextSuggestionRow({
   const previousWords = useStore(selectPreviousContextualWords);
   const previousPhrases = useStore(selectPreviousContextualPhrases);
   const assistStatus = useStore(selectAssistStatus);
+  const favorites = useStore(selectFavorites);
   const suggestions: ContextSuggestion[] = mode === 'words' ? words : phrases;
   const previousSuggestions: ContextSuggestion[] = mode === 'words' ? previousWords : previousPhrases;
   const themedSymbols = useThemedSymbols(suggestions, symbolTheme);
@@ -155,27 +157,46 @@ export function ContextSuggestionRow({
               />
             ))
           ) : (
-            items.slice(0, limit).map((suggestion, index) => (
-              <button
-                type="button"
-                className="cell context-cell"
-                key={`${suggestion.text}-${index}`}
-                title={suggestion.text}
-                onClick={() => {
-                  if (mode === 'words') actions.appendComposition(suggestion.text);
-                  else void session.speak(withoutSpokenEmoji(suggestion.text));
-                }}
-              >
-                <span className="context-cell__badge">
-                  {generation === 'latest' ? 'AI' : 'Earlier'}
-                </span>
-                <ThemedSymbol
-                  symbol={suggestion.symbol}
-                  tile={themeTileFor(tiles, suggestion)}
-                />
-                <span className="cell__word">{suggestion.text}</span>
-              </button>
-            ))
+            items.slice(0, limit).map((suggestion, index) => {
+              const faved = favorites.some((favorite) => favorite.text === suggestion.text);
+              return (
+                <div className="cellwrap context-cellwrap" key={`${suggestion.text}-${index}`}>
+                  <button
+                    type="button"
+                    className={`cell context-cell${mode === 'phrases' ? ' cell--phrase' : ''}`}
+                    title={suggestion.text}
+                    onClick={() => {
+                      if (mode === 'words') actions.appendComposition(suggestion.text);
+                      else void session.speak(withoutSpokenEmoji(suggestion.text));
+                    }}
+                  >
+                    <ThemedSymbol
+                      symbol={suggestion.symbol}
+                      tile={themeTileFor(tiles, suggestion)}
+                    />
+                    <span className="cell__word">{suggestion.text}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="cell__fav"
+                    aria-pressed={faved}
+                    aria-label={
+                      faved
+                        ? `Remove "${suggestion.text}" from Favs`
+                        : `Keep "${suggestion.text}" in Favs`
+                    }
+                    title={faved ? 'Remove from Favs' : 'Keep in Favs'}
+                    onClick={() => actions.toggleFavorite({
+                      text: suggestion.text,
+                      symbol: suggestion.symbol,
+                      fitzgerald: 'social',
+                    })}
+                  >
+                    {faved ? '★' : '☆'}
+                  </button>
+                </div>
+              );
+            })
           )}
         </div>
       ))}
