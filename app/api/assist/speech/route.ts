@@ -4,7 +4,7 @@ import { json, postOpenAIJson, readSmallJson, requireAssistUser } from '../serve
 
 const VOICES = new Set<ChatGptVoiceName>(CHATGPT_VOICE_NAMES);
 const MAX_TEXT_LENGTH = 2_000;
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 
 function speechInput(value: unknown): {
   text: string;
@@ -60,6 +60,32 @@ function audioResponse(body: BodyInit, source: 'saved' | 'generated'): Response 
   });
 }
 
+function normaliseWavContainer(buffer: ArrayBuffer): ArrayBuffer | null {
+  if (buffer.byteLength < 44) return null;
+  const bytes = new Uint8Array(buffer);
+  const view = new DataView(buffer);
+  const text = (offset: number, length: number) => String.fromCharCode(...bytes.slice(offset, offset + length));
+  if (text(0, 4) !== 'RIFF' || text(8, 4) !== 'WAVE') return null;
+
+  // OpenAI can stream WAV with placeholder RIFF/data lengths. The route has
+  // already buffered the complete response, so persist a conventional header
+  // that every browser decoder can consume and cache safely.
+  view.setUint32(4, Math.min(0xffff_ffff, buffer.byteLength - 8), true);
+  for (let offset = 12; offset + 8 <= buffer.byteLength;) {
+    const chunkId = text(offset, 4);
+    const body = offset + 8;
+    const declaredLength = view.getUint32(offset + 4, true);
+    const availableLength = buffer.byteLength - body;
+    if (chunkId === 'data') {
+      if (declaredLength > availableLength) view.setUint32(offset + 4, availableLength, true);
+      return buffer;
+    }
+    if (declaredLength > availableLength) return null;
+    offset = body + declaredLength + (declaredLength % 2);
+  }
+  return null;
+}
+
 export async function POST(request: Request): Promise<Response> {
   const auth = await requireAssistUser('speech', 60);
   if (!auth.ok) return auth.response;
@@ -112,10 +138,12 @@ export async function POST(request: Request): Promise<Response> {
     return json({ error: 'speech_upstream_failed' }, 502);
   }
 
-  const bytes = await upstream.arrayBuffer();
-  if (bytes.byteLength < 44 || bytes.byteLength > 20_000_000) {
+  const upstreamBytes = await upstream.arrayBuffer();
+  if (upstreamBytes.byteLength > 20_000_000) {
     return json({ error: 'speech_invalid_response' }, 502);
   }
+  const bytes = normaliseWavContainer(upstreamBytes);
+  if (!bytes) return json({ error: 'speech_invalid_response' }, 502);
   if (store) {
     try {
       await store.put(key, bytes, {

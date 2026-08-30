@@ -41,9 +41,18 @@ export function decodeSpeechWav(buffer: ArrayBuffer): Omit<ChatGptSpeechResult, 
   let dataLength = 0;
   for (let offset = 12; offset + 8 <= view.byteLength;) {
     const chunkId = ascii(view, offset, 4);
-    const chunkLength = view.getUint32(offset + 4, true);
+    const declaredChunkLength = view.getUint32(offset + 4, true);
     const body = offset + 8;
-    if (body + chunkLength > view.byteLength) return null;
+    // Streaming WAV responses are allowed to use 0xffffffff for the data size
+    // because the final byte count is unknown when the header is emitted. By
+    // the time this decoder runs, the complete response is in memory, so the
+    // bytes remaining in the buffer are the authoritative data length.
+    const chunkLength = declaredChunkLength <= view.byteLength - body
+      ? declaredChunkLength
+      : chunkId === 'data'
+        ? view.byteLength - body
+        : -1;
+    if (chunkLength < 0) return null;
     if (chunkId === 'fmt ' && chunkLength >= 16) {
       format = view.getUint16(body, true);
       channels = view.getUint16(body + 2, true);
@@ -52,6 +61,7 @@ export function decodeSpeechWav(buffer: ArrayBuffer): Omit<ChatGptSpeechResult, 
     } else if (chunkId === 'data') {
       dataOffset = body;
       dataLength = chunkLength;
+      break;
     }
     offset = body + chunkLength + (chunkLength % 2);
   }
