@@ -9,9 +9,9 @@ export interface AssistFeaturePresentation {
 /** Plain-language descriptions shared by the header buttons and activity view. */
 export const ASSIST_FEATURE_PRESENTATION: Record<AssistFeature, AssistFeaturePresentation> = {
   corrections: {
-    icon: '✎',
-    label: 'Context correction',
-    task: 'Checking uncertain transcript words against the recent conversation.',
+    icon: '🎧',
+    label: 'Accurate transcription',
+    task: 'Checking completed ONNX speech with GPT transcription.',
   },
   suggestions: {
     icon: '💬',

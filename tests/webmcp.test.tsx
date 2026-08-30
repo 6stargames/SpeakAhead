@@ -245,11 +245,11 @@ describe('AAC context tools', () => {
     return null;
   }
 
-  it('registers contextual correction, vocabulary, and theme controls', async () => {
+  it('registers contextual vocabulary and theme controls without a legacy correction tool', async () => {
     store.reset();
     render(<AacHarness />);
 
-    expect(toolRegistry.get('correct-low-confidence-transcript')).toBeDefined();
+    expect(toolRegistry.get('correct-low-confidence-transcript')).toBeUndefined();
     expect(toolRegistry.get('set-contextual-vocabulary')).toBeDefined();
     expect(toolRegistry.get('set-symbol-theme')).toBeDefined();
 
@@ -283,27 +283,6 @@ describe('AAC context tools', () => {
     expect(store.getState().settings.symbolTheme).toBe('baby-shark');
     await toolRegistry.invoke('set-symbol-theme', { theme: 'hello-kitty' });
     expect(store.getState().settings.symbolTheme).toBe('hello-kitty');
-
-    actions.upsertTurn({
-      id: 'uncertain',
-      source: 'peer',
-      text: 'some watter',
-      final: true,
-      dictated: true,
-      words: [{ text: 'some', confidence: 0.9 }, { text: 'watter', confidence: 0.2 }],
-    });
-    await toolRegistry.invoke('correct-low-confidence-transcript', {
-      turnId: 'uncertain',
-      originalText: 'some watter',
-      correctedText: 'some water',
-      reason: 'Water was already being discussed.',
-    });
-    expect(store.getState().turns[0]?.text).toBe('some water');
-    expect(store.getState().assistFeatures.corrections).toMatchObject({
-      activeTasks: 0,
-      status: 'ready',
-      resultCount: 1,
-    });
 
     unmount();
   });
@@ -392,7 +371,7 @@ describe('AAC context tools', () => {
     expect(container.textContent).toContain('1 task running now');
     expect(container.textContent).toContain('Pictures for “help”, “water”');
     expect(container.textContent).toMatch(/Running · \d+\.\ds/);
-    expect(container.textContent).not.toContain('Context correction');
+    expect(container.textContent).not.toContain('Accurate transcription');
     expect(container.textContent).not.toContain('Quick replies');
     expect(container.querySelector('.assist-tasks__hero-icon .cell__symbol')?.textContent).toBe('🎨');
     expect(container.querySelectorAll('.themed-close__edge')).toHaveLength(2);

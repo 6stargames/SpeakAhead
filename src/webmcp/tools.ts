@@ -83,17 +83,6 @@ const composeSchema: JsonSchema = {
   required: ['text'],
 };
 
-const correctionSchema: JsonSchema = {
-  type: 'object',
-  properties: {
-    turnId: { type: 'string', description: 'The exact turn id returned by get-conversation-context.' },
-    originalText: { type: 'string', description: 'The exact current text of that turn.', maxLength: 500 },
-    correctedText: { type: 'string', description: 'The minimally corrected text.', maxLength: 500 },
-    reason: { type: 'string', description: 'A short explanation of the contextual evidence.', maxLength: 180 },
-  },
-  required: ['turnId', 'originalText', 'correctedText', 'reason'],
-};
-
 const suggestionItemSchema: JsonSchema = {
   type: 'object',
   properties: {
@@ -128,7 +117,6 @@ export interface WebMcpToolStates {
   readonly context: WebMcpRegistrationState;
   readonly compose: WebMcpRegistrationState;
   readonly speak: WebMcpRegistrationState;
-  readonly correct: WebMcpRegistrationState;
   readonly vocabulary: WebMcpRegistrationState;
   readonly theme: WebMcpRegistrationState;
 }
@@ -222,10 +210,6 @@ export function useAacWebMcpTools(): WebMcpToolStates {
                 text: turn.text,
                 at: turn.at,
                 dictated: turn.dictated,
-                lowConfidenceWords: turn.words
-                  ?.filter((word) => word.confidence < 0.5)
-                  .map((word) => ({ text: word.text, confidence: word.confidence })),
-                correctedFrom: turn.originalText,
               })),
               composition: state.composition,
               unavailableWords: [
@@ -297,46 +281,6 @@ export function useAacWebMcpTools(): WebMcpToolStates {
         return textResult(
           'Staged for the user to confirm. It will be spoken when they tap Speak.',
         );
-      },
-    }),
-    [],
-  );
-
-  const correctTool = useMemo<WebMcpToolDefinition>(
-    () => ({
-      name: 'correct-low-confidence-transcript',
-      description:
-        'Minimally repair a finished dictated turn when its recogniser evidence contains a low-confidence word and recent conversation makes the replacement clear. ' +
-        'Read get-conversation-context first. Preserve meaning, tone, grammar, names, and all confident words. Never polish or paraphrase. ' +
-        'The correction is visibly labelled and the user can undo it.',
-      inputSchema: correctionSchema,
-      execute: (args) => {
-        const input = args as Record<string, unknown>;
-        if (
-          typeof input.turnId !== 'string' ||
-          typeof input.originalText !== 'string' ||
-          typeof input.correctedText !== 'string' ||
-          typeof input.reason !== 'string'
-        ) return errorResult('turnId, originalText, correctedText, and reason must be strings.');
-        const turn = store.getState().turns.find((candidate) => candidate.id === input.turnId);
-        if (!turn?.words?.some((word) => word.confidence < 0.5)) {
-          return errorResult('That turn has no low-confidence recogniser word to correct.');
-        }
-        const taskId = actions.beginAssistTask(
-          'corrections',
-          `Correcting “${input.originalText}” to “${input.correctedText}”`,
-        );
-        const applied = actions.applyContextCorrection(
-          input.turnId,
-          input.originalText,
-          input.correctedText,
-          input.reason,
-          'chatgpt',
-        );
-        actions.finishAssistTask('corrections', applied ? 'ready' : 'error', applied ? 1 : 0, taskId);
-        return applied
-          ? textResult('Correction applied and labelled with an undo control.')
-          : errorResult('The turn changed or the correction was not usable, so nothing was overwritten.');
       },
     }),
     [],
@@ -428,7 +372,6 @@ export function useAacWebMcpTools(): WebMcpToolStates {
     context: useWebMCPTool(contextTool),
     compose: useWebMCPTool(composeTool),
     speak: useWebMCPTool(speakTool),
-    correct: useWebMCPTool(correctTool),
     vocabulary: useWebMCPTool(vocabularyTool),
     theme: useWebMCPTool(themeTool),
   };

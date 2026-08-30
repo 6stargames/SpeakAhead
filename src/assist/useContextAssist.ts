@@ -4,7 +4,7 @@ import { actions, store, useStore, type AppState, type Turn } from '@/state/stor
 import type { SpeakerProfile } from '@/speech/speakers';
 import { requestContextAssist } from './client';
 import { filterNovelChoices } from './choiceAvailability';
-import { localContextCorrection, localWordSuggestions, symbolForText } from './fallback';
+import { localWordSuggestions, symbolForText } from './fallback';
 
 const selectAssistInput = (state: AppState) => ({
   turns: state.turns,
@@ -26,8 +26,8 @@ export function contextAssistRequestKey(
 ): string | null {
   const latestFinal = turns.findLast((turn) => turn.final);
   if (!latestFinal) return null;
-  // Let the completed-audio pass settle first. Otherwise the context checker
-  // races the ONNX text and may correct or generate replies from the version
+  // Let the completed-audio pass settle first. Otherwise quick replies race
+  // the ONNX text and may be generated from the version
   // that is about to be replaced by the more accurate transcript.
   if (latestFinal.transcriptionStatus === 'checking') return null;
   // Deliberately spoken/tapped AAC output is the user's reply, never a reason
@@ -112,7 +112,6 @@ function contextChoiceExclusions(state: Pick<
   };
 }
 
-const CONTEXT_SETTLE_MS = 250;
 export const REPLY_BATCH_SETTLE_MS = 1_800;
 const CONTEXT_MIN_START_INTERVAL_MS = 5_000;
 const CONTEXT_QUEUE_POLL_MS = 250;
@@ -120,8 +119,8 @@ export const THEMED_CONTEXT_HOLD_MS = 30_000;
 
 /**
  * Emoji is instant, but generated pictures need a stable target. The current
- * themed generation stays put for a short window while correction checks keep
- * running normally in the background.
+ * themed generation stays put for a short window while the conversation keeps
+ * moving in the background.
  */
 export function contextChoicesReadyForRefresh(
   state: Pick<AppState, 'contextualWords' | 'contextualPhrases' | 'contextSuggestionsUpdatedAt' | 'settings'>,
@@ -133,38 +132,29 @@ export function contextChoicesReadyForRefresh(
 }
 
 async function runContextJob(job: ContextAssistJob, signal: AbortSignal): Promise<void> {
+  if (job.replyTurns.length === 0) return;
   let tasksOpen = false;
-  let correctionTaskId: string | undefined;
   let suggestionTaskId: string | undefined;
   const finishTasks = (
     status: 'idle' | 'ready' | 'local' | 'unavailable' | 'error',
-    correctionCount = 0,
     suggestionCount = 0,
   ) => {
     if (!tasksOpen) return;
     tasksOpen = false;
-    actions.finishAssistTask('corrections', status, correctionCount, correctionTaskId);
     if (suggestionTaskId) {
       actions.finishAssistTask('suggestions', status, suggestionCount, suggestionTaskId);
     }
   };
 
   actions.setAssistStatus('thinking');
-  const contextText = (job.finalTurns.at(-1)?.text || 'the recent conversation')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 90);
-  correctionTaskId = actions.beginAssistTask('corrections', `Checking “${contextText}”`);
-  if (job.replyTurns.length > 0) {
-    const replyContext = job.replyTurns
-      .map((turn) => `“${turn.text.replace(/\s+/g, ' ').trim()}”`)
-      .join(' + ')
-      .slice(0, 180);
-    suggestionTaskId = actions.beginAssistTask(
-      'suggestions',
-      `Preparing 6 words + 4 phrases from ${replyContext}`,
-    );
-  }
+  const replyContext = job.replyTurns
+    .map((turn) => `“${turn.text.replace(/\s+/g, ' ').trim()}”`)
+    .join(' + ')
+    .slice(0, 180);
+  suggestionTaskId = actions.beginAssistTask(
+    'suggestions',
+    `Preparing 6 words + 4 phrases from ${replyContext}`,
+  );
   tasksOpen = true;
 
   try {
@@ -176,10 +166,8 @@ async function runContextJob(job: ContextAssistJob, signal: AbortSignal): Promis
           source: turn.source,
           text: turn.text,
           dictated: turn.dictated,
-          ...(turn.words ? { words: turn.words } : {}),
         })),
         composition: job.composition,
-        generateSuggestions: job.replyTurns.length > 0,
         excludedWords: requestExclusions.words,
         excludedPhrases: requestExclusions.phrases,
       },
@@ -189,100 +177,16 @@ async function runContextJob(job: ContextAssistJob, signal: AbortSignal): Promis
 
     if (response) {
       actions.recordAssistUsage('text', response.usage);
-      let applied = 0;
-      for (const correction of response.corrections) {
-        if (
-          actions.applyContextCorrection(
-            correction.turnId,
-            correction.originalText,
-            correction.correctedText,
-            correction.reason,
-            'chatgpt',
-          )
-        ) applied += 1;
-      }
       const currentExclusions = contextChoiceExclusions(store.getState());
-      if (job.replyTurns.length > 0) {
-        const words = completeChoices(
-          response.words,
-          localWordSuggestions(job.finalTurns),
-          6,
-          'words',
-          currentExclusions.words,
-        );
-        const phrases = completeChoices(
-          response.phrases,
-          SAFE_PHRASE_FALLBACKS,
-          4,
-          'phrases',
-          currentExclusions.phrases,
-        );
-        const refreshChoices = contextChoicesReadyForRefresh(store.getState());
-        if (refreshChoices) actions.setContextSuggestions(words, phrases);
-      }
-      const visibleState = store.getState();
-      const visibleSuggestionCount = job.replyTurns.length > 0
-        ? visibleState.contextualWords.length + visibleState.contextualPhrases.length
-        : 0;
-      actions.setAssistStatus('ready');
-      finishTasks('ready', applied, visibleSuggestionCount);
-      return;
-    }
-
-    // The private, zero-dependency fallback is intentionally useful rather
-    // than an error state: assistance gets better with the cloud connection,
-    // but communication never depends on it.
-    const correctionCandidates = job.finalTurns.filter(
-      (turn) => turn.dictated && turn.words && !turn.originalText,
-    );
-    const corrections: {
-      id: string;
-      originalText: string;
-      correctedText: string;
-      reason: string;
-    }[] = [];
-    for (const candidate of correctionCandidates.slice(-2)) {
-      const prior = job.finalTurns.filter((turn) => turn.id !== candidate.id);
-      const correction = localContextCorrection(candidate, prior);
-      if (correction) {
-        corrections.push({ id: candidate.id, originalText: candidate.text, ...correction });
-      }
-    }
-
-    const context = {
-      turns: job.finalTurns.map((turn) => ({
-        source: turn.source,
-        text: turn.text,
-      })),
-      composition: job.composition,
-    };
-    const outcome = job.replyTurns.length > 0
-      ? await predictionEngine.predict(context)
-      : { suggestions: [] };
-    if (signal.aborted) return;
-    let applied = 0;
-    for (const correction of corrections) {
-      if (
-        actions.applyContextCorrection(
-          correction.id,
-          correction.originalText,
-          correction.correctedText,
-          correction.reason,
-          'on-device',
-        )
-      ) applied += 1;
-    }
-    const currentExclusions = contextChoiceExclusions(store.getState());
-    if (job.replyTurns.length > 0) {
       const words = completeChoices(
+        response.words,
         localWordSuggestions(job.finalTurns),
-        [],
         6,
         'words',
         currentExclusions.words,
       );
       const phrases = completeChoices(
-        outcome.suggestions.map((text) => ({ text, symbol: symbolForText(text) })),
+        response.phrases,
         SAFE_PHRASE_FALLBACKS,
         4,
         'phrases',
@@ -290,13 +194,46 @@ async function runContextJob(job: ContextAssistJob, signal: AbortSignal): Promis
       );
       const refreshChoices = contextChoicesReadyForRefresh(store.getState());
       if (refreshChoices) actions.setContextSuggestions(words, phrases);
+      const visibleState = store.getState();
+      const visibleSuggestionCount = visibleState.contextualWords.length + visibleState.contextualPhrases.length;
+      actions.setAssistStatus('ready');
+      finishTasks('ready', visibleSuggestionCount);
+      return;
     }
+
+    // The private, zero-dependency fallback keeps quick replies useful when
+    // the cloud route is unavailable. Transcript accuracy is handled only by
+    // the completed-audio GPT transcription pass.
+    const context = {
+      turns: job.finalTurns.map((turn) => ({
+        source: turn.source,
+        text: turn.text,
+      })),
+      composition: job.composition,
+    };
+    const outcome = await predictionEngine.predict(context);
+    if (signal.aborted) return;
+    const currentExclusions = contextChoiceExclusions(store.getState());
+    const words = completeChoices(
+      localWordSuggestions(job.finalTurns),
+      [],
+      6,
+      'words',
+      currentExclusions.words,
+    );
+    const phrases = completeChoices(
+      outcome.suggestions.map((text) => ({ text, symbol: symbolForText(text) })),
+      SAFE_PHRASE_FALLBACKS,
+      4,
+      'phrases',
+      currentExclusions.phrases,
+    );
+    const refreshChoices = contextChoicesReadyForRefresh(store.getState());
+    if (refreshChoices) actions.setContextSuggestions(words, phrases);
     const visibleState = store.getState();
-    const visibleSuggestionCount = job.replyTurns.length > 0
-      ? visibleState.contextualWords.length + visibleState.contextualPhrases.length
-      : 0;
+    const visibleSuggestionCount = visibleState.contextualWords.length + visibleState.contextualPhrases.length;
     actions.setAssistStatus('local');
-    finishTasks('local', applied, visibleSuggestionCount);
+    finishTasks('local', visibleSuggestionCount);
   } catch {
     if (!signal.aborted) {
       actions.setAssistStatus('error');
@@ -310,7 +247,7 @@ async function runContextJob(job: ContextAssistJob, signal: AbortSignal): Promis
 /**
  * Text-only signed-in assistance. This hook observes finished turns, never
  * audio frames. If the cloud route is unavailable, the existing local
- * prediction ladder and a conservative context matcher take over.
+ * prediction ladder supplies reply choices instead.
  */
 export function useContextAssist(signedIn: boolean): void {
   const input = useStore(selectAssistInput);
@@ -337,6 +274,11 @@ export function useContextAssist(signedIn: boolean): void {
     const replyTurns = finalTurns.slice(lastOwnerIndex + 1).filter(
       (turn) => isOtherSpeakerTurn(turn, input.speakers) && !handledReplyTurns.current.has(turn.id),
     );
+    if (replyTurns.length === 0) {
+      latestJob.current = null;
+      processedKey.current = requestKey;
+      return;
+    }
     latestJob.current = {
       key: requestKey,
       finalTurns,
@@ -354,7 +296,6 @@ export function useContextAssist(signedIn: boolean): void {
       handledReplyTurns.current.clear();
       actions.setAssistStatus('idle');
       actions.setContextSuggestions([], []);
-      actions.setAssistFeatureStatus('corrections', 'idle');
       actions.setAssistFeatureStatus('suggestions', 'idle');
       return undefined;
     }
@@ -381,8 +322,7 @@ export function useContextAssist(signedIn: boolean): void {
       }
 
       const now = Date.now();
-      const settleMs = job.replyTurns.length > 0 ? REPLY_BATCH_SETTLE_MS : CONTEXT_SETTLE_MS;
-      const wait = Math.max(job.queuedAt + settleMs - now, nextAllowedAt - now);
+      const wait = Math.max(job.queuedAt + REPLY_BATCH_SETTLE_MS - now, nextAllowedAt - now);
       if (wait > 0) {
         schedule(Math.min(wait, CONTEXT_QUEUE_POLL_MS));
         return;

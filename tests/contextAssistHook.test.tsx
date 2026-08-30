@@ -31,7 +31,6 @@ beforeEach(() => {
   store.reset();
   mocks.requestContextAssist.mockReset();
   mocks.requestContextAssist.mockResolvedValue({
-    corrections: [],
     words: [
       { text: 'yes', symbol: '✅' },
       { text: 'no', symbol: '❌' },
@@ -60,12 +59,13 @@ afterEach(() => {
 });
 
 describe('continuous context assistance', () => {
-  it('reserves enough structured-output budget for the correction pass', async () => {
+  it('reserves enough structured-output budget for reply choices only', async () => {
     const route = await readFile(resolve(process.cwd(), 'app/api/assist/context/route.ts'), 'utf8');
     expect(route).toContain("reasoning: { effort: 'minimal' }");
     expect(route).toContain('max_output_tokens: 2_000');
-    expect(route).toContain('generateSuggestions');
-    expect(route).toContain('Return empty words and phrases arrays');
+    expect(route).not.toContain('generateSuggestions');
+    expect(route).not.toContain('For corrections');
+    expect(route).toContain('Return exactly four short first-person phrase replies');
   });
 
   it('does not restart the language debounce for unfinished microphone updates', async () => {
@@ -105,7 +105,6 @@ describe('continuous context assistance', () => {
       finishFirst = resolve;
     });
     const generated = {
-      corrections: [],
       words: [
         { text: 'yes', symbol: '✅' },
         { text: 'no', symbol: '❌' },
@@ -172,7 +171,7 @@ describe('continuous context assistance', () => {
     expect(contextAssistRequestKey(first, 'hello')).toBe('one\u0000');
   });
 
-  it('waits for the GPT audio pass before checking context or preparing replies', async () => {
+  it('waits for the GPT audio pass before preparing replies', async () => {
     act(() => {
       actions.upsertTurn({
         id: 'pending-audio',
@@ -234,10 +233,7 @@ describe('continuous context assistance', () => {
       await vi.advanceTimersByTimeAsync(500);
     });
 
-    expect(mocks.requestContextAssist).toHaveBeenCalledTimes(1);
-    expect(mocks.requestContextAssist.mock.calls[0]?.[0]).toMatchObject({
-      generateSuggestions: false,
-    });
+    expect(mocks.requestContextAssist).not.toHaveBeenCalled();
     expect(store.getState().assistFeatures.suggestions.tasks).toHaveLength(0);
     expect(store.getState().contextualWords).toHaveLength(0);
     expect(store.getState().contextualPhrases).toHaveLength(0);
@@ -277,9 +273,6 @@ describe('continuous context assistance', () => {
     });
 
     expect(mocks.requestContextAssist).toHaveBeenCalledTimes(1);
-    expect(mocks.requestContextAssist.mock.calls[0]?.[0]).toMatchObject({
-      generateSuggestions: true,
-    });
     const task = store.getState().assistFeatures.suggestions.tasks[0];
     expect(task?.label).toContain('6 words + 4 phrases');
     expect(task?.label).toContain('Do you want to go out?');

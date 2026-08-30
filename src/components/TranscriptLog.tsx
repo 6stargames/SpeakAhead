@@ -3,7 +3,6 @@ import { formatLoadPercent } from '@/lib/progress';
 import { alignWordsToText } from '@/speech/confidence';
 import { session } from '@/session/AacSession';
 import {
-  actions,
   selectTurns,
   useStore,
   type AppState,
@@ -166,11 +165,6 @@ function TurnRow({
   // outline, not a filled bubble: present, legible, and visually subordinate
   // to everything that was actually heard.
   const unspoken = mine && turn.dictated && turn.final;
-  const correctionLabel = turn.correctionSource === 'transcribe'
-    ? 'GPT transcript'
-    : turn.correctionSource === 'chatgpt'
-      ? 'ChatGPT fix'
-      : 'Context fix';
   const classes = [
     'turn',
     mine ? 'turn--mine' : 'turn--other',
@@ -205,23 +199,10 @@ function TurnRow({
         <span>{formatTime(turn.at)}</span>
         {turn.viaRtt && <span className="turn__badge">real-time text</span>}
         {unspoken && <span className="turn__badge">not spoken aloud</span>}
-        {turn.originalText && (
-          <button
-            type="button"
-            className="turn__badge turn__correction"
-            title={`${turn.correctionReason ?? 'An uncertain word was corrected from context.'} Original: ${turn.originalText}`}
-            aria-label={`${correctionLabel} corrected this message. Undo correction. ${turn.correctionReason ?? ''}`}
-            onClick={() => actions.revertContextCorrection(turn.id)}
-          >
-            <span className="turn__correction-spark" aria-hidden="true">✦</span>
-            <span>{correctionLabel}</span>
-            <span className="turn__correction-undo">Undo ↶</span>
-          </button>
-        )}
         {turn.transcriptionStatus === 'checking' && (
           <span className="turn__badge" role="status">GPT checking…</span>
         )}
-        {turn.transcriptionStatus === 'accurate' && !turn.originalText && (
+        {turn.transcriptionStatus === 'accurate' && (
           <span className="turn__badge">GPT transcript</span>
         )}
         {!turn.final && <span className="turn__badge">still speaking</span>}

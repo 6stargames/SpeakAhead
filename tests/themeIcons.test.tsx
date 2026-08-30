@@ -74,7 +74,7 @@ afterEach(() => {
 });
 
 describe('themed image reuse', () => {
-  it('keeps the old theme visible until every surface is prepared', async () => {
+  it('applies the selected theme immediately while every surface prepares', async () => {
     const generationResolvers: ((response: Response) => void)[] = [];
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       if (isLookup(init)) return Response.json({ groups: [] });
@@ -88,11 +88,11 @@ describe('themed image reuse', () => {
 
     act(() => root.render(<PreparedThemeHarness groups={groups} />));
     await vi.waitFor(() => expect(generationResolvers).toHaveLength(2));
-    expect(container.firstElementChild?.getAttribute('data-theme')).toBe('emoji');
+    expect(container.firstElementChild?.getAttribute('data-theme')).toBe('baby-shark');
 
     generationResolvers[0]!(pngResponse());
     await flush();
-    expect(container.firstElementChild?.getAttribute('data-theme')).toBe('emoji');
+    expect(container.firstElementChild?.getAttribute('data-theme')).toBe('baby-shark');
 
     generationResolvers[1]!(pngResponse());
     await vi.waitFor(() => {
@@ -100,7 +100,7 @@ describe('themed image reuse', () => {
     });
   });
 
-  it('prepares independent batches concurrently and reveals them together', async () => {
+  it('prepares independent batches concurrently and reveals each as it finishes', async () => {
     const generationResolvers: ((response: Response) => void)[] = [];
     let generationRequests = 0;
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -119,8 +119,9 @@ describe('themed image reuse', () => {
     expect(container.firstElementChild?.getAttribute('data-count')).toBe('0');
 
     generationResolvers[0]!(pngResponse());
-    await flush();
-    expect(container.firstElementChild?.getAttribute('data-count')).toBe('0');
+    await vi.waitFor(() => {
+      expect(container.firstElementChild?.getAttribute('data-count')).toBe('9');
+    });
 
     generationResolvers[1]!(pngResponse());
     await vi.waitFor(() => {

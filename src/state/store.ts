@@ -35,12 +35,6 @@ export interface Turn {
   readonly dictated: boolean;
   /** Per-word decoder confidence, for marking words that may be misheard. */
   readonly words?: readonly { text: string; confidence: number }[];
-  /** The recogniser's text before a contextual correction was applied. */
-  readonly originalText?: string;
-  /** Why the contextual checker changed this turn, shown beside the undo. */
-  readonly correctionReason?: string;
-  /** Which assistant supplied the correction. */
-  readonly correctionSource?: 'transcribe' | 'chatgpt' | 'on-device';
   /** Whether the visible final text is local, being checked, or GPT-confirmed. */
   readonly transcriptionStatus?: 'checking' | 'accurate' | 'local';
 }
@@ -105,7 +99,7 @@ export interface AssistFeatureActivity {
   readonly activeTasks: number;
   /** Last durable outcome, retained after the active count returns to zero. */
   readonly status: AssistFeatureStatus;
-  /** Corrections, choices, or pictures produced by the most recent pass. */
+  /** Transcripts, choices, or pictures produced by the most recent pass. */
   readonly resultCount: number;
   /** Newest work first; active and completed work share this one bounded list. */
   readonly tasks: readonly AssistTaskEntry[];
@@ -629,37 +623,6 @@ export const actions = {
     }));
   },
 
-  /**
-   * Apply a contextual correction only while the exact recogniser text is
-   * still present. A late network answer must never overwrite a user's edit
-   * or a newer recognition result.
-   */
-  applyContextCorrection(
-    turnId: string,
-    expectedText: string,
-    correctedText: string,
-    reason: string,
-    source: 'chatgpt' | 'on-device' = 'chatgpt',
-  ): boolean {
-    const turn = store.getState().turns.find((candidate) => candidate.id === turnId);
-    const corrected = correctedText.trim();
-    if (!turn || !turn.final || !turn.dictated || turn.text !== expectedText) return false;
-    if (corrected.length === 0 || corrected === turn.text || corrected.length > 500) return false;
-
-    actions.upsertTurn({
-      ...turn,
-      text: corrected,
-      originalText: turn.originalText ?? turn.text,
-      correctionReason: reason.trim().slice(0, 180),
-      correctionSource: source,
-      // Decoder confidences describe the original token sequence. Keeping
-      // them after changing the words would move a squiggle onto the wrong
-      // token, which is worse than clearing it.
-      words: undefined,
-    });
-    return true;
-  },
-
   setAccurateTranscriptionEnabled(accurateTranscriptionEnabled: boolean): void {
     store.set({ accurateTranscriptionEnabled });
   },
@@ -667,7 +630,7 @@ export const actions = {
   /**
    * Apply a finished audio transcription only if the exact ONNX sentence it
    * checked is still present. This guard prevents a slow answer overwriting a
-   * newer recogniser update, a context correction, or a user action.
+   * newer recogniser update or a user action.
    */
   applyAccurateTranscription(
     turnId: string,
@@ -681,13 +644,6 @@ export const actions = {
       ...turn,
       text: corrected,
       transcriptionStatus: 'accurate',
-      ...(corrected !== turn.text
-        ? {
-          originalText: turn.originalText ?? turn.text,
-          correctionReason: 'GPT checked the completed audio after the instant ONNX transcript.',
-          correctionSource: 'transcribe' as const,
-        }
-        : {}),
       // Decoder confidences refer to ONNX tokens, not the GPT-confirmed text.
       words: undefined,
     });
@@ -698,20 +654,6 @@ export const actions = {
     const turn = store.getState().turns.find((candidate) => candidate.id === turnId);
     if (!turn || turn.text !== expectedText || turn.transcriptionStatus !== 'checking') return false;
     actions.upsertTurn({ ...turn, transcriptionStatus: 'local' });
-    return true;
-  },
-
-  revertContextCorrection(turnId: string): boolean {
-    const turn = store.getState().turns.find((candidate) => candidate.id === turnId);
-    if (!turn?.originalText) return false;
-    actions.upsertTurn({
-      ...turn,
-      text: turn.originalText,
-      originalText: undefined,
-      correctionReason: undefined,
-      correctionSource: undefined,
-      ...(turn.correctionSource === 'transcribe' ? { transcriptionStatus: 'local' as const } : {}),
-    });
     return true;
   },
 

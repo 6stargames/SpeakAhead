@@ -47,7 +47,6 @@ describe('context choice availability', () => {
 
   it('filters a bad API response again before it can reach the board', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      corrections: [],
       words: [
         { text: 'help', symbol: '🆘' },
         { text: 'water', symbol: '💧' },
@@ -64,7 +63,6 @@ describe('context choice availability', () => {
     const result = await requestContextAssist({
       turns: [{ id: 'turn', source: 'peer', text: 'What do you think?', dictated: true }],
       composition: '',
-      generateSuggestions: true,
       excludedWords: ['later'],
       excludedPhrases: ['Tell me more.'],
     });

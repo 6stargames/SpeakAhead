@@ -338,7 +338,7 @@ function pictureTaskLabel(items: readonly ThemeIconRequestItem[]): string {
   return `Pictures for ${names}${remainder}`;
 }
 
-/** Restore batches in parallel and publish one complete, coherent tile set. */
+/** Restore batches in parallel and publish each one as soon as it is ready. */
 export function useThemedSymbols(
   items: readonly ThemeIconRequestItem[],
   theme: SymbolTheme,
@@ -360,19 +360,24 @@ export function useThemedSymbols(
       return undefined;
     }
     let cancelled = false;
-    void (async () => {
-      const next = new Map<string, ThemeTile>();
-      const groups = await Promise.all(
-        chunk(stableItems, batchSize).map((group) => loadTiles(group, theme, singleSubject)),
-      );
-      groups.forEach((groupTiles) => {
+    const next = new Map<string, ThemeTile>();
+
+    // Apply the selected theme immediately. Any pictures already restored in
+    // this session appear in the first render; missing pictures keep their
+    // emoji fallback and fill in independently as their batch finishes.
+    stableItems.forEach((item) => {
+      const tile = resolvedMemory.get(themedItemKey(theme, item, singleSubject));
+      if (tile) next.set(itemKey(item), tile);
+    });
+    setResolved({ theme, signature, tiles: new Map(next) });
+
+    chunk(stableItems, batchSize).forEach((group) => {
+      void loadTiles(group, theme, singleSubject).then((groupTiles) => {
+        if (cancelled) return;
         groupTiles.forEach((tile, key) => next.set(key, tile));
+        setResolved({ theme, signature, tiles: new Map(next) });
       });
-      if (cancelled) return;
-      // Keep the previous theme intact until every batch for this surface is
-      // ready. This avoids a board changing one row at a time.
-      setResolved({ theme, signature, tiles: new Map(next) });
-    })();
+    });
     return () => {
       cancelled = true;
     };
@@ -400,9 +405,8 @@ export interface ThemePreparationGroup {
 }
 
 /**
- * Keep the currently displayed theme in place while the next theme is being
- * prepared across every board. Once all groups have restored or generated,
- * the entire application receives the new theme in the same render.
+ * Apply the selected theme immediately and prewarm every board in parallel.
+ * Missing pictures use their emoji fallback until their own batch is ready.
  */
 export function usePreparedSymbolTheme(
   requestedTheme: SymbolTheme,
@@ -420,29 +424,18 @@ export function usePreparedSymbolTheme(
     })),
     [signature],
   );
-  const [displayedTheme, setDisplayedTheme] = useState<SymbolTheme>('emoji');
-
   useEffect(() => {
-    if (requestedTheme === 'emoji') {
-      setDisplayedTheme('emoji');
-      return undefined;
-    }
-    let cancelled = false;
-    void (async () => {
-      await Promise.all(stableGroups.flatMap((group) => {
-        const size = Math.max(1, Math.min(9, group.batchSize ?? 9));
-        return chunk(group.items, size).map((items) =>
-          loadTiles(items, requestedTheme, group.singleSubject === true),
-        );
-      }));
-      if (!cancelled) setDisplayedTheme(requestedTheme);
-    })();
-    return () => {
-      cancelled = true;
-    };
+    if (requestedTheme === 'emoji') return undefined;
+    stableGroups.forEach((group) => {
+      const size = Math.max(1, Math.min(9, group.batchSize ?? 9));
+      chunk(group.items, size).forEach((items) => {
+        void loadTiles(items, requestedTheme, group.singleSubject === true);
+      });
+    });
+    return undefined;
   }, [requestedTheme, stableGroups]);
 
-  return displayedTheme;
+  return requestedTheme;
 }
 
 export function themeTileFor(

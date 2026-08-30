@@ -25,24 +25,6 @@ function suggestions(value: unknown, mode: SuggestionMode, max: number): { text:
 function parseResponse(value: unknown, request: ContextAssistRequest): ContextAssistResponse | null {
   if (!value || typeof value !== 'object') return null;
   const record = value as Record<string, unknown>;
-  const corrections = Array.isArray(record.corrections)
-    ? record.corrections
-        .filter((candidate): candidate is Record<string, unknown> => Boolean(candidate) && typeof candidate === 'object')
-        .filter(
-          (candidate) =>
-            typeof candidate.turnId === 'string' &&
-            typeof candidate.originalText === 'string' &&
-            typeof candidate.correctedText === 'string' &&
-            typeof candidate.reason === 'string',
-        )
-        .map((candidate) => ({
-          turnId: candidate.turnId as string,
-          originalText: candidate.originalText as string,
-          correctedText: candidate.correctedText as string,
-          reason: candidate.reason as string,
-        }))
-        .slice(0, 4)
-    : [];
   const words = filterNovelChoices(
     suggestions(record.words, 'words', 6),
     'words',
@@ -55,7 +37,7 @@ function parseResponse(value: unknown, request: ContextAssistRequest): ContextAs
     request.excludedPhrases,
     4,
   );
-  if (request.generateSuggestions && words.length === 0 && phrases.length === 0 && corrections.length === 0) {
+  if (words.length === 0 && phrases.length === 0) {
     return null;
   }
   const usageRecord = record.usage && typeof record.usage === 'object'
@@ -71,7 +53,7 @@ function parseResponse(value: unknown, request: ContextAssistRequest): ContextAs
       totalTokens: tokenCount('totalTokens'),
     }
     : undefined;
-  return { corrections, words, phrases, ...(usage ? { usage } : {}) };
+  return { words, phrases, ...(usage ? { usage } : {}) };
 }
 
 /**
