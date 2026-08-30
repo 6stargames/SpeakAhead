@@ -215,7 +215,7 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
 
   // Tools must be registered from a component so their lifetime is bound to the
   // React tree - that is what guarantees the AbortController teardown runs.
-  useAacWebMcpTools();
+  useAacWebMcpTools(signedIn);
   useContextAssist(signedIn);
 
   useEffect(() => {

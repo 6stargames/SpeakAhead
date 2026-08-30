@@ -50,6 +50,7 @@ beforeEach(() => {
 
 afterEach(() => {
   container.remove();
+  vi.unstubAllGlobals();
 });
 
 describe('findModelContext', () => {
@@ -249,7 +250,7 @@ describe('AAC context tools', () => {
     return null;
   }
 
-  it('registers the four current context, vocabulary, voice, and theme tools', async () => {
+  it('registers the current context, vocabulary, voice, theme, and loading-copy tools', async () => {
     store.reset();
     render(<AacHarness />);
 
@@ -258,6 +259,7 @@ describe('AAC context tools', () => {
       'set-contextual-vocabulary',
       'set-chatgpt-voice',
       'set-symbol-theme',
+      'create-loading-message',
     ]);
     expect(toolRegistry.get('predict-conversational-phrase')).toBeUndefined();
     expect(toolRegistry.get('expand-semantic-shorthand')).toBeUndefined();
@@ -266,6 +268,7 @@ describe('AAC context tools', () => {
     expect(toolRegistry.get('set-contextual-vocabulary')).toBeDefined();
     expect(toolRegistry.get('set-chatgpt-voice')).toBeDefined();
     expect(toolRegistry.get('set-symbol-theme')).toBeDefined();
+    expect(toolRegistry.get('create-loading-message')).toBeDefined();
 
     await toolRegistry.invoke('set-contextual-vocabulary', {
       words: [
@@ -322,9 +325,37 @@ describe('AAC context tools', () => {
 
     render(<AacHarness />);
 
-    expect(registerTool).toHaveBeenCalledTimes(4);
+    expect(registerTool).toHaveBeenCalledTimes(5);
     const toolNames = registerTool.mock.calls.map(([tool]) => tool.name);
     expect(toolNames).toContain('set-chatgpt-voice');
+    unmount();
+  });
+
+  it('uses the loading-copy WebMCP tool to replace the fallback with fresh text', async () => {
+    store.reset();
+    actions.setSettings({ symbolTheme: 'halo-3' });
+    store.set({
+      asr: { status: 'loading', implementation: 'sherpa-onnx', offline: true },
+    });
+    const fetchMock = vi.fn(async () => Response.json({
+      text: 'Calibrating the comms',
+      usage: { inputTokens: 12, outputTokens: 5, totalTokens: 17 },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<AacHarness />);
+    await act(async () => {
+      await vi.waitFor(() => expect(store.getState().asrLoadingMessage).toBe('Calibrating the comms'));
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/assist/loading-copy', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ theme: 'halo-3' }),
+    }));
+    expect(store.getState().assistUsage).toMatchObject({
+      textRequests: 1,
+      totalTokens: 17,
+    });
     unmount();
   });
 

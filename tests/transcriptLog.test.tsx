@@ -32,6 +32,16 @@ afterEach(() => {
 });
 
 describe('transient chat labels', () => {
+  it('shows the fresh text supplied by the loading-copy WebMCP tool', () => {
+    store.set({ asr: { status: 'loading', implementation: 'sherpa-onnx', offline: true } });
+    actions.setAsrLoadingMessage('Calibrating the comms');
+
+    act(() => root.render(<TranscriptLog symbolTheme="halo-3" />));
+
+    expect(container.querySelector('.listening-bar__label')?.textContent).toBe('Calibrating the comms');
+    expect(container.textContent).not.toContain('Getting ready');
+  });
+
   it('shortens the listening status and removes You said after a few seconds', () => {
     act(() => root.render(<TranscriptLog />));
 
