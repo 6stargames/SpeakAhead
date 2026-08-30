@@ -20,6 +20,15 @@ describe('page-independent transcription bridge', () => {
     expect(worker).toContain('handleDirectFrame(channel, message.samples');
     expect(worker).toContain("return 'speech-start'");
     expect(worker).toContain("return 'speech-end'");
+    expect(worker).toContain('if (state.speaking)');
+    expect(worker).toContain('state.vad.closeUtterance();');
+  });
+
+  it('closes the page fallback gate when the decoder finalises first', async () => {
+    const provider = await source('src/speech/asr/SherpaOnnxAsrProvider.ts');
+    expect(provider).toContain('if (message.final)');
+    expect(provider).toContain('channel.vad.closeUtterance();');
+    expect(provider).toContain('channel.speaking = false;');
   });
 
   it('keeps the established page path as a fallback until the direct bridge acknowledges', async () => {

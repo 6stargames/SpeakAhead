@@ -84,6 +84,20 @@ describe('EnergyVad', () => {
     expect(vad.process(LOUD)).toBeNull();
   });
 
+  it('closes a decoded utterance without forgetting the calibrated room', () => {
+    const vad = new EnergyVad({ minSpeechFrames: 2 });
+    feed(vad, QUIET, 8);
+    const calibratedFloor = vad.noiseFloorDb;
+    feed(vad, LOUD, 2);
+    expect(vad.active).toBe(true);
+
+    vad.closeUtterance();
+
+    expect(vad.active).toBe(false);
+    expect(vad.noiseFloorDb).toBe(calibratedFloor);
+    expect(feed(vad, LOUD, 2)).toContain('speech-start');
+  });
+
   it('applies hysteresis so the gate does not chatter at the threshold', () => {
     const vad = new EnergyVad({ activationDb: 12, releaseDb: 4, minSpeechFrames: 1, hangoverFrames: 20 });
     feed(vad, QUIET, 8);

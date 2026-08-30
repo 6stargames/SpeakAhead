@@ -249,6 +249,17 @@ export class SherpaOnnxAsrProvider implements AsrProvider {
         break;
 
       case 'result':
+        if (message.final) {
+          // The decoder may find an endpoint before the page-side VAD sees
+          // enough quiet. Reset that gate now, otherwise its next frames feed
+          // a new stream made only from the old utterance's noisy tail.
+          const channel = this.#channels.get(message.channel);
+          if (channel) {
+            channel.vad.closeUtterance();
+            channel.speaking = false;
+            channel.preroll = [];
+          }
+        }
         this.events.emit('result', {
           channel: message.channel,
           text: message.text,

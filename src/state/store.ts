@@ -763,6 +763,11 @@ export const actions = {
 
     const existing = existingIndex >= 0 ? state.turns[existingIndex] : undefined;
 
+    // Recognition updates are monotonic. A worker message already in flight
+    // can arrive after this id was finalised; it must not turn the durable chat
+    // bubble back into an interim one while a later endpoint catches up.
+    if (existing?.final && turn.final === false) return existing;
+
     // Spread rather than list every field.
     //
     // Listing them meant `speakerId` and `voice` were simply forgotten when they
@@ -771,7 +776,7 @@ export const actions = {
     // that had been matched perfectly well. TypeScript cannot catch it: both are
     // optional, so omitting them is valid. Spreading makes the safe thing the
     // default - a new optional field carries through without anyone remembering.
-    const merged: Turn = {
+    const mergedUpdate: Turn = {
       ...existing,
       ...turn,
       id: turn.id,
@@ -783,6 +788,20 @@ export const actions = {
       viaRtt: turn.viaRtt ?? existing?.viaRtt ?? false,
       dictated: turn.dictated ?? existing?.dictated ?? false,
     };
+    // Once GPT has confirmed the finished utterance, ordinary recogniser and
+    // speaker-attribution updates may enrich it but can never replace its text
+    // or downgrade its status. Only another explicitly accurate update could
+    // revise it, and applyAccurateTranscription already guards that operation.
+    const merged: Turn = existing?.transcriptionStatus === 'accurate' &&
+      turn.transcriptionStatus !== 'accurate'
+      ? {
+        ...mergedUpdate,
+        text: existing.text,
+        final: true,
+        transcriptionStatus: 'accurate',
+        words: undefined,
+      }
+      : mergedUpdate;
 
     const turns = existingIndex >= 0 ? [...state.turns] : [...state.turns, merged];
     if (existingIndex >= 0) turns[existingIndex] = merged;
@@ -795,9 +814,11 @@ export const actions = {
     return actions.upsertTurn({ id: createId('turn'), source, text, final: true, ...options });
   },
 
-  /** Retract a turn - used when a partner clears an in-progress message. */
+  /** Retract only a partner's unfinished RTT draft, never a settled chat turn. */
   removeTurn(id: string): void {
     const turns = store.getState().turns;
+    const target = turns.find((turn) => turn.id === id);
+    if (!target || target.source !== 'peer' || !target.viaRtt || target.final) return;
     const next = turns.filter((turn) => turn.id !== id);
     if (next.length !== turns.length) store.set({ turns: next });
   },

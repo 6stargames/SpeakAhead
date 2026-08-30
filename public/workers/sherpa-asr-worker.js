@@ -115,6 +115,12 @@ class EnergyVad {
     this.active = false;
     this.calibrationFrames = 0;
   }
+
+  closeUtterance() {
+    this.speechFrames = 0;
+    this.silenceFrames = 0;
+    this.active = false;
+  }
 }
 
 function post(message, transfer) {
@@ -350,6 +356,19 @@ function handleStreamingFrame(channel, samples) {
     }
     recognizer.reset(stream);
     state.lastText = '';
+    // The recogniser and the outer energy gate detect the same boundary by
+    // different signals. When the recogniser wins first, leaving the gate in
+    // `speaking` feeds the trailing room noise into the freshly reset stream.
+    // That creates a second interim turn above the GPT-confirmed one until the
+    // gate eventually closes, which looks exactly like the confirmed message
+    // disappeared and came back minutes later. Close both halves atomically.
+    if (state.speaking) {
+      state.speaking = false;
+      state.preroll = [];
+      // Keep the learned room floor: if the same person continues speaking,
+      // the preroll below can open the next turn without a half-second gap.
+      state.vad.closeUtterance();
+    }
     return;
   }
 

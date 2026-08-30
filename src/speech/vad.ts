@@ -123,4 +123,17 @@ export class EnergyVad {
     this.#calibrationFrames = 0;
     this.#noiseFloorDb = this.#options.noiseFloorFloorDb;
   }
+
+  /**
+   * Start a fresh utterance without forgetting the room calibration.
+   *
+   * A recogniser endpoint can arrive before the energy gate sees silence. In
+   * that case the next speech frame belongs to a new turn, but recalibrating
+   * from scratch would mistake continued speech for room noise and drop it.
+   */
+  closeUtterance(): void {
+    this.#speechFrames = 0;
+    this.#silenceFrames = 0;
+    this.#active = false;
+  }
 }

@@ -375,6 +375,41 @@ describe('accurate audio transcription', () => {
     expect(store.getState().turns[0]).toMatchObject({ transcriptionStatus: 'accurate' });
   });
 
+  it('keeps a GPT-confirmed turn durable through late ONNX updates', () => {
+    actions.upsertTurn({
+      id: 'durable', source: 'user', text: 'I need watter.', final: true, dictated: true,
+      transcriptionStatus: 'checking',
+    });
+    expect(actions.applyAccurateTranscription('durable', 'I need watter.', 'I need water.')).toBe(true);
+
+    // A residual interim from the decoder must not make the settled bubble
+    // disappear while the outer noisy-room gate is still waiting for quiet.
+    actions.upsertTurn({
+      id: 'durable', source: 'user', text: 'need water', final: false, dictated: true,
+    });
+    // Nor may a late local final overwrite the GPT-confirmed wording.
+    actions.upsertTurn({
+      id: 'durable', source: 'user', text: 'Need watter.', final: true, dictated: true,
+      transcriptionStatus: 'local',
+    });
+
+    expect(store.getState().turns).toHaveLength(1);
+    expect(store.getState().turns[0]).toMatchObject({
+      text: 'I need water.',
+      final: true,
+      transcriptionStatus: 'accurate',
+    });
+  });
+
+  it('does not retract a GPT-confirmed dictated turn', () => {
+    actions.upsertTurn({
+      id: 'confirmed-local', source: 'user', text: 'Please help me.', final: true, dictated: true,
+      transcriptionStatus: 'accurate',
+    });
+    actions.removeTurn('confirmed-local');
+    expect(store.getState().turns.map((turn) => turn.id)).toContain('confirmed-local');
+  });
+
   it('refuses a stale GPT result and preserves the newer sentence', () => {
     actions.upsertTurn({
       id: 'stale', source: 'user', text: 'The newer sentence.', final: true, dictated: true,
@@ -404,7 +439,9 @@ describe('turn retraction', () => {
 
   it('removes a turn by id', () => {
     const kept = actions.addTurn('peer', 'Still here.');
-    const retracted = actions.upsertTurn({ id: 'rtt_1', source: 'peer', text: 'half typed', final: false });
+    const retracted = actions.upsertTurn({
+      id: 'rtt_1', source: 'peer', text: 'half typed', final: false, viaRtt: true,
+    });
 
     actions.removeTurn(retracted.id);
 
