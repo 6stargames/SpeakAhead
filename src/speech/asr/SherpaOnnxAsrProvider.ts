@@ -8,7 +8,7 @@ import type { AsrEvents, AsrProvider, EngineInfo } from '../types';
 
 // Version the URL so an older service-worker cache cannot return the script
 // without the cross-origin isolation headers required by the current page.
-const WORKER_URL = '/workers/sherpa-asr-worker.js?coep=v1';
+const WORKER_URL = '/workers/sherpa-asr-worker.js?coep=v2&utterances=v1';
 
 /**
  * Frames retained before speech is confirmed.
@@ -36,6 +36,8 @@ interface ChannelState {
   vad: EnergyVad;
   preroll: Float32Array[];
   speaking: boolean;
+  utteranceSequence: number;
+  activeUtteranceId: number | null;
 }
 
 type WorkerMessage =
@@ -43,6 +45,7 @@ type WorkerMessage =
   | {
       type: 'result';
       channel: CaptureChannel;
+      utteranceId: number;
       text: string;
       final: boolean;
       timestamp: number;
@@ -149,14 +152,15 @@ export class SherpaOnnxAsrProvider implements AsrProvider {
 
     if (transition === 'speech-start') {
       state.speaking = true;
+      const utteranceId = this.#utteranceId(state);
       for (const buffered of state.preroll) {
-        this.#send(frame.channel, buffered);
+        this.#send(frame.channel, buffered, utteranceId);
       }
       state.preroll = [];
     }
 
     if (state.speaking) {
-      this.#send(frame.channel, frame.samples);
+      this.#send(frame.channel, frame.samples, this.#utteranceId(state));
     } else {
       state.preroll.push(frame.samples);
       if (state.preroll.length > PREROLL_FRAMES) state.preroll.shift();
@@ -182,11 +186,21 @@ export class SherpaOnnxAsrProvider implements AsrProvider {
   }
 
   flush(channel: CaptureChannel): void {
-    this.#worker?.postMessage({ type: 'flush', channel });
+    const state = this.#channels.get(channel);
+    this.#worker?.postMessage({
+      type: 'flush',
+      channel,
+      ...(state?.activeUtteranceId ? { utteranceId: state.activeUtteranceId } : {}),
+    });
+    if (state) state.activeUtteranceId = null;
   }
 
   reset(channel: CaptureChannel): void {
-    this.#channelState(channel).vad.reset();
+    const state = this.#channelState(channel);
+    state.vad.reset();
+    state.speaking = false;
+    state.preroll = [];
+    state.activeUtteranceId = null;
     this.#worker?.postMessage({ type: 'reset', channel });
   }
 
@@ -217,20 +231,37 @@ export class SherpaOnnxAsrProvider implements AsrProvider {
 
   // -------------------------------------------------------------------------
 
-  #send(channel: CaptureChannel, samples: Float32Array): void {
+  #send(channel: CaptureChannel, samples: Float32Array, utteranceId: number): void {
     // Copy before transferring: the caller may still hold a reference, and a
     // detached ArrayBuffer surfaces as a baffling zero-length read later.
     const copy = samples.slice();
-    this.#worker?.postMessage({ type: 'frame', channel, samples: copy }, [copy.buffer]);
+    this.#worker?.postMessage(
+      { type: 'frame', channel, utteranceId, samples: copy },
+      [copy.buffer],
+    );
   }
 
   #channelState(channel: CaptureChannel): ChannelState {
     let state = this.#channels.get(channel);
     if (!state) {
-      state = { vad: new EnergyVad(this.#options.vad), preroll: [], speaking: false };
+      state = {
+        vad: new EnergyVad(this.#options.vad),
+        preroll: [],
+        speaking: false,
+        utteranceSequence: 0,
+        activeUtteranceId: null,
+      };
       this.#channels.set(channel, state);
     }
     return state;
+  }
+
+  #utteranceId(state: ChannelState): number {
+    if (state.activeUtteranceId === null) {
+      state.utteranceSequence += 1;
+      state.activeUtteranceId = state.utteranceSequence;
+    }
+    return state.activeUtteranceId;
   }
 
   #onMessage = (event: MessageEvent<WorkerMessage>): void => {
@@ -258,10 +289,12 @@ export class SherpaOnnxAsrProvider implements AsrProvider {
             channel.vad.closeUtterance();
             channel.speaking = false;
             channel.preroll = [];
+            channel.activeUtteranceId = null;
           }
         }
         this.events.emit('result', {
           channel: message.channel,
+          utteranceId: message.utteranceId,
           text: message.text,
           final: message.final,
           timestamp: message.timestamp,

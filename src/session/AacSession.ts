@@ -10,6 +10,7 @@ import type { WordConfidence } from '@/speech/confidence';
 import { speakerEmbedder } from '@/speech/embed/SpeakerEmbedder';
 import { cosineSimilarity, frameTimbre } from '@/speech/timbre';
 import { restorePunctuation } from '@/speech/punctuate';
+import { RecognitionTurnTracker } from '@/speech/recognitionTurns';
 import { requestAccurateTranscription } from '@/speech/gptTranscription';
 import { SpeakerChangeDetector } from '@/speech/speakerChange';
 import { SpeakerTracker } from '@/speech/speakers';
@@ -100,7 +101,7 @@ export class AacSession {
   #tts: TtsProvider = new SpeechSynthesisTtsProvider();
   #peer: PeerSession | null = null;
 
-  #interimTurns = new Map<CaptureChannel, string>();
+  #recognitionTurns = new RecognitionTurnTracker(() => createId('turn'));
   /**
    * Identifier for the message currently being typed.
    *
@@ -437,7 +438,13 @@ export class AacSession {
     this.#observe('asr', provider);
     provider.events.on('error', (error) => actions.notify('error', error.message));
     provider.events.on('result', (result) => {
-      this.#onRecognition(result.channel, result.text, result.final, result.words ?? null);
+      this.#onRecognition(
+        result.channel,
+        result.text,
+        result.final,
+        result.words ?? null,
+        result.utteranceId,
+      );
     });
   }
 
@@ -662,6 +669,7 @@ export class AacSession {
 
   #resetLocalInputState(): void {
     this.#asr.reset('local');
+    this.#recognitionTurns.reset('local');
     this.#changeDetector.reset();
     this.#pendingUtterances = [];
     this.#liveSpeakerId = null;
@@ -678,7 +686,7 @@ export class AacSession {
 
   #resetTabInputState(): void {
     this.#asr.reset('tab');
-    this.#interimTurns.delete('tab');
+    this.#recognitionTurns.reset('tab');
     this.#tabUtteranceAudio = [];
     this.#tabUtteranceSampleRate = 16000;
     this.#tabUtteranceFramesConsidered = 0;
@@ -1069,11 +1077,12 @@ export class AacSession {
     text: string,
     final: boolean,
     words: WordConfidence[] | null = null,
+    utteranceId?: number,
   ): void {
     const trimmed = text.trim();
 
     if (trimmed.length === 0) {
-      if (final) this.#interimTurns.delete(channel);
+      if (final) this.#recognitionTurns.finalize(channel, utteranceId);
       return;
     }
 
@@ -1081,10 +1090,14 @@ export class AacSession {
     // transcription, updated in place as the words firm up. Marked as
     // dictated, because it was heard rather than spoken aloud or sent.
     if (channel === 'local') {
-      let id = this.#interimTurns.get('local');
-      if (!id) {
-        id = createId('turn');
-        this.#interimTurns.set('local', id);
+      const id = this.#recognitionTurns.resolve('local', utteranceId);
+      // Decoder endpointing and the outer VAD can both report the same final
+      // acoustic utterance. Once that stable utterance id is final, any replay
+      // is stale: do not recapture newer audio, enqueue GPT again, or mint a
+      // temporary bubble that visually displaces the confirmed message.
+      if (store.getState().turns.some((turn) => turn.id === id && turn.final)) {
+        this.#recognitionTurns.finalize('local', utteranceId);
+        return;
       }
       // Attribution needs the whole utterance, so the sample is captured
       // at the final result - synchronously, before the next utterance
@@ -1113,15 +1126,15 @@ export class AacSession {
         void this.#attributeCaptured(id, captured);
         if (willCheck) this.#queueAccurateTranscription(id, finalText, captured);
       }
-      if (final) this.#interimTurns.delete('local');
+      if (final) this.#recognitionTurns.finalize('local', utteranceId);
       return;
     }
 
     if (channel === 'tab') {
-      let id = this.#interimTurns.get('tab');
-      if (!id) {
-        id = createId('turn');
-        this.#interimTurns.set('tab', id);
+      const id = this.#recognitionTurns.resolve('tab', utteranceId);
+      if (store.getState().turns.some((turn) => turn.id === id && turn.final)) {
+        this.#recognitionTurns.finalize('tab', utteranceId);
+        return;
       }
       const captured = final ? this.#captureTabUtterance() : null;
       const finalText = final ? restorePunctuation(trimmed) : trimmed;
@@ -1145,7 +1158,7 @@ export class AacSession {
         ...(final ? { transcriptionStatus: willCheck ? 'checking' as const : 'local' as const } : {}),
       });
       if (captured && willCheck) this.#queueAccurateTranscription(id, finalText, captured);
-      if (final) this.#interimTurns.delete('tab');
+      if (final) this.#recognitionTurns.finalize('tab', utteranceId);
       return;
     }
 
@@ -1154,10 +1167,10 @@ export class AacSession {
 
     const source = 'peer';
 
-    let id = this.#interimTurns.get(channel);
-    if (!id) {
-      id = createId('turn');
-      this.#interimTurns.set(channel, id);
+    const id = this.#recognitionTurns.resolve(channel, utteranceId);
+    if (store.getState().turns.some((turn) => turn.id === id && turn.final)) {
+      this.#recognitionTurns.finalize(channel, utteranceId);
+      return;
     }
 
     actions.upsertTurn({
@@ -1172,7 +1185,7 @@ export class AacSession {
 
     if (!final) return;
 
-    this.#interimTurns.delete(channel);
+    this.#recognitionTurns.finalize(channel, utteranceId);
 
     // Suggestions are never generated unprompted any more: the popped-up
     // "on-device" recommendations read as the machine talking out of turn.
@@ -1386,6 +1399,7 @@ export class AacSession {
           // with our own transcription of their synthesised speech.
           this.#peerSendsRtt = true;
           this.#asr.reset('remote');
+          this.#recognitionTurns.reset('remote');
 
           // An empty final message is a retraction: the partner cleared what
           // they were typing, so the line should disappear, not sit there blank.
@@ -1427,6 +1441,7 @@ export class AacSession {
     this.#peerSendsRtt = false;
     this.graph.detachRemoteStream();
     this.#asr.reset('remote');
+    this.#recognitionTurns.reset('remote');
     store.set({ call: 'idle', callHost: false, rttReady: false, peerName: null, peerEmergency: false });
   }
 

@@ -288,6 +288,10 @@ function channelState(channel) {
       vad: new EnergyVad(vadOptions),
       preroll: [],
       speaking: false,
+      utteranceSequence: 0,
+      utteranceId: 0,
+      sourceUtteranceId: null,
+      utteranceOpen: false,
     };
     channels.set(channel, state);
   }
@@ -308,6 +312,34 @@ function freeStream(state) {
     }
   }
   state.stream = null;
+}
+
+/**
+ * Every interim and final result derived from the same acoustic utterance gets
+ * the same monotonic id. Decoder endpointing and the outer VAD can both close
+ * an utterance, so text alone is not a safe identity boundary.
+ */
+function ensureUtterance(state, requestedId) {
+  if (Number.isSafeInteger(requestedId) && requestedId > 0) {
+    if (state.sourceUtteranceId !== requestedId) {
+      state.utteranceSequence += 1;
+      state.utteranceId = state.utteranceSequence;
+      state.sourceUtteranceId = requestedId;
+    }
+    state.utteranceOpen = true;
+    return state.utteranceId;
+  }
+  if (!state.utteranceOpen || state.sourceUtteranceId !== null) {
+    state.utteranceSequence += 1;
+    state.utteranceId = state.utteranceSequence;
+    state.sourceUtteranceId = null;
+    state.utteranceOpen = true;
+  }
+  return state.utteranceId;
+}
+
+function closeUtterance(state) {
+  state.utteranceOpen = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -332,8 +364,9 @@ function tokenEvidence(result) {
   return { tokens, tokenLogProbs: probs };
 }
 
-function handleStreamingFrame(channel, samples) {
+function handleStreamingFrame(channel, samples, requestedUtteranceId) {
   const state = channelState(channel);
+  const utteranceId = ensureUtterance(state, requestedUtteranceId);
   const stream = ensureStream(state);
 
   stream.acceptWaveform(sampleRate, samples);
@@ -348,6 +381,7 @@ function handleStreamingFrame(channel, samples) {
       post({
         type: 'result',
         channel,
+        utteranceId,
         text: text.trim(),
         final: true,
         timestamp: Date.now(),
@@ -356,6 +390,7 @@ function handleStreamingFrame(channel, samples) {
     }
     recognizer.reset(stream);
     state.lastText = '';
+    closeUtterance(state);
     // The recogniser and the outer energy gate detect the same boundary by
     // different signals. When the recogniser wins first, leaving the gate in
     // `speaking` feeds the trailing room noise into the freshly reset stream.
@@ -374,14 +409,15 @@ function handleStreamingFrame(channel, samples) {
 
   if (text !== state.lastText) {
     state.lastText = text;
-    post({ type: 'result', channel, text, final: false, timestamp: Date.now() });
+    post({ type: 'result', channel, utteranceId, text, final: false, timestamp: Date.now() });
   }
 }
 
 /** The VAD said the utterance ended; emit whatever the decoder is holding. */
-function flushStreaming(channel) {
+function flushStreaming(channel, requestedUtteranceId) {
   const state = channelState(channel);
   if (!state.stream) return;
+  const utteranceId = ensureUtterance(state, requestedUtteranceId);
 
   // Tail padding lets the transducer emit its final tokens rather than
   // stranding the last word in the encoder.
@@ -391,10 +427,19 @@ function flushStreaming(channel) {
   const result = recognizer.getResult(state.stream);
   const text = (result?.text ?? '').trim();
   if (text.length > 0) {
-    post({ type: 'result', channel, text, final: true, timestamp: Date.now(), ...tokenEvidence(result) });
+    post({
+      type: 'result',
+      channel,
+      utteranceId,
+      text,
+      final: true,
+      timestamp: Date.now(),
+      ...tokenEvidence(result),
+    });
   }
   recognizer.reset(state.stream);
   state.lastText = '';
+  closeUtterance(state);
 }
 
 // ---------------------------------------------------------------------------
@@ -403,20 +448,22 @@ function flushStreaming(channel) {
 
 const MAX_UTTERANCE_SECONDS = 30;
 
-function handleOfflineFrame(channel, samples) {
+function handleOfflineFrame(channel, samples, requestedUtteranceId) {
   const state = channelState(channel);
+  ensureUtterance(state, requestedUtteranceId);
   const limit = MAX_UTTERANCE_SECONDS * sampleRate;
 
   state.pending.push(samples);
   state.pendingLength += samples.length;
 
   // A stuck VAD must not grow the buffer without bound; decode and restart.
-  if (state.pendingLength >= limit) flushOffline(channel);
+  if (state.pendingLength >= limit) flushOffline(channel, requestedUtteranceId);
 }
 
-function flushOffline(channel) {
+function flushOffline(channel, requestedUtteranceId) {
   const state = channelState(channel);
   if (state.pendingLength === 0) return;
+  const utteranceId = ensureUtterance(state, requestedUtteranceId);
 
   const merged = new Float32Array(state.pendingLength);
   let offset = 0;
@@ -434,23 +481,32 @@ function flushOffline(channel) {
     const result = recognizer.getResult(stream);
     const text = (result?.text ?? '').trim();
     if (text.length > 0) {
-      post({ type: 'result', channel, text, final: true, timestamp: Date.now(), ...tokenEvidence(result) });
+      post({
+        type: 'result',
+        channel,
+        utteranceId,
+        text,
+        final: true,
+        timestamp: Date.now(),
+        ...tokenEvidence(result),
+      });
     }
   } finally {
     if (typeof stream.free === 'function') stream.free();
+    closeUtterance(state);
   }
 }
 
 // ---------------------------------------------------------------------------
 
-function handleRecogniserFrame(channel, samples) {
-  if (mode === 'streaming') handleStreamingFrame(channel, samples);
-  else handleOfflineFrame(channel, samples);
+function handleRecogniserFrame(channel, samples, utteranceId) {
+  if (mode === 'streaming') handleStreamingFrame(channel, samples, utteranceId);
+  else handleOfflineFrame(channel, samples, utteranceId);
 }
 
-function flushRecogniser(channel) {
-  if (mode === 'streaming') flushStreaming(channel);
-  else flushOffline(channel);
+function flushRecogniser(channel, utteranceId) {
+  if (mode === 'streaming') flushStreaming(channel, utteranceId);
+  else flushOffline(channel, utteranceId);
 }
 
 /** VAD and inference both stay in this worker for the direct audio path. */
@@ -502,6 +558,8 @@ function resetChannel(channel) {
   state.lastText = '';
   state.preroll = [];
   state.speaking = false;
+  closeUtterance(state);
+  state.sourceUtteranceId = null;
   state.vad.reset();
 }
 
@@ -545,7 +603,7 @@ self.onmessage = async (event) => {
       case 'frame': {
         if (!ready) return;
         const samples = message.samples;
-        handleRecogniserFrame(message.channel, samples);
+        handleRecogniserFrame(message.channel, samples, message.utteranceId);
         break;
       }
 
@@ -560,7 +618,7 @@ self.onmessage = async (event) => {
 
       case 'flush':
         if (!ready) return;
-        flushRecogniser(message.channel);
+        flushRecogniser(message.channel, message.utteranceId);
         break;
 
       case 'reset': {

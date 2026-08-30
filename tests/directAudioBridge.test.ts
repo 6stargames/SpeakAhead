@@ -22,6 +22,9 @@ describe('page-independent transcription bridge', () => {
     expect(worker).toContain("return 'speech-end'");
     expect(worker).toContain('if (state.speaking)');
     expect(worker).toContain('state.vad.closeUtterance();');
+    expect(worker).toContain('utteranceSequence');
+    expect(worker).toContain('utteranceId');
+    expect(worker).toContain('closeUtterance(state);');
   });
 
   it('closes the page fallback gate when the decoder finalises first', async () => {
@@ -29,6 +32,8 @@ describe('page-independent transcription bridge', () => {
     expect(provider).toContain('if (message.final)');
     expect(provider).toContain('channel.vad.closeUtterance();');
     expect(provider).toContain('channel.speaking = false;');
+    expect(provider).toContain('utteranceId: message.utteranceId');
+    expect(provider).toContain('coep=v2&utterances=v1');
   });
 
   it('keeps the established page path as a fallback until the direct bridge acknowledges', async () => {

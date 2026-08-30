@@ -18,6 +18,8 @@ export interface EngineInfo {
 
 export interface RecognitionResult {
   readonly channel: CaptureChannel;
+  /** Stable sequence number for every result from one acoustic utterance. */
+  readonly utteranceId?: number;
   readonly text: string;
   readonly final: boolean;
   readonly refined?: boolean;
