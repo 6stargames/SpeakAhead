@@ -10,3 +10,14 @@ export function helloKittyControlDirection(audience: ThemeAudienceGender): strin
   }
   return 'Style the functional icon itself with rounded white kawaii surfaces and balanced blue, red, lilac, teal, and gold accents. Use simple cat-ear corner or stitched-toy details without bows, ribbons, clothing, characters, or separate objects.';
 }
+
+/** Keep character-free Hello Kitty backgrounds aligned with the selected audience. */
+export function helloKittyWallpaperDirection(audience: ThemeAudienceGender): string {
+  if (audience === 'male') {
+    return 'Use an abstract kawaii atmosphere made only from deep and cobalt blue, teal, white, restrained red, and warm gold colour fields, rounded gradients, tiny light speckles, and plush-looking texture. The overall colour balance must feel boyish and confident, matching the cap, hoodie, and sneaker styling used elsewhere. Do not use a pink wash, bows, ribbons, feminine motifs, characters, mascots, clothing, or objects.';
+  }
+  if (audience === 'female') {
+    return 'Use an abstract kawaii atmosphere made only from balanced pink, red, lilac, soft blue, and white colour fields, rounded gradients, tiny light speckles, and plush-looking texture. Keep the result polished and feminine without depicting characters, mascots, bows, clothing, or objects.';
+  }
+  return 'Use an abstract kawaii atmosphere made only from balanced blue, teal, lilac, restrained red, gold, and white colour fields, rounded gradients, tiny light speckles, and plush-looking texture. Do not let pink dominate, and do not depict bows, ribbons, gender-coded motifs, characters, mascots, clothing, or objects.';
+}

@@ -1,7 +1,10 @@
 import { env, type R2Bucket } from 'cloudflare:workers';
 import { normalizedChoice } from '@/assist/choiceAvailability';
 import { isPictureTheme, type PictureTheme } from '@/assist/pictureThemes';
-import { helloKittyControlDirection } from '@/assist/themeGenderDirections';
+import {
+  helloKittyControlDirection,
+  helloKittyWallpaperDirection,
+} from '@/assist/themeGenderDirections';
 import { themeImageCacheOwner, themeImageCacheScope } from '@/assist/themeImageSharing';
 import {
   json,
@@ -235,6 +238,12 @@ function controlThemeDirection(input: ThemeIconInput): string {
     : CONTROL_THEME_DIRECTION[input.theme];
 }
 
+function wallpaperThemeDirection(input: ThemeIconInput): string {
+  return input.theme === 'hello-kitty'
+    ? helloKittyWallpaperDirection(input.audienceGender)
+    : WALLPAPER_THEME_DIRECTION[input.theme];
+}
+
 function audienceDirection(input: ThemeIconInput): string {
   if (input.theme === 'halo-3') {
     if (input.audienceGender === 'female') {
@@ -298,9 +307,13 @@ function themeStyleRevision(
   // Earlier subject sheets were keyed by gender but their prompts omitted the
   // gender direction. Do not revive those incorrect pictures after this fix.
   if (input.theme === 'hello-kitty') {
-    revisions.push(input.presentation === 'control-icon'
-      ? 'audience-contract-v2'
-      : 'audience-contract-v1');
+    revisions.push(
+      input.presentation === 'control-icon'
+        ? 'audience-contract-v2'
+        : input.presentation === 'wallpaper-background'
+          ? 'ambient-audience-v2'
+          : 'audience-contract-v1',
+    );
   } else if (input.audienceGender !== 'neutral') {
     revisions.push('audience-contract-v1');
   }
@@ -759,7 +772,7 @@ export async function POST(request: Request): Promise<Response> {
     const prompt = input.presentation === 'wallpaper-background'
       ? [
         'Create one continuous panoramic abstract wallpaper divider for a wide accessible communication interface.',
-        WALLPAPER_THEME_DIRECTION[input.theme],
+        wallpaperThemeDirection(input),
         audienceDirection(input),
         'It must coordinate visually with the selected theme while remaining purely atmospheric and decorative.',
         `Use this internal label only to choose the abstract motion, rhythm, and colour mood: ${JSON.stringify(input.items[0]?.text ?? '')}. Do not illustrate any noun from the label literally.`,
