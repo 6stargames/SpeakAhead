@@ -1,6 +1,7 @@
 import { env, type R2Bucket } from 'cloudflare:workers';
 import { normalizedChoice } from '@/assist/choiceAvailability';
 import { isPictureTheme, type PictureTheme } from '@/assist/pictureThemes';
+import { helloKittyControlDirection } from '@/assist/themeGenderDirections';
 import { themeImageCacheOwner, themeImageCacheScope } from '@/assist/themeImageSharing';
 import {
   json,
@@ -183,7 +184,7 @@ const CONTROL_THEME_DIRECTION: Record<PictureTheme, string> = {
   'baby-shark':
     'Use bubbly undersea colours, rounded ocean textures, and subtle wave or fin details integrated into the icon without adding a shark or sea-creature character.',
   'hello-kitty':
-    'Use soft kawaii colours, rounded toy-like linework, and a small bow accent integrated into the icon without adding a kitten or character.',
+    'Use soft kawaii colours and rounded toy-like linework without adding a kitten or character.',
   claymation: 'Render the icon itself as chunky tactile plasticine with subtle fingerprint texture and soft studio highlights.',
   'pixel-art': 'Render the icon itself as crisp 16-bit pixel art with a limited vibrant palette and pixel-perfect dark outline.',
   'halo-3': 'Render the icon itself in the unmistakable Halo 3 HUD language: a crisp tactical glyph, titanium surfaces with varied multiplayer armour-colour accents, luminous cyan shield energy, and restrained golden highlights. Keep it readable and do not add a character.',
@@ -226,6 +227,12 @@ function themeDirection(input: ThemeIconInput): string {
     return 'Use a sweet Hello Kitty themed world for a female user: original rounded white kitten girls with simple kawaii faces, bows and playful feminine outfits, soft pink, red, lilac, and balanced pastel accents, and friendly toy-like styling.';
   }
   return 'Use a gender-inclusive Hello Kitty themed world with original rounded white kitten characters, simple kawaii faces, friendly toy-like styling, and a balanced pastel palette. Follow any gender named in an individual label exactly; do not make every character the standard bow-wearing girl design.';
+}
+
+function controlThemeDirection(input: ThemeIconInput): string {
+  return input.theme === 'hello-kitty'
+    ? helloKittyControlDirection(input.audienceGender)
+    : CONTROL_THEME_DIRECTION[input.theme];
 }
 
 function audienceDirection(input: ThemeIconInput): string {
@@ -284,13 +291,17 @@ function cacheAudience(
 }
 
 function themeStyleRevision(
-  input: Pick<ThemeIconInput, 'theme' | 'audienceGender'>,
+  input: Pick<ThemeIconInput, 'theme' | 'presentation' | 'audienceGender'>,
 ): string | undefined {
   const revisions: string[] = [];
   if (input.theme === 'halo-3') revisions.push('multiplayer-colours-v2');
   // Earlier subject sheets were keyed by gender but their prompts omitted the
   // gender direction. Do not revive those incorrect pictures after this fix.
-  if (input.theme === 'hello-kitty' || input.audienceGender !== 'neutral') {
+  if (input.theme === 'hello-kitty') {
+    revisions.push(input.presentation === 'control-icon'
+      ? 'audience-contract-v2'
+      : 'audience-contract-v1');
+  } else if (input.audienceGender !== 'neutral') {
     revisions.push('audience-contract-v1');
   }
   return revisions.length > 0 ? revisions.join('+') : undefined;
@@ -773,7 +784,7 @@ export async function POST(request: Request): Promise<Response> {
       : input.presentation === 'control-icon'
         ? [
           'Create one clean square functional interface icon for an accessible communication control.',
-          CONTROL_THEME_DIRECTION[input.theme],
+          controlThemeDirection(input),
           audienceDirection(input),
           'Faithfully redraw the supplied symbol itself in that art style. Its original silhouette and function must remain unmistakable at 32 pixels.',
           'Do not put the icon beside a mascot, character, face, scene, or prop. Do not show anyone holding, wearing, pointing at, or presenting the icon.',
