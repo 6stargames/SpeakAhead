@@ -11,9 +11,10 @@ import { NoticeStack } from '@/components/NoticeStack';
 import { OutputRibbon } from '@/components/OutputRibbon';
 import { PhraseBoard, PHRASE_THEME_ITEMS } from '@/components/PhraseBoard';
 import {
+  GENDER_AWARE_SETTINGS_THEME_ITEMS,
   SettingsPanel,
-  SETTINGS_THEME_ITEMS,
   THEME_PREVIEW_PRELOADS,
+  VOICE_GENDER_THEME_ITEMS,
 } from '@/components/SettingsPanel';
 import { SuggestionStrip } from '@/components/SuggestionStrip';
 import { TranscriptLog } from '@/components/TranscriptLog';
@@ -186,7 +187,20 @@ export function App({ chatGPTIdentity }: { chatGPTIdentity?: ChatGPTIdentity | n
     },
     { items: visibleVoicePortraitItems, batchSize: 3, singleSubject: true },
     { items: visibleVoiceBadgeItems, batchSize: 1, singleSubject: true },
-    { items: SETTINGS_THEME_ITEMS, batchSize: 9, singleSubject: true },
+    // These three choices depict their own explicit genders. Keep one stable
+    // mixed set instead of recolouring all three when the selection changes.
+    {
+      items: VOICE_GENDER_THEME_ITEMS,
+      batchSize: 3,
+      singleSubject: true,
+      genderAware: false,
+    },
+    {
+      items: GENDER_AWARE_SETTINGS_THEME_ITEMS,
+      batchSize: 9,
+      singleSubject: true,
+      genderAware: true,
+    },
     { items: CORE_THEME_ITEMS },
     { items: PHRASE_THEME_ITEMS },
     { items: favorites },

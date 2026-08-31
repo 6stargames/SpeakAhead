@@ -1,6 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetThemedSymbolMemoryForTests } from '@/assist/themeIcons';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { actions, store } from '@/state/store';
 
@@ -9,6 +10,7 @@ let root: Root;
 
 beforeEach(() => {
   store.reset();
+  resetThemedSymbolMemoryForTests();
   actions.setSettings({ symbolTheme: 'emoji', voiceGender: 'neutral', voiceId: 'chatgpt:alloy' });
   container = document.createElement('div');
   document.body.append(container);
@@ -18,6 +20,8 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  resetThemedSymbolMemoryForTests();
+  vi.unstubAllGlobals();
 });
 
 function clickVoiceType(label: string): void {
@@ -109,5 +113,57 @@ describe('Settings voice type', () => {
     expect(stack?.querySelector('button[aria-label="Emoji"]')).toBeNull();
     expect(viewMore?.getAttribute('aria-pressed')).toBeNull();
     expect(viewMore?.querySelector('.option__selected-check')).toBeNull();
+  });
+
+  it('keeps one mixed gender-choice picture set while other setting art follows the user', async () => {
+    const generatedBodies: Record<string, unknown>[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = typeof init?.body === 'string'
+        ? JSON.parse(init.body) as Record<string, unknown>
+        : null;
+      if (body?.lookupOnly === true) return Response.json({ groups: [] });
+      if (body) generatedBodies.push(body);
+      return new Response(new Uint8Array(256), {
+        status: 200,
+        headers: {
+          'content-type': 'image/png',
+          'x-aac-sprite-columns': '3',
+          'x-aac-sprite-rows': '3',
+          'x-aac-sprite-index': '0',
+          'x-aac-image-source': 'generated',
+        },
+      });
+    }));
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:settings-theme'),
+    });
+    act(() => actions.setSettings({ symbolTheme: 'hello-kitty', voiceGender: 'male' }));
+    act(() => root.render(<SettingsPanel signedIn symbolTheme="hello-kitty" />));
+
+    const generatedFor = (prefix: string) => generatedBodies.filter((body) => (
+      Array.isArray(body.items) && body.items.some((item) => (
+        typeof item === 'object' && item !== null &&
+        String((item as { text?: unknown }).text ?? '').startsWith(prefix)
+      ))
+    ));
+
+    await vi.waitFor(() => {
+      expect(generatedFor('What kind of voice?')).toHaveLength(1);
+      expect(generatedFor('How fast should it talk?').some((body) => (
+        body.audienceGender === 'male'
+      ))).toBe(true);
+    });
+    expect(generatedFor('What kind of voice?')[0]?.audienceGender).toBe('neutral');
+
+    clickVoiceType('Female');
+    await vi.waitFor(() => {
+      expect(generatedFor('How fast should it talk?').some((body) => (
+        body.audienceGender === 'female'
+      ))).toBe(true);
+    });
+
+    expect(generatedFor('What kind of voice?')).toHaveLength(1);
+    expect(generatedFor('What kind of voice?')[0]?.audienceGender).toBe('neutral');
   });
 });

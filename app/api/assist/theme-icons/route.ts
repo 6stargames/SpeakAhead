@@ -152,7 +152,7 @@ const THEME_DIRECTION: Record<PictureTheme, string> = {
   'baby-shark':
     'Use a cheerful Baby Shark undersea cartoon theme: cute smiling shark pups, friendly sea creatures, bubbly ocean shapes, and a bright blue, coral, and sunny-yellow palette.',
   'hello-kitty':
-    'Use a sweet Hello Kitty theme: cute rounded white kitten characters with red or pink bows, simple kawaii faces, soft pastel pink accents, and friendly toy-like props.',
+    'Use a sweet Hello Kitty theme with cute rounded white kitten characters, simple kawaii faces, friendly toy-like styling, and clean pastel colour blocking.',
   claymation:
     'Use tactile plasticine claymation art, subtle fingerprint texture, soft studio lighting, chunky rounded shapes, and a clean neutral background.',
   'pixel-art':
@@ -217,6 +217,17 @@ const WALLPAPER_THEME_DIRECTION: Record<PictureTheme, string> = {
   'mid-century': 'Use an abstract mid-century atmosphere made only from simplified 1950s geometry, flat gouache colour blocks, and confident editorial rhythm.',
 };
 
+function themeDirection(input: ThemeIconInput): string {
+  if (input.theme !== 'hello-kitty') return THEME_DIRECTION[input.theme];
+  if (input.audienceGender === 'male') {
+    return 'Use a recognisable Hello Kitty themed world reimagined for a male user: original rounded white kitten boys with simple kawaii faces, boyish caps, hoodies, jackets, sneakers, or bow ties, and confident blue, teal, red, gold, or green accents. Do not use head bows, pink dresses, skirts, or the standard girl character design.';
+  }
+  if (input.audienceGender === 'female') {
+    return 'Use a sweet Hello Kitty themed world for a female user: original rounded white kitten girls with simple kawaii faces, bows and playful feminine outfits, soft pink, red, lilac, and balanced pastel accents, and friendly toy-like styling.';
+  }
+  return 'Use a gender-inclusive Hello Kitty themed world with original rounded white kitten characters, simple kawaii faces, friendly toy-like styling, and a balanced pastel palette. Follow any gender named in an individual label exactly; do not make every character the standard bow-wearing girl design.';
+}
+
 function audienceDirection(input: ThemeIconInput): string {
   if (input.theme === 'halo-3') {
     if (input.audienceGender === 'female') {
@@ -245,6 +256,13 @@ function audienceDirection(input: ThemeIconInput): string {
     : 'Tune the colour balance and visual energy for a female user in an inclusive, confident way without adding people, characters, or stereotypes.';
 }
 
+function explicitItemGenderDirection(input: ThemeIconInput): string | null {
+  const namesGender = input.items.some((item) => /\b(?:male|female|neutral)\b/i.test(item.text));
+  return namesGender
+    ? 'A label that explicitly says Male, Female, or Neutral controls only its own subject. Honor each such label independently and never make every cell match the currently selected gender.'
+    : null;
+}
+
 function bytesToHex(bytes: Uint8Array): string {
   return [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
@@ -265,8 +283,17 @@ function cacheAudience(
   return input.audienceGender === 'neutral' ? undefined : input.audienceGender;
 }
 
-function themeStyleRevision(input: Pick<ThemeIconInput, 'theme'>): string | undefined {
-  return input.theme === 'halo-3' ? 'multiplayer-colours-v2' : undefined;
+function themeStyleRevision(
+  input: Pick<ThemeIconInput, 'theme' | 'audienceGender'>,
+): string | undefined {
+  const revisions: string[] = [];
+  if (input.theme === 'halo-3') revisions.push('multiplayer-colours-v2');
+  // Earlier subject sheets were keyed by gender but their prompts omitted the
+  // gender direction. Do not revive those incorrect pictures after this fix.
+  if (input.theme === 'hello-kitty' || input.audienceGender !== 'neutral') {
+    revisions.push('audience-contract-v1');
+  }
+  return revisions.length > 0 ? revisions.join('+') : undefined;
 }
 
 async function savedImageKey(owner: string, input: ThemeIconInput): Promise<string> {
@@ -717,6 +744,7 @@ export async function POST(request: Request): Promise<Response> {
     const numbered = input.items
       .map((item, index) => `${index + 1}. ${JSON.stringify(item.text)} represented by ${item.symbol}`)
       .join('\n');
+    const itemGenderDirection = explicitItemGenderDirection(input);
     const prompt = input.presentation === 'wallpaper-background'
       ? [
         'Create one continuous panoramic abstract wallpaper divider for a wide accessible communication interface.',
@@ -732,7 +760,7 @@ export async function POST(request: Request): Promise<Response> {
       : input.presentation === 'button-background'
       ? [
         'Create one continuous panoramic background for a wide accessible interface banner or return button.',
-        THEME_DIRECTION[input.theme],
+        themeDirection(input),
         audienceDirection(input),
         'Decorate the full perimeter and outer thirds as one cohesive scene, not as two matching icons placed at opposite ends.',
         'Keep the broad middle area calm, uncluttered, and visually dark or soft so a short white button label will remain easy to read over it.',
@@ -757,7 +785,9 @@ export async function POST(request: Request): Promise<Response> {
         : input.singleSubject && input.items.length === 1
           ? [
         'Create one clean square icon for an accessible communication control.',
-        THEME_DIRECTION[input.theme],
+        themeDirection(input),
+        audienceDirection(input),
+        ...(itemGenderDirection ? [itemGenderDirection] : []),
         'Show exactly one centered primary character or object with generous transparent padding on every side.',
         'Keep the complete subject inside the canvas. Do not crop ears, bows, hands, fins, props, or decorative details.',
         'Use a bold silhouette, high contrast, simple shapes, and no text, letters, numbers, borders, logos, or watermarks.',
@@ -767,7 +797,9 @@ export async function POST(request: Request): Promise<Response> {
           : [
         `Create a clean ${dimensions.columns} by ${dimensions.rows} sprite sheet for an accessible communication board.`,
         'Every cell is equal, square, transparent, and contains exactly one centered icon with generous inner padding.',
-        THEME_DIRECTION[input.theme],
+        themeDirection(input),
+        audienceDirection(input),
+        ...(itemGenderDirection ? [itemGenderDirection] : []),
         ...(input.singleSubject
           ? ['Each cell must contain one single primary character or object, never a pair, group, duplicate, or second scene.']
           : []),

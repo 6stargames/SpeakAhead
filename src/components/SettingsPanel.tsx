@@ -10,10 +10,13 @@ import { session } from '@/session/AacSession';
 import { isChatGptVoiceId, voiceChoicesForGender } from '@/speech/tts/voiceChoices';
 import { actions, selectSettings, useStore, type SymbolTheme } from '@/state/store';
 
-export const SETTINGS_THEME_ITEMS = [
+export const VOICE_GENDER_THEME_ITEMS = [
   { text: 'What kind of voice? Male', symbol: '👨' },
   { text: 'What kind of voice? Female', symbol: '👩' },
   { text: 'What kind of voice? Neutral', symbol: '🧑' },
+] as const;
+
+export const GENDER_AWARE_SETTINGS_THEME_ITEMS = [
   { text: 'How fast should it talk? Slower', symbol: '🐢' },
   { text: 'How fast should it talk? Normal', symbol: '🚶' },
   { text: 'How fast should it talk? Faster', symbol: '🏃' },
@@ -24,6 +27,11 @@ export const SETTINGS_THEME_ITEMS = [
   { text: 'How noisy is your room? Very noisy', symbol: '📢' },
   { text: 'Easier-to-see colours? On', symbol: '🌕' },
   { text: 'Easier-to-see colours? Off', symbol: '🌑' },
+] as const;
+
+export const SETTINGS_THEME_ITEMS = [
+  ...VOICE_GENDER_THEME_ITEMS,
+  ...GENDER_AWARE_SETTINGS_THEME_ITEMS,
 ] as const;
 
 export const THEME_PREVIEW_ITEMS: Record<SymbolTheme, { text: string; symbol: string }> = {
@@ -73,6 +81,7 @@ function OptionRow<T>({
   value,
   options,
   symbolTheme,
+  genderAware = true,
   onChange,
 }: {
   label: string;
@@ -81,6 +90,7 @@ function OptionRow<T>({
   value: T;
   options: { label: string; value: T; hint?: string; symbol?: string }[];
   symbolTheme: SymbolTheme;
+  genderAware?: boolean;
   onChange: (value: T) => void;
 }): JSX.Element {
   const themeItems = options.map((option) => ({
@@ -90,6 +100,7 @@ function OptionRow<T>({
   const themedSymbols = useThemedSymbols(themeItems, symbolTheme, {
     batchSize: Math.min(9, themeItems.length),
     singleSubject: true,
+    genderAware,
   });
   // Numeric presets highlight the nearest option, so a value persisted from
   // an older build still shows a selection instead of nothing.
@@ -252,6 +263,7 @@ export function SettingsPanel({
         hint="Then pick the exact voice on the 🎙️ Voice page."
         value={settings.voiceGender}
         symbolTheme={displayedTheme}
+        genderAware={false}
         options={[
           { label: 'Male', value: 'male' as const, symbol: '👨' },
           { label: 'Female', value: 'female' as const, symbol: '👩' },
