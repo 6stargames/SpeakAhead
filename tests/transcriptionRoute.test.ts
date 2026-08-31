@@ -45,6 +45,8 @@ describe('accurate transcription route', () => {
       expect(form.get('response_format')).toBe('json');
       expect(form.get('prompt')).toContain('Please call Danny.');
       expect(form.get('prompt')).toContain('Please call Daniel.');
+      expect(form.get('prompt')).not.toContain('On-device draft');
+      expect(form.get('prompt')).not.toContain('Recent AAC conversation');
       return Response.json({ text: 'Please call Danny.' });
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -124,5 +126,39 @@ describe('accurate transcription route', () => {
       'gpt-4o-mini-transcribe',
       'gpt-4o-transcribe',
     ]);
+  });
+
+  it('rejects a private context echo and retries with the next model', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fetchMock = vi.fn(async () => fetchMock.mock.calls.length === 1
+      ? Response.json({
+        text: 'On-device draft: I cannot believe it worked. Recent AAC conversation: Older private words.',
+      })
+      : Response.json({ text: 'I cannot believe it worked.' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await POST(transcriptionRequest(
+      'Older private words from the previous conversation.',
+      'I cannot believe it worked.',
+    ));
+
+    expect(response.status, await response.clone().text()).toBe(200);
+    await expect(response.json()).resolves.toEqual({ text: 'I cannot believe it worked.' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('never returns private context when every model echoes its hints', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+      text: 'On-device draft: New words. Recent AAC conversation: This is private prior context.',
+    })));
+
+    const response = await POST(transcriptionRequest(
+      'This is private prior context from a completed turn.',
+      'New words.',
+    ));
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({ error: 'transcription_invalid_response' });
   });
 });

@@ -1,3 +1,5 @@
+import { isTranscriptionContextLeak } from '@/speech/transcriptionSafety';
+
 export interface AccurateTranscriptionResult {
   readonly text: string;
   readonly usage?: {
@@ -117,7 +119,10 @@ export async function requestAccurateTranscription(
       signal,
     });
     if (!response.ok) return null;
-    return parseResult(await response.json());
+    const result = parseResult(await response.json());
+    return result && !isTranscriptionContextLeak(result.text, context, draft)
+      ? result
+      : null;
   } catch {
     return null;
   }

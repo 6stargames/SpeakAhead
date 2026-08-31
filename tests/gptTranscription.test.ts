@@ -73,6 +73,19 @@ describe('accurate transcription client', () => {
     )).resolves.toBeNull();
   });
 
+  it('keeps the local transcript if a response exposes private context hints', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({
+      text: 'On-device draft: New words. Recent AAC conversation: Private older words.',
+    })));
+
+    await expect(requestAccurateTranscription(
+      [new Float32Array([0.1])],
+      16_000,
+      'Private older words from the conversation.',
+      'New words.',
+    )).resolves.toBeNull();
+  });
+
   it('raises quiet speech without clipping loud samples', async () => {
     const wav = encodeMonoWav([new Float32Array([0.01, -0.01, 0.02])], 16_000);
     const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
