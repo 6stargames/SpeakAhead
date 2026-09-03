@@ -14,8 +14,8 @@ narrative: what was decided, what broke, and what we would do differently.
 
 | | |
 | --- | --- |
-| **Live app** | https://webmcpaac--vpx4900.us-east4.hosted.app/ |
-| **Repository** | https://github.com/6stargames/webmcp_AAC |
+| **Live app** | https://speakahead.net |
+| **Repository** | https://github.com/6stargames/SpeakAhead |
 | **Model host** | https://webmcp-aac-models.web.app (Firebase Hosting) |
 | **GCP project** | `vpx4900` (project number `1092534567115`) |
 | **App Hosting backend** | `webmcpaac`, region `us-east4` |
@@ -32,7 +32,7 @@ narrative: what was decided, what broke, and what we would do differently.
 - Live waveform tinted by the detected voice
 - Two-peer calls with Real-Time Text over HTTP long-polling
 - Cloudflare TURN with a confirmed `relay` candidate
-- All five WebMCP tools registered; both spec dialects supported
+- All four WebMCP tools registered; both spec dialects supported
 - Both of the specification's WebMCP acceptance examples reproduce verbatim
 
 ### What is not verified

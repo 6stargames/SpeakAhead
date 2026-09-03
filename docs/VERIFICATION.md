@@ -11,7 +11,7 @@ hardware or a browser flag is listed at the end, honestly.
 ## Automated
 
 ```bash
-npm run verify          # typecheck + 123 unit tests + BIPA egress audit
+npm run verify          # typecheck + automated tests + BIPA egress audit
 ```
 
 | Specification protocol | How it is checked |

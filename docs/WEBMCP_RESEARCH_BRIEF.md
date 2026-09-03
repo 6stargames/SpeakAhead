@@ -213,12 +213,12 @@ These are entry points, not a reading list. Follow what is useful and ignore wha
 
 **The live application** — runs in any Chromium browser. Allow the microphone when asked; the first
 load downloads around 300 MB of speech models and then works offline.
-<https://webmcpaac--vpx4900.us-east4.hosted.app/>
+<https://speakahead.net>
 
 **Our source code** — the WebMCP integration is in `src/webmcp/`. Start with `tools.ts` for the tool
 definitions and `useWebMCPTool.ts` for the registration lifecycle. The `docs/` folder explains the
 privacy and accessibility constraints in more depth than this brief does.
-<https://github.com/6stargames/webmcp_AAC>
+<https://github.com/6stargames/SpeakAhead>
 
 **Chrome's WebMCP documentation** — the most current description of the imperative API. Check the
 dates on anything you find here; this has changed more than once.

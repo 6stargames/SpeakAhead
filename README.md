@@ -5,6 +5,29 @@ Speech recognition and synthesis start on the device; WebRTC carries the
 synthesised voice and real-time text to a conversation partner; and an AI agent
 can propose what to say next through [WebMCP](https://developer.chrome.com/docs/ai/webmcp/imperative-api).
 
+## Demo
+
+- [Watch the narrated demo](https://www.youtube.com/watch?v=iHD89XHAULU)
+- [Try the live application](https://speakahead.net)
+
+## How SpeakAhead uses WebMCP
+
+SpeakAhead registers four imperative WebMCP tools from
+[`src/webmcp/tools.ts`](src/webmcp/tools.ts):
+
+- `get-conversation-context` gives an agent the recent conversation and current
+  composition so its help is grounded in what was actually said.
+- `set-contextual-vocabulary` prepares six useful words and four short replies
+  for the user's Words and Phrases boards.
+- `set-symbol-theme` changes the device's button-picture style after an explicit
+  user request.
+- `set-chatgpt-voice` selects the OpenAI voice used after the user taps **Speak**.
+
+The tools register through `document.modelContext`, retain compatibility with
+the earlier `navigator.modelContext` API, and unregister cleanly when their React
+components unmount. Agent suggestions are staged in the interface; they never
+speak automatically or bypass the user's final choice.
+
 **Rebuilding this, or picking it up cold?** Start with
 [docs/PROJECT_LOG.md](docs/PROJECT_LOG.md) — the build order, the decisions that
 are not obvious, and every trap that cost real time.
@@ -70,7 +93,7 @@ npm run verify   # typecheck + tests + BIPA egress audit
 ```
 
 The specification's confirmation protocols are written as manual rituals. Those
-that can be checked mechanically are: 123 unit tests, a static egress audit, and
+that can be checked mechanically are: over 400 automated tests, a static egress audit, and
 a live **Diagnostics** panel in the app showing compliance rules, the routing
 matrix and the environment. What still needs hands and two rooms is listed in
 [docs/VERIFICATION.md](docs/VERIFICATION.md).
@@ -141,3 +164,7 @@ Deeper detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 - **WebMCP is experimental.** The integration accepts both the
   `document.modelContext` and `navigator.modelContext` dialects and degrades to
   a no-op elsewhere.
+
+## License
+
+SpeakAhead is available under the [MIT License](LICENSE).
